@@ -273,6 +273,7 @@ export default function System() {
   const [history, setHistory] = useState([]);
   const [services, setServices] = useState([]);
   const [processes, setProcesses] = useState([]);
+  const [totalCpu, setTotalCpu] = useState(null);
   const [procSort, setProcSort] = useState('mem');
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
@@ -335,6 +336,7 @@ export default function System() {
         if (!alive) return;
         setServices(Array.isArray(s) ? s : s?.services || []);
         setProcesses(s?.processes || []);
+        setTotalCpu(s?.total_cpu != null ? s.total_cpu : null);
       } catch (e) {
         // 失败时保留已有数据
       }
@@ -490,6 +492,14 @@ export default function System() {
                 <span className="process-cpu">{(Number(p.cpu) || 0).toFixed(1)}%</span>
               </div>
             ))}
+            <div className="process-total">
+              <span className="process-name">合计（全部进程）</span>
+              <span className="process-pid" />
+              <span className="process-mem" />
+              <span className="process-cpu">
+                {totalCpu == null ? '—' : Number(totalCpu).toFixed(1) + '%'}
+              </span>
+            </div>
           </div>
         </div>
       )}

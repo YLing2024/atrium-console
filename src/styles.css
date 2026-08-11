@@ -1675,6 +1675,23 @@ button {
   border-bottom: none;
 }
 
+/* 进程排行底部合计行：顶部细线分隔，CPU 合计突出显示 */
+.process-total {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 0 0;
+  border-top: 1px solid var(--hairline);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.process-total .process-cpu {
+  color: var(--accent);
+  font-weight: 700;
+}
+
 .process-name {
   flex: 1;
   min-width: 0;
