@@ -302,7 +302,7 @@ export default function System() {
     };
   }, []);
 
-  // 历史采样：每 5 秒拉一次，供趋势图使用
+  // 历史采样：每 1 秒拉一次，供趋势图使用
   useEffect(() => {
     let timer;
     let alive = true;
@@ -318,14 +318,14 @@ export default function System() {
     }
 
     load();
-    timer = setInterval(load, 5000);
+    timer = setInterval(load, 1000);
     return () => {
       alive = false;
       clearInterval(timer);
     };
   }, []);
 
-  // 服务状态：每 10 秒拉一次
+  // 服务状态：每 1 秒拉一次
   useEffect(() => {
     let timer;
     let alive = true;
@@ -342,15 +342,16 @@ export default function System() {
     }
 
     load();
-    timer = setInterval(load, 10000);
+    timer = setInterval(load, 1000);
     return () => {
       alive = false;
       clearInterval(timer);
     };
   }, []);
 
-  // 软件版本（本地命令）：加载即渲染
+  // 软件版本（本地命令）：每 1 秒拉一次
   useEffect(() => {
+    let timer;
     let alive = true;
 
     async function load() {
@@ -364,8 +365,10 @@ export default function System() {
     }
 
     load();
+    timer = setInterval(load, 1000);
     return () => {
       alive = false;
+      clearInterval(timer);
     };
   }, []);
 
