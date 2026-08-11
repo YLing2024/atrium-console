@@ -1711,6 +1711,64 @@ button {
   color: var(--muted);
 }
 
+/* 列表表头（进程排行 / 软件版本共用）：muted 小字 + 底部细线，列宽对齐数据行 */
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 0 6px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.list-head .dot-spacer {
+  width: 8px;
+  flex-shrink: 0;
+}
+
+.list-head .process-name,
+.list-head .version-name {
+  font-weight: 600;
+}
+
+.list-head .process-pid,
+.list-head .process-mem,
+.list-head .process-cpu {
+  font-size: 10px;
+  font-family: inherit;
+  color: inherit;
+}
+
+.version-list-head {
+  gap: 10px;
+  padding-right: 2px;
+  padding-left: 2px;
+}
+
+.version-list-head .version-name {
+  min-width: 90px;
+}
+
+.version-list-head .version-cat {
+  border: none;
+  background: none;
+  padding: 0 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: inherit;
+}
+
+.version-list-head .version-val {
+  margin-left: auto;
+  font-family: inherit;
+  font-size: 10px;
+}
+
 /* ============ 趋势图（纯 SVG） ============ */
 .chart-wrap {
   position: relative;

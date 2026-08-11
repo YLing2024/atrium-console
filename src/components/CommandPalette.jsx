@@ -5,13 +5,13 @@ import { getAction } from '../commandActions.js';
  * Ctrl+K 命令面板：全局命令列表。
  * ↑↓ 选择 / Enter 执行 / Esc 关闭，样式与现有 modal 一致。
  */
-export default function CommandPalette({ onClose, onSwitchTab, onShowPwd, onLogout }) {
+export default function CommandPalette({ onClose, onSwitchTab, onShowReset, onLogout }) {
   const [index, setIndex] = useState(0);
   const listRef = useRef(null);
 
   // 通过 ref 读取最新 props，命令列表可稳定 useMemo，避免 keydown 监听反复重建
-  const propsRef = useRef({ onClose, onSwitchTab, onShowPwd, onLogout });
-  propsRef.current = { onClose, onSwitchTab, onShowPwd, onLogout };
+  const propsRef = useRef({ onClose, onSwitchTab, onShowReset, onLogout });
+  propsRef.current = { onClose, onSwitchTab, onShowReset, onLogout };
 
   const items = useMemo(
     () => [
@@ -19,7 +19,7 @@ export default function CommandPalette({ onClose, onSwitchTab, onShowPwd, onLogo
       { id: 'system', label: '跳到系统页', hint: '打开系统监控', run: () => propsRef.current.onSwitchTab('system') },
       { id: 'blog', label: '跳到博客页', hint: '管理博客文章', run: () => propsRef.current.onSwitchTab('blog') },
       { id: 'chat', label: '跳到聊天页', hint: '回到聊天界面', run: () => propsRef.current.onSwitchTab('chat') },
-      { id: 'pwd', label: '修改密码', hint: '更新访问密码', run: () => propsRef.current.onShowPwd() },
+      { id: 'pwd', label: '重置验证器', hint: '更换 TOTP 验证器', run: () => propsRef.current.onShowReset() },
       { id: 'copy', label: '复制当前会话ID', hint: '复制到剪贴板', run: () => getAction('copySessionId')?.() },
       { id: 'logout', label: '退出登录', hint: '安全退出', run: () => propsRef.current.onLogout() }
     ],

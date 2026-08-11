@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
-import { logout, clearToken } from '../api.js';
+import { logout } from '../api.js';
 import { closeSocket } from '../ws.js';
 import { getTheme, effectiveTheme, toggleTheme } from '../theme.js';
 import Chat from './Chat.jsx';
 import System from './System.jsx';
 import BlogAdmin from './BlogAdmin.jsx';
-import ChangePassword from './ChangePassword.jsx';
+import ResetTotp from './ResetTotp.jsx';
 import CommandPalette from './CommandPalette.jsx';
 
 export default function Main() {
   const [tab, setTab] = useState(() => localStorage.getItem('admin_tab') || 'chat');
-  const [showPwd, setShowPwd] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const [toast, setToast] = useState('');
   const [theme, setTheme] = useState(() => effectiveTheme(getTheme()));
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -22,15 +22,8 @@ export default function Main() {
     localStorage.setItem('admin_tab', t); // 持久化：刷新后停留在上次 Tab
   }
 
-  function handlePwdClose(changed) {
-    setShowPwd(false);
-    if (changed) {
-      // 改密成功后服务端已注销所有会话：先关 WS 再清本地 token 并强制回登录页（与 Flutter 端一致）
-      closeSocket();
-      clearToken();
-      setToast('密码已修改，请重新登录');
-      setTimeout(() => (location.href = '/admin/'), 800);
-    }
+  function handleResetClose() {
+    setShowReset(false);
   }
 
   // 退出登录：先主动关闭 WS（避免 token 已清后连接残留 / 误触发重连），再走 api 的 logout
@@ -122,10 +115,10 @@ export default function Main() {
                 className="dropdown-item"
                 onClick={() => {
                   setMenuOpen(false);
-                  setShowPwd(true);
+                  setShowReset(true);
                 }}
               >
-                修改密码
+                重置验证器
               </button>
               <button
                 className="dropdown-item danger"
@@ -155,12 +148,12 @@ export default function Main() {
         </div>
       </div>
 
-      {showPwd && <ChangePassword onClose={handlePwdClose} />}
+      {showReset && <ResetTotp onClose={handleResetClose} />}
       {cmdOpen && (
         <CommandPalette
           onClose={() => setCmdOpen(false)}
           onSwitchTab={switchTab}
-          onShowPwd={() => setShowPwd(true)}
+          onShowReset={() => setShowReset(true)}
           onLogout={handleLogout}
         />
       )}

@@ -64,9 +64,14 @@ export function totpSetup() {
   return request('/api/admin/totp/setup', { method: 'POST' });
 }
 
-// TOTP 重置（需已登录），返回 { secret, otpauthUri }
+// TOTP 重置第一阶段（需已登录）：生成 pending secret，返回 { secret, otpauthUri, expiresIn }
 export function totpReset() {
   return request('/api/admin/totp/reset', { method: 'POST' });
+}
+
+// TOTP 重置第二阶段（需已登录）：用 pending secret 生成的新验证码确认转正
+export function totpResetConfirm(code) {
+  return request('/api/admin/totp/confirm', { method: 'POST', body: { code } });
 }
 
 // 系统信息

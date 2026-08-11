@@ -13,6 +13,12 @@ function fmtBytes(n) {
   return v.toFixed(1) + ' ' + units[i];
 }
 
+function fmtMB(mb) {
+  if (mb == null || !Number.isFinite(Number(mb))) return '—';
+  const v = Number(mb);
+  return (Number.isInteger(v) ? v : v.toFixed(1)) + ' MB';
+}
+
 function fmtRate(bps) {
   if (bps == null || !isFinite(bps)) return '—';
   return fmtBytes(bps) + '/s';
@@ -460,6 +466,11 @@ export default function System() {
       <div className="services-block">
         <h3 className="block-title">软件版本</h3>
         <div className="version-list">
+          <div className="list-head version-list-head">
+            <span className="version-name">软件</span>
+            <span className="version-cat">类别</span>
+            <span className="version-val">版本</span>
+          </div>
           {versions.map((v) => (
             <div className="version-row" key={v.name}>
               <span className="version-name">{v.name}</span>
@@ -492,13 +503,20 @@ export default function System() {
             </div>
           </div>
           <div className="process-list">
+            <div className="list-head">
+              <span className="dot-spacer" />
+              <span className="process-name">进程</span>
+              <span className="process-pid">PID</span>
+              <span className="process-mem">内存</span>
+              <span className="process-cpu">CPU</span>
+            </div>
             {sortedProcesses.map((p) => (
               <div className="process-row" key={p.pid}>
                 <span className={`service-dot ${services.find((s) => s.pid === p.pid)?.status === 'down' ? 'down' : 'up'}`} />
                 <span className="process-name">{p.name}</span>
                 <span className="process-pid">{p.pid}</span>
-                <span className="process-mem">{Number(p.mem_mb) || 0}</span>
-                <span className="process-cpu">{Number(p.cpu) || 0}%</span>
+                <span className="process-mem">{fmtMB(p.mem_mb)}</span>
+                <span className="process-cpu">{(Number(p.cpu) || 0).toFixed(1)}%</span>
               </div>
             ))}
           </div>
