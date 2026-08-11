@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import QRCode from 'qrcode';
 import { totpReset, totpResetConfirm } from '../api.js';
 
 // 标准 TOTP 重置流程（两阶段）：
@@ -12,6 +13,15 @@ export default function ResetTotp({ onClose }) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const qrRef = useRef(null);
+
+  useEffect(() => {
+    if (step === 'uri' && uri && qrRef.current) {
+      QRCode.toCanvas(qrRef.current, uri, { width: 180, margin: 1 }, (err) => {
+        if (err) setError('二维码生成失败');
+      });
+    }
+  }, [step, uri]);
 
   async function startReset() {
     if (loading) return;
@@ -67,6 +77,25 @@ export default function ResetTotp({ onClose }) {
           <p className="muted" style={{ fontSize: 12, lineHeight: 1.6 }}>
             在身份验证器中添加下方条目，然后输入 App 生成的新验证码完成确认。
           </p>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              marginBottom: 8
+            }}
+          >
+            <canvas
+              ref={qrRef}
+              style={{
+                width: 180,
+                height: 180,
+                border: '1px solid var(--border)',
+                borderRadius: 4,
+                padding: 10,
+                background: '#fff'
+              }}
+            />
+          </div>
           <code
             className="muted"
             style={{

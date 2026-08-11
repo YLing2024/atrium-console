@@ -602,7 +602,7 @@ export default function BlogAdmin() {
       )}
 
       <div className="blog-foot">
-        <a href="/" target="_blank" rel="noreferrer">
+        <a href={`/blog/${form.slug || ''}`} target="_blank" rel="noreferrer">
           在 /blog 查看
         </a>
       </div>
