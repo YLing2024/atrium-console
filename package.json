@@ -1,0 +1,22 @@
+{
+  "name": "admin-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "个人网站 Admin 管理后台前端：网页端聊天 + 系统监控",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.13",
+    "marked": "^12.0.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.8"
+  }
+}
