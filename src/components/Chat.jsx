@@ -825,11 +825,7 @@ export default function Chat({ active = true }) {
 
       // admin.external_message：admin-server 广播的微信等外部平台新消息（独立处理，不走流式逻辑）
       if (type === 'admin.external_message') {
-        const text = typeof payload.text === 'string' ? payload.text : '';
-        const plat =
-          typeof payload.platform === 'string' && payload.platform ? payload.platform : '微信';
-        showToast(`「${plat}」收到新消息：${text.slice(0, 40) || '（无文本消息）'}`, 4000);
-        if (!activeRef.current) return; // 不在聊天 Tab：仅提示，不刷新
+        if (!activeRef.current) return; // 不在聊天 Tab：不刷新
         const chatId = payload.chat_id;
         // chat_id 匹配：为空 / 当前存储长 id 包含 chat_id（微信 chat_id 是 session key 的一部分）
         const isCurrent =
