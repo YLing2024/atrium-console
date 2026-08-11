@@ -493,6 +493,63 @@ export default function Chat({ active = true }) {
   titleOverridesRef.current = titleOverrides;
   const showScrollBtnRef = useRef(false);
   const stickToBottomRef = useRef(true); // 是否钉在底部：新内容到达时自动跟随（用户上翻阅读时不打扰）
+  const externalPollRef = useRef(null); // 外部消息（微信等）回复轮询定时器
+
+  // 停止外部消息回复轮询（切会话 / 新通知 / 轮询达成停止条件时调用）
+  const stopExternalPoll = useCallback(() => {
+    if (externalPollRef.current) {
+      clearInterval(externalPollRef.current);
+      externalPollRef.current = null;
+    }
+  }, []);
+
+  // 刷新当前会话消息（session.resume）：成功且仍处于该会话时写回消息与短 id，可选回调观察结果
+  const resumeCurrent = useCallback((storedId, cb) => {
+    rpc('session.resume', { session_id: storedId })
+      .then((data) => {
+        if (currentStoredIdRef.current !== storedId) return;
+        const newId = data && (data.session_id || data.sessionId || data.resumed || storedId);
+        if (newId && newId !== currentIdRef.current) {
+          setCurrentId(newId);
+          currentIdRef.current = newId;
+        }
+        const list = toMessages(data.messages || data);
+        setMessages(list);
+        if (cb) cb(data, list);
+      })
+      .catch(() => {});
+  }, []);
+
+  // 刷新当前会话消息（session.resume → setMessages）：sessions.changed / external_message 共用。
+  // 仅当前存在会话（currentStoredIdRef 非空）时生效；流式/忙碌守卫由调用方负责。
+  const refreshCurrentSession = useCallback(() => {
+    const storedId = currentStoredIdRef.current;
+    if (!storedId) return;
+    resumeCurrent(storedId);
+  }, [resumeCurrent]);
+
+  // 启动轮询等待外部消息（微信）回复落定：每 2.5s resume 一次。
+  // 微信回复的流式在 gateway，Web 端不可见，轮询直接刷新即可。
+  // 停止条件：最后一条消息是 assistant 且非流式（无 streaming 标记），或 30 秒上限（12 次）。
+  const startExternalPoll = useCallback((storedId) => {
+    stopExternalPoll(); // 新通知重复触发时先停止旧轮询
+    let count = 0;
+    const tick = () => {
+      if (count >= 12 || currentStoredIdRef.current !== storedId) return stopExternalPoll();
+      count++;
+      resumeCurrent(storedId, (data, list) => {
+        const rawArr = Array.isArray(data) ? data : (data && (data.messages || data.list)) || [];
+        const lastRaw = rawArr[rawArr.length - 1];
+        const last = list[list.length - 1];
+        const streamingMarked =
+          !!lastRaw &&
+          (lastRaw.streaming || lastRaw.is_streaming || lastRaw.isStreaming || lastRaw.status === 'streaming');
+        // 最后一条已是 assistant 且无流式标记：回复已落定，停止轮询
+        if (last && last.role === 'assistant' && !streamingMarked) stopExternalPoll();
+      });
+    };
+    externalPollRef.current = setInterval(tick, 2500);
+  }, [resumeCurrent, stopExternalPoll]);
 
   const scrollToBottom = useCallback((smooth) => {
     const el = listRef.current;
@@ -632,14 +689,15 @@ export default function Chat({ active = true }) {
     return () => root.removeEventListener('click', onClick);
   }, []);
 
-  // 卸载清理：滚动 rAF 与行 ResizeObserver
+  // 卸载清理：滚动 rAF、行 ResizeObserver 与外部消息轮询
   useEffect(() => {
     return () => {
       if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
       rowObsRef.current.forEach((ro) => ro.disconnect());
       rowObsRef.current.clear();
+      stopExternalPoll();
     };
-  }, []);
+  }, [stopExternalPoll]);
 
   // 输入框自动增高：多行草稿时随内容增长（最高 140px，超出后内部滚动）；发送清空后自动回落
   useEffect(() => {
@@ -773,27 +831,29 @@ export default function Chat({ active = true }) {
         showToast(`「${plat}」收到新消息：${text.slice(0, 40) || '（无文本消息）'}`, 4000);
         if (!activeRef.current) return; // 不在聊天 Tab：仅提示，不刷新
         const chatId = payload.chat_id;
-        // chat_id 无法匹配时视为当前会话
+        // chat_id 匹配：为空 / 当前存储长 id 包含 chat_id（微信 chat_id 是 session key 的一部分）
         const isCurrent =
-          !chatId || chatId === currentIdRef.current || chatId === currentStoredIdRef.current;
+          !chatId || (!!currentStoredIdRef.current && currentStoredIdRef.current.includes(chatId));
         if (!isCurrent) {
           refreshSessions(); // 其他会话：只刷新会话列表
           return;
         }
-        // 当前会话：自动刷新历史。流式/提交中不刷新，避免覆盖进行中的流式气泡
-        if (streamingRef.current || busyRef.current || !currentStoredIdRef.current) return;
+        // 当前会话：立即刷新历史（复用 refreshCurrentSession）+ 启动轮询等待微信回复落定。
+        // 流式/提交中不立即刷新，避免覆盖进行中的流式气泡；轮询直接刷（微信流式在 gateway，Web 端不可见）
         const storedId = currentStoredIdRef.current;
-        rpc('session.resume', { session_id: storedId })
-          .then((data) => {
-            if (currentStoredIdRef.current !== storedId) return;
-            const newId = data && (data.session_id || data.sessionId || data.resumed || storedId);
-            if (newId && newId !== currentIdRef.current) {
-              setCurrentId(newId);
-              currentIdRef.current = newId;
-            }
-            setMessages(toMessages(data.messages || data));
-          })
-          .catch(() => {});
+        if (!storedId) return;
+        if (!streamingRef.current && !busyRef.current) {
+          refreshCurrentSession();
+        }
+        startExternalPoll(storedId); // 每 2.5s 一次，回复落定或 30s（12 次）后停止
+        return;
+      }
+
+      // sessions.changed：Hermes serve 在会话变化时广播（用户消息/回复完成归一化触发，2 秒合并）。
+      // 当前会话非流式 → refreshCurrentSession() 刷新消息；流式中不刷，避免打断自身流式。
+      if (type === 'sessions.changed') {
+        if (streamingRef.current || busyRef.current) return;
+        refreshCurrentSession();
         return;
       }
 
@@ -853,7 +913,7 @@ export default function Chat({ active = true }) {
         }
       }
     },
-    [refreshSessions]
+    [refreshSessions, refreshCurrentSession, startExternalPoll]
   );
 
   // 轻提示：自动消失（可选时长，默认 2500ms）
@@ -1243,6 +1303,7 @@ export default function Chat({ active = true }) {
     setPendingQueue([]);
     setBusy(false);
     busyRef.current = false;
+    stopExternalPoll(); // 切换会话：停止旧的微信回复轮询
     setSidebarOpen(false); // 移动端：选完会话自动收起抽屉
     stickToBottomRef.current = true; // 切会话后历史落到底部
     const prevStoredId = currentStoredIdRef.current;
