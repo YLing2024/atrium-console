@@ -466,21 +466,21 @@ export default function System() {
         )}
       </div>
 
-      <div className="services-block">
-        <h3 className="block-title">软件版本</h3>
-        <div className="version-list">
-          <div className="list-head version-list-head">
-            <span className="version-name">软件</span>
-            <span className="version-cat">类别</span>
-            <span className="version-val">版本</span>
-          </div>
-          {versions.map((v) => (
-            <div className="version-row" key={v.name}>
-              <span className="version-name">{v.name}</span>
-              <span className="version-cat muted">{v.category}</span>
-              <span className={`version-val ${v.ok ? '' : 'version-bad'}`}>{v.version}</span>
-            </div>
-          ))}
+      <div className="trend-block">
+        <h3 className="block-title">趋势</h3>
+        <div className="cards">
+          <Card title="CPU / 内存（%）">
+            <Legend series={CPU_SERIES} data={history} />
+            <LineChart data={history} series={CPU_SERIES} yMax={100} yLabel="%" />
+          </Card>
+          <Card title="网速（/s）">
+            <Legend series={NET_SERIES} data={history} />
+            <LineChart data={history} series={NET_SERIES} />
+          </Card>
+          <Card title="磁盘 I/O（/s）">
+            <Legend series={IO_SERIES} data={history} />
+            <LineChart data={history} series={IO_SERIES} />
+          </Card>
         </div>
       </div>
 
@@ -526,21 +526,21 @@ export default function System() {
         </div>
       )}
 
-      <div className="trend-block">
-        <h3 className="block-title">趋势</h3>
-        <div className="cards">
-          <Card title="CPU / 内存（%）">
-            <Legend series={CPU_SERIES} data={history} />
-            <LineChart data={history} series={CPU_SERIES} yMax={100} yLabel="%" />
-          </Card>
-          <Card title="网速（/s）">
-            <Legend series={NET_SERIES} data={history} />
-            <LineChart data={history} series={NET_SERIES} />
-          </Card>
-          <Card title="磁盘 I/O（/s）">
-            <Legend series={IO_SERIES} data={history} />
-            <LineChart data={history} series={IO_SERIES} />
-          </Card>
+      <div className="services-block">
+        <h3 className="block-title">软件版本</h3>
+        <div className="version-list">
+          <div className="list-head version-list-head">
+            <span className="version-name">软件</span>
+            <span className="version-cat">类别</span>
+            <span className="version-val">版本</span>
+          </div>
+          {versions.map((v) => (
+            <div className="version-row" key={v.name}>
+              <span className="version-name">{v.name}</span>
+              <span className="version-cat muted">{v.category}</span>
+              <span className={`version-val ${v.ok ? '' : 'version-bad'}`}>{v.version}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
