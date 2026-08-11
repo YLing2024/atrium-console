@@ -438,6 +438,11 @@ export default function System() {
               <span className="version-name">{v.name}</span>
               <span className="version-cat muted">{v.category}</span>
               <span className={`version-val ${v.ok ? '' : 'version-bad'}`}>{v.version}</span>
+              <span className="version-latest muted">{v.latest}</span>
+              {v.latest && v.latest !== '—' &&
+                (v.upToDate
+                  ? <span className="version-badge version-ok" title="已是最新版本">✓ 最新</span>
+                  : <span className="version-badge version-up" title={`可更新至 ${v.latest}`}>⬆ 可更新</span>)}
             </div>
           ))}
         </div>
