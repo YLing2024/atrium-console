@@ -84,7 +84,7 @@ export function getServices() {
   return request('/api/admin/services');
 }
 
-// 软件版本监控
+// 软件版本监控（仅本地当前版本，秒回）
 export function getVersions() {
   return request('/api/admin/versions');
 }

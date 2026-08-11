@@ -267,6 +267,7 @@ export default function System() {
   const [history, setHistory] = useState([]);
   const [services, setServices] = useState([]);
   const [processes, setProcesses] = useState([]);
+  const [procSort, setProcSort] = useState('mem');
   const [versions, setVersions] = useState([]);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
@@ -318,18 +319,17 @@ export default function System() {
     };
   }, []);
 
-  // 服务状态 + 软件版本：每 10 秒拉一次
+  // 服务状态：每 10 秒拉一次
   useEffect(() => {
     let timer;
     let alive = true;
 
     async function load() {
       try {
-        const [s, v] = await Promise.all([getServices(), getVersions()]);
+        const s = await getServices();
         if (!alive) return;
         setServices(Array.isArray(s) ? s : s?.services || []);
         setProcesses(s?.processes || []);
-        setVersions(v?.list || []);
       } catch (e) {
         // 失败时保留已有数据
       }
@@ -340,6 +340,26 @@ export default function System() {
     return () => {
       alive = false;
       clearInterval(timer);
+    };
+  }, []);
+
+  // 软件版本（本地命令）：加载即渲染
+  useEffect(() => {
+    let alive = true;
+
+    async function load() {
+      try {
+        const v = await getVersions();
+        if (!alive) return;
+        setVersions(v?.list || []);
+      } catch (e) {
+        // 失败时保留已有数据
+      }
+    }
+
+    load();
+    return () => {
+      alive = false;
     };
   }, []);
 
@@ -364,6 +384,13 @@ export default function System() {
     : cpu.loadavg != null
       ? String(cpu.loadavg)
       : '—';
+
+  // 进程排行：按当前排序字段（内存 mem_mb / CPU cpu）降序
+  const sortedProcesses = [...processes].sort((a, b) => {
+    const av = Number(procSort === 'mem' ? a.mem_mb : a.cpu) || 0;
+    const bv = Number(procSort === 'mem' ? b.mem_mb : b.cpu) || 0;
+    return bv - av;
+  });
 
   return (
     <div className="system">
@@ -438,11 +465,6 @@ export default function System() {
               <span className="version-name">{v.name}</span>
               <span className="version-cat muted">{v.category}</span>
               <span className={`version-val ${v.ok ? '' : 'version-bad'}`}>{v.version}</span>
-              <span className="version-latest muted">{v.latest}</span>
-              {v.latest && v.latest !== '—' &&
-                (v.upToDate
-                  ? <span className="version-badge version-ok" title="已是最新版本">✓ 最新</span>
-                  : <span className="version-badge version-up" title={`可更新至 ${v.latest}`}>⬆ 可更新</span>)}
             </div>
           ))}
         </div>
@@ -450,23 +472,35 @@ export default function System() {
 
       {processes.length > 0 && (
         <div className="services-block">
-          <h3 className="block-title">进程 · 内存排行</h3>
+          <div className="proc-head">
+            <h3 className="block-title">进程排行</h3>
+            <div className="proc-sort">
+              <button
+                type="button"
+                className={'proc-sort-btn' + (procSort === 'mem' ? ' active' : '')}
+                onClick={() => setProcSort('mem')}
+              >
+                按内存
+              </button>
+              <button
+                type="button"
+                className={'proc-sort-btn' + (procSort === 'cpu' ? ' active' : '')}
+                onClick={() => setProcSort('cpu')}
+              >
+                按 CPU
+              </button>
+            </div>
+          </div>
           <div className="process-list">
-            {(() => {
-              const maxMem = Math.max(...processes.map((p) => p.mem_mb || 0), 1);
-              return processes.map((p) => (
-                <div className="process-row" key={p.pid}>
-                  <span className={`service-dot ${services.find((s) => s.pid === p.pid)?.status === 'down' ? 'down' : 'up'}`} />
-                  <span className="process-name">{p.name}</span>
-                  <span className="process-pid muted">pid {p.pid}</span>
-                  <span className="process-cpu muted">{p.cpu ?? 0}%</span>
-                  <div className="process-bar">
-                    <div className="process-bar-fill" style={{ width: `${((p.mem_mb || 0) / maxMem) * 100}%` }} />
-                  </div>
-                  <span className="process-mem">{p.mem_mb ?? 0} MB</span>
-                </div>
-              ));
-            })()}
+            {sortedProcesses.map((p) => (
+              <div className="process-row" key={p.pid}>
+                <span className={`service-dot ${services.find((s) => s.pid === p.pid)?.status === 'down' ? 'down' : 'up'}`} />
+                <span className="process-name">{p.name}</span>
+                <span className="process-pid">{p.pid}</span>
+                <span className="process-mem">{Number(p.mem_mb) || 0}</span>
+                <span className="process-cpu">{Number(p.cpu) || 0}%</span>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -3,7 +3,7 @@ import { getToken, setToken } from './api.js';
 import Login from './components/Login.jsx';
 import Main from './components/Main.jsx';
 
-// 从 URL 提取认证中心回跳的 token：优先 fragment #token=xxx，其次 query ?token=
+// 从 URL 提取认证中心回跳的 token：OAuth2 风格 query ?token=（fragment 保留兜底）
 function tokenFromUrl() {
   const frag = /^#token=([^&]+)/.exec(location.hash);
   if (frag) return decodeURIComponent(frag[1]);
