@@ -28,7 +28,6 @@ export default function VersionPanel({ active }) {
     <div className="system">
       <div className="system-head">
         <h2>软件版本</h2>
-        <span className="muted">进入本页时加载一次</span>
       </div>
 
       {error && <div className="error">{error}</div>}
