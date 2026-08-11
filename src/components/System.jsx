@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getSystem, getSystemHistory, getServices, getVersions } from '../api.js';
+import { getSystem, getSystemHistory, getServices } from '../api.js';
 
 function fmtBytes(n) {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -274,7 +274,6 @@ export default function System() {
   const [services, setServices] = useState([]);
   const [processes, setProcesses] = useState([]);
   const [procSort, setProcSort] = useState('mem');
-  const [versions, setVersions] = useState([]);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
 
@@ -349,29 +348,6 @@ export default function System() {
     };
   }, []);
 
-  // 软件版本（本地命令）：每 1 秒拉一次
-  useEffect(() => {
-    let timer;
-    let alive = true;
-
-    async function load() {
-      try {
-        const v = await getVersions();
-        if (!alive) return;
-        setVersions(v?.list || []);
-      } catch (e) {
-        // 失败时保留已有数据
-      }
-    }
-
-    load();
-    timer = setInterval(load, 1000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
-
   if (!data) {
     return (
       <div className="system">
@@ -394,8 +370,11 @@ export default function System() {
       ? String(cpu.loadavg)
       : '—';
 
-  // 进程排行：按当前排序字段（内存 mem_mb / CPU cpu）降序
+  // 进程排行：按名称升序（拼音/字符串），按内存 mem_mb / CPU cpu 降序
   const sortedProcesses = [...processes].sort((a, b) => {
+    if (procSort === 'name') {
+      return String(a.name).localeCompare(String(b.name), 'zh');
+    }
     const av = Number(procSort === 'mem' ? a.mem_mb : a.cpu) || 0;
     const bv = Number(procSort === 'mem' ? b.mem_mb : b.cpu) || 0;
     return bv - av;
@@ -466,29 +445,18 @@ export default function System() {
         )}
       </div>
 
-      <div className="trend-block">
-        <h3 className="block-title">趋势</h3>
-        <div className="cards">
-          <Card title="CPU / 内存（%）">
-            <Legend series={CPU_SERIES} data={history} />
-            <LineChart data={history} series={CPU_SERIES} yMax={100} yLabel="%" />
-          </Card>
-          <Card title="网速（/s）">
-            <Legend series={NET_SERIES} data={history} />
-            <LineChart data={history} series={NET_SERIES} />
-          </Card>
-          <Card title="磁盘 I/O（/s）">
-            <Legend series={IO_SERIES} data={history} />
-            <LineChart data={history} series={IO_SERIES} />
-          </Card>
-        </div>
-      </div>
-
       {processes.length > 0 && (
         <div className="services-block">
           <div className="proc-head">
             <h3 className="block-title">进程排行</h3>
             <div className="proc-sort">
+              <button
+                type="button"
+                className={'proc-sort-btn' + (procSort === 'name' ? ' active' : '')}
+                onClick={() => setProcSort('name')}
+              >
+                按名称
+              </button>
               <button
                 type="button"
                 className={'proc-sort-btn' + (procSort === 'mem' ? ' active' : '')}
@@ -526,21 +494,21 @@ export default function System() {
         </div>
       )}
 
-      <div className="services-block">
-        <h3 className="block-title">软件版本</h3>
-        <div className="version-list">
-          <div className="list-head version-list-head">
-            <span className="version-name">软件</span>
-            <span className="version-cat">类别</span>
-            <span className="version-val">版本</span>
-          </div>
-          {versions.map((v) => (
-            <div className="version-row" key={v.name}>
-              <span className="version-name">{v.name}</span>
-              <span className="version-cat muted">{v.category}</span>
-              <span className={`version-val ${v.ok ? '' : 'version-bad'}`}>{v.version}</span>
-            </div>
-          ))}
+      <div className="trend-block">
+        <h3 className="block-title">趋势</h3>
+        <div className="cards">
+          <Card title="CPU / 内存（%）">
+            <Legend series={CPU_SERIES} data={history} />
+            <LineChart data={history} series={CPU_SERIES} yMax={100} yLabel="%" />
+          </Card>
+          <Card title="网速（/s）">
+            <Legend series={NET_SERIES} data={history} />
+            <LineChart data={history} series={NET_SERIES} />
+          </Card>
+          <Card title="磁盘 I/O（/s）">
+            <Legend series={IO_SERIES} data={history} />
+            <LineChart data={history} series={IO_SERIES} />
+          </Card>
         </div>
       </div>
     </div>

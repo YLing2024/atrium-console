@@ -5,6 +5,7 @@ import { getTheme, effectiveTheme, toggleTheme } from '../theme.js';
 import Chat from './Chat.jsx';
 import System from './System.jsx';
 import BlogAdmin from './BlogAdmin.jsx';
+import VersionPanel from './VersionPanel.jsx';
 import ResetTotp from './ResetTotp.jsx';
 import CommandPalette from './CommandPalette.jsx';
 
@@ -83,6 +84,12 @@ export default function Main() {
             系统
           </button>
           <button
+            className={'tab' + (tab === 'version' ? ' active' : '')}
+            onClick={() => switchTab('version')}
+          >
+            版本
+          </button>
+          <button
             className={'tab' + (tab === 'blog' ? ' active' : '')}
             onClick={() => switchTab('blog')}
           >
@@ -142,6 +149,9 @@ export default function Main() {
         </div>
         <div className="pane" hidden={tab !== 'system'}>
           <System />
+        </div>
+        <div className="pane" hidden={tab !== 'version'}>
+          <VersionPanel active={tab === 'version'} />
         </div>
         <div className="pane" hidden={tab !== 'blog'}>
           <BlogAdmin />
