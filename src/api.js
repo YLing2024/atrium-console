@@ -1,8 +1,10 @@
 /**
- * REST API 封装：token 存取、统一请求、401 自动跳登录页
+ * REST API 封装：认证中心 token（auth_token）存取、统一请求、
+ * 401 自动清 token 并跳认证中心（SSO）
  */
 
-const TOKEN_KEY = 'admin_token';
+const TOKEN_KEY = 'auth_token';
+const AUTH_CENTER_URL = 'https://auth.zhangyunling.cn/auth';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -16,13 +18,19 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-// 清除 token 并回到登录页
-export function logout() {
-  clearToken();
-  location.href = '/admin/';
+// 携带回跳地址跳转认证中心
+export function redirectToSso() {
+  const redirect = encodeURIComponent(location.href);
+  location.href = `${AUTH_CENTER_URL}?redirect=${redirect}`;
 }
 
-async function request(path, options = {}) {
+// 清除 token 并跳转认证中心
+export function logout() {
+  clearToken();
+  redirectToSso();
+}
+
+async function request(path, options = {}, reqOpts = {}) {
   const headers = { ...(options.headers || {}) };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -35,18 +43,30 @@ async function request(path, options = {}) {
   }
 
   const res = await fetch(path, opts);
-  if (res.status === 401) {
-    logout(); // 凭证失效，跳回登录页
+  const data = await res.json().catch(() => ({}));
+  // 非登录相关接口 401：凭证失效 → 清 token 并跳认证中心
+  if (res.status === 401 && !reqOpts.skip401) {
+    logout(); // 凭证失效，跳回认证中心
     throw new Error('未登录或登录已过期');
   }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.code = data.code; // 附带给业务用的错误码（如 totp_setup_required / rate_limited）
+    err.status = res.status;
+    err.retryAfter = data.retryAfter; // 429 限速剩余秒数
+    throw err;
+  }
   return data;
 }
 
-// 登录：返回 { token }
-export function login(password) {
-  return request('/api/admin/login', { method: 'POST', body: { password } });
+// TOTP 首次设置（仅未配置时可用），返回 { secret, otpauthUri }
+export function totpSetup() {
+  return request('/api/admin/totp/setup', { method: 'POST' });
+}
+
+// TOTP 重置（需已登录），返回 { secret, otpauthUri }
+export function totpReset() {
+  return request('/api/admin/totp/reset', { method: 'POST' });
 }
 
 // 系统信息
@@ -62,6 +82,11 @@ export function getSystemHistory() {
 // 服务状态列表
 export function getServices() {
   return request('/api/admin/services');
+}
+
+// 软件版本监控
+export function getVersions() {
+  return request('/api/admin/versions');
 }
 
 // 上传文件，返回 { path: 绝对路径 }

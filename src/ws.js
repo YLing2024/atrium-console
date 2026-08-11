@@ -1,5 +1,5 @@
 /**
- * WebSocket 客户端：连接 /api/admin/ws（同源、带 JWT token）
+ * WebSocket 客户端：连接 /api/admin/ws（同源、query 携带认证中心 token，key: auth_token）
  * 封装 JSON-RPC 2.0 请求/响应 与 服务端事件流。
  *
  * 帧协议（与 Hermes 网关一致，经 admin-server 透传）：
@@ -12,7 +12,7 @@
  * 连接死亡，主动 close 走现有 onclose 重连逻辑（半开连接可被检测到）。
  */
 
-import { getToken, clearToken } from './api.js';
+import { getToken, clearToken, redirectToSso } from './api.js';
 
 const HEARTBEAT_INTERVAL = 25000; // 心跳发送间隔
 const HEARTBEAT_TIMEOUT = 10000; // 心跳 RPC 超时（网关对未知方法也会回 error）
@@ -217,9 +217,9 @@ function connect() {
       rejectAll('连接已断开');
       closeListeners.forEach((fn) => fn(e));
       if (e.code === 4001) {
-        // admin-server 主动关闭 = JWT 无效
+        // admin-server 主动关闭 = 凭证无效（认证中心 token 或旧会话均不可用）
         clearToken();
-        if (location.pathname !== '/admin/') location.href = '/admin/';
+        redirectToSso();
         return;
       }
       // 非主动断开（含首次连接失败）按指数退避重连

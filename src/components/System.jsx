@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getSystem, getSystemHistory, getServices } from '../api.js';
+import { getSystem, getSystemHistory, getServices, getVersions } from '../api.js';
 
 function fmtBytes(n) {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -267,6 +267,7 @@ export default function System() {
   const [history, setHistory] = useState([]);
   const [services, setServices] = useState([]);
   const [processes, setProcesses] = useState([]);
+  const [versions, setVersions] = useState([]);
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
 
@@ -317,24 +318,25 @@ export default function System() {
     };
   }, []);
 
-  // 服务状态：每 5 秒拉一次
+  // 服务状态 + 软件版本：每 10 秒拉一次
   useEffect(() => {
     let timer;
     let alive = true;
 
     async function load() {
       try {
-        const s = await getServices();
+        const [s, v] = await Promise.all([getServices(), getVersions()]);
         if (!alive) return;
         setServices(Array.isArray(s) ? s : s?.services || []);
         setProcesses(s?.processes || []);
+        setVersions(v?.list || []);
       } catch (e) {
         // 失败时保留已有数据
       }
     }
 
     load();
-    timer = setInterval(load, 5000);
+    timer = setInterval(load, 10000);
     return () => {
       alive = false;
       clearInterval(timer);
@@ -426,6 +428,19 @@ export default function System() {
             </div>
           </Card>
         )}
+      </div>
+
+      <div className="services-block">
+        <h3 className="block-title">软件版本</h3>
+        <div className="version-list">
+          {versions.map((v) => (
+            <div className="version-row" key={v.name}>
+              <span className="version-name">{v.name}</span>
+              <span className="version-cat muted">{v.category}</span>
+              <span className={`version-val ${v.ok ? '' : 'version-bad'}`}>{v.version}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {processes.length > 0 && (

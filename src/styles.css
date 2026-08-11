@@ -555,6 +555,50 @@ button {
   margin-top: 6px;
 }
 
+.login-hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: -4px;
+}
+
+.totp-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.totp-label {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  margin-top: 8px;
+}
+
+.totp-secret,
+.totp-uri {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--fg);
+  font-size: 13px;
+  text-align: left;
+  word-break: break-all;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.totp-secret {
+  letter-spacing: 0.12em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.totp-secret:hover,
+.totp-uri:hover {
+  border-color: var(--accent);
+}
+
 /* ============ 聊天 ============ */
 .chat {
   display: flex;
@@ -2205,3 +2249,18 @@ button {
     animation: none;
   }
 }
+
+/* 软件版本列表 */
+.version-list { display: flex; flex-direction: column; }
+.version-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 2px; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.version-row:last-child { border-bottom: none; }
+.version-name { min-width: 90px; font-weight: 500; }
+.version-cat {
+  font-size: 11px; padding: 1px 6px; border: 1px solid var(--border);
+  border-radius: 3px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+.version-val { margin-left: auto; font-family: var(--mono, monospace); font-size: 12px; }
+.version-bad { color: #dc2626; }
