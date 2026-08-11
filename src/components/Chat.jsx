@@ -494,12 +494,21 @@ export default function Chat({ active = true }) {
   const showScrollBtnRef = useRef(false);
   const stickToBottomRef = useRef(true); // 是否钉在底部：新内容到达时自动跟随（用户上翻阅读时不打扰）
   const externalPollRef = useRef(null); // 外部消息（微信等）回复轮询定时器
+  const externalDelayedRef = useRef(null); // 外部消息延迟刷新定时器（等 gateway 写入 session 后兜底刷新）
 
   // 停止外部消息回复轮询（切会话 / 新通知 / 轮询达成停止条件时调用）
   const stopExternalPoll = useCallback(() => {
     if (externalPollRef.current) {
       clearInterval(externalPollRef.current);
       externalPollRef.current = null;
+    }
+  }, []);
+
+  // 停止外部消息延迟刷新（组件卸载 / 切换会话 / 新通知重复触发时调用）
+  const stopExternalDelayed = useCallback(() => {
+    if (externalDelayedRef.current) {
+      clearTimeout(externalDelayedRef.current);
+      externalDelayedRef.current = null;
     }
   }, []);
 
@@ -696,8 +705,9 @@ export default function Chat({ active = true }) {
       rowObsRef.current.forEach((ro) => ro.disconnect());
       rowObsRef.current.clear();
       stopExternalPoll();
+      stopExternalDelayed();
     };
-  }, [stopExternalPoll]);
+  }, [stopExternalPoll, stopExternalDelayed]);
 
   // 输入框自动增高：多行草稿时随内容增长（最高 140px，超出后内部滚动）；发送清空后自动回落
   useEffect(() => {
@@ -834,13 +844,21 @@ export default function Chat({ active = true }) {
           refreshSessions(); // 其他会话：只刷新会话列表
           return;
         }
-        // 当前会话：立即刷新历史（复用 refreshCurrentSession）+ 启动轮询等待微信回复落定。
+        // 当前会话：立即刷新历史（复用 refreshCurrentSession）+ 延迟 1.5s 再刷新一次
+        // （external_message 到达时 gateway 可能还没把消息写入 session，立即刷新拿不到新消息，
+        // 等 1.5s 兜底重拉一次）+ 启动轮询等待微信回复落定。
         // 流式/提交中不立即刷新，避免覆盖进行中的流式气泡；轮询直接刷（微信流式在 gateway，Web 端不可见）
         const storedId = currentStoredIdRef.current;
         if (!storedId) return;
         if (!streamingRef.current && !busyRef.current) {
           refreshCurrentSession();
         }
+        stopExternalDelayed(); // 新通知重复触发时先清掉旧延迟刷新
+        externalDelayedRef.current = setTimeout(() => {
+          externalDelayedRef.current = null;
+          if (currentStoredIdRef.current !== storedId) return; // 期间已切会话
+          refreshCurrentSession();
+        }, 1500);
         startExternalPoll(storedId); // 每 2.5s 一次，回复落定或 30s（12 次）后停止
         return;
       }
@@ -909,7 +927,7 @@ export default function Chat({ active = true }) {
         }
       }
     },
-    [refreshSessions, refreshCurrentSession, startExternalPoll]
+    [refreshSessions, refreshCurrentSession, startExternalPoll, stopExternalDelayed]
   );
 
   // 轻提示：自动消失（可选时长，默认 2500ms）
@@ -1300,6 +1318,7 @@ export default function Chat({ active = true }) {
     setBusy(false);
     busyRef.current = false;
     stopExternalPoll(); // 切换会话：停止旧的微信回复轮询
+    stopExternalDelayed(); // 切换会话：清掉未触发的延迟刷新定时器
     setSidebarOpen(false); // 移动端：选完会话自动收起抽屉
     stickToBottomRef.current = true; // 切会话后历史落到底部
     const prevStoredId = currentStoredIdRef.current;
