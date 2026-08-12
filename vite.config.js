@@ -6,11 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // 开发环境把 /api 请求（含 WebSocket 升级）代理到 admin-server
+      // 开发环境把 /api 请求代理到 admin-server
       '/api': {
         target: 'http://127.0.0.1:3100',
-        changeOrigin: true,
-        ws: true
+        changeOrigin: true
       }
     }
   },

@@ -201,3 +201,15 @@ export function renameSession(id, deviceName) {
 export function deleteSession(id) {
   return request(`/api/admin/sessions/${id}`, { method: 'DELETE' });
 }
+
+// ============ 历史会话浏览（只读） ============
+
+// 历史会话列表，返回 { sessions: [{ id, title, time, message_count }] }
+export function getHistorySessions() {
+  return request('/api/admin/history');
+}
+
+// 单个历史会话消息，返回 { session: { id, title }, messages: [{ role, content, ts }] }
+export function getHistoryMessages(id) {
+  return request('/api/admin/history/' + encodeURIComponent(id));
+}

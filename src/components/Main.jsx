@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { logout } from '../api.js';
-import { closeSocket } from '../ws.js';
 import { getTheme, effectiveTheme, toggleTheme } from '../theme.js';
-import Chat from './Chat.jsx';
+import Browse from './Browse.jsx';
 import System from './System.jsx';
 import BlogAdmin from './BlogAdmin.jsx';
 import VersionPanel from './VersionPanel.jsx';
@@ -11,7 +10,11 @@ import CommandPalette from './CommandPalette.jsx';
 import Manage from './Manage.jsx';
 
 export default function Main() {
-  const [tab, setTab] = useState(() => localStorage.getItem('admin_tab') || 'chat');
+  // 旧版 Tab key 'chat'（聊天）兼容：按 'browse'（浏览）处理
+  const [tab, setTab] = useState(() => {
+    const saved = localStorage.getItem('admin_tab') || 'browse';
+    return saved === 'chat' ? 'browse' : saved;
+  });
   const [showReset, setShowReset] = useState(false);
   const [toast, setToast] = useState('');
   const [theme, setTheme] = useState(() => effectiveTheme(getTheme()));
@@ -28,9 +31,8 @@ export default function Main() {
     setShowReset(false);
   }
 
-  // 退出登录：先主动关闭 WS（避免 token 已清后连接残留 / 误触发重连），再走 api 的 logout
+  // 退出登录：清除本地 token 并跳回认证中心
   function handleLogout() {
-    closeSocket();
     logout();
   }
 
@@ -73,10 +75,10 @@ export default function Main() {
       <header className="topbar">
         <nav className="tabs">
           <button
-            className={'tab' + (tab === 'chat' ? ' active' : '')}
-            onClick={() => switchTab('chat')}
+            className={'tab' + (tab === 'browse' ? ' active' : '')}
+            onClick={() => switchTab('browse')}
           >
-            聊天
+            浏览
           </button>
           <button
             className={'tab' + (tab === 'system' ? ' active' : '')}
@@ -149,10 +151,9 @@ export default function Main() {
       </header>
 
       <div className="content">
-        {/* 两个面板常驻挂载，仅切换显隐：避免切 tab 时 Chat 被卸载导致
-            会话/流式回复/输入内容丢失、WS 重连闪烁等渲染问题 */}
-        <div className="pane" hidden={tab !== 'chat'}>
-          <Chat active={tab === 'chat'} />
+        {/* 面板常驻挂载，仅切换显隐：避免切 tab 时浏览状态/内容丢失 */}
+        <div className="pane" hidden={tab !== 'browse'}>
+          <Browse active={tab === 'browse'} />
         </div>
         <div className="pane" hidden={tab !== 'system'}>
           <System />
