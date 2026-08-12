@@ -174,6 +174,27 @@ export default function Manage() {
                         <>
                           <div className="dev-name">
                             <span className="dev-name-text">{s.deviceName || '未命名设备'}</span>
+                            <button
+                              type="button"
+                              className="dev-rename-btn"
+                              onClick={() => startRename(s)}
+                              title="重命名设备"
+                              aria-label="重命名设备"
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                width="12"
+                                height="12"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden="true"
+                              >
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                              </svg>
+                            </button>
                             {s.isCurrent && <span className="dev-badge">当前设备</span>}
                           </div>
                           {s.userAgent && <div className="dev-ua muted">{s.userAgent}</div>}
@@ -196,14 +217,9 @@ export default function Manage() {
                           </button>
                         </>
                       ) : (
-                        <>
-                          <button className="link-btn" onClick={() => startRename(s)}>
-                            重命名
-                          </button>
-                          <button className="link-btn danger" onClick={() => askDelete(s)}>
-                            删除
-                          </button>
-                        </>
+                        <button className="link-btn danger" onClick={() => askDelete(s)}>
+                          删除
+                        </button>
                       )}
                     </td>
                   </tr>
