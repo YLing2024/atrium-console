@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getSessions,
   renameSession,
@@ -34,6 +34,7 @@ export default function Manage() {
   const [editValue, setEditValue] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
+  const renameInFlight = useRef(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -72,6 +73,12 @@ export default function Manage() {
       setEditError('设备名称不能为空');
       return;
     }
+    if (name === (s.deviceName || '')) {
+      cancelRename(); // 未改动：直接退出编辑态，不发请求
+      return;
+    }
+    if (renameInFlight.current) return; // onBlur 与「保存」点击同帧触发时去重
+    renameInFlight.current = true;
     setEditSaving(true);
     setEditError('');
     try {
@@ -81,6 +88,7 @@ export default function Manage() {
     } catch (e) {
       setEditError(e.message);
     } finally {
+      renameInFlight.current = false;
       setEditSaving(false);
     }
   }
@@ -88,7 +96,7 @@ export default function Manage() {
   function onEditKeyDown(s) {
     return (e) => {
       if (e.key === 'Enter') saveRename(s);
-      else if (e.key === 'Escape') cancelRename();
+      else if (e.key === 'Escape') e.currentTarget.blur(); // 失焦触发自动保存，等价保存、避免丢输入
     };
   }
 
@@ -164,6 +172,7 @@ export default function Manage() {
                             maxLength={64}
                             onChange={(e) => setEditValue(e.target.value)}
                             onKeyDown={onEditKeyDown(s)}
+                            onBlur={() => saveRename(s)}
                             disabled={editSaving}
                             placeholder="设备名称"
                             autoFocus
@@ -211,9 +220,6 @@ export default function Manage() {
                         <>
                           <button className="link-btn" onClick={() => saveRename(s)} disabled={editSaving}>
                             保存
-                          </button>
-                          <button className="link-btn" onClick={cancelRename} disabled={editSaving}>
-                            取消
                           </button>
                         </>
                       ) : (
