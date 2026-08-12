@@ -2372,3 +2372,86 @@ button {
 }
 .version-val { margin-left: auto; font-family: var(--mono, monospace); font-size: 12px; }
 .version-bad { color: #dc2626; }
+
+/* ============ 设备管理（管理 Tab） ============ */
+.manage-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.dev-table td {
+  vertical-align: top;
+}
+
+.dev-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.dev-name-text {
+  word-break: break-all;
+}
+
+.dev-badge {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+}
+
+.dev-ua {
+  font-size: 11px;
+  margin-top: 3px;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-ip {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 行内重命名编辑 */
+.dev-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dev-edit-input {
+  padding: 7px 10px;
+  font-size: 13px;
+  max-width: 260px;
+}
+
+.dev-edit-error {
+  font-size: 12px;
+  margin: 0;
+}
+
+.modal-body {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--fg);
+}
+
+.modal-body.muted {
+  color: var(--muted);
+}

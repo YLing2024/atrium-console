@@ -184,3 +184,20 @@ export function updateBlogCollection(id, data) {
 export function deleteBlogCollection(id) {
   return request(`/api/blog/admin/collections/${id}`, { method: 'DELETE' });
 }
+
+// ============ 设备会话管理 ============
+
+// 已登录设备列表（需鉴权），返回 { sessions: [...] }
+export function getSessions() {
+  return request('/api/admin/sessions');
+}
+
+// 重命名设备，id 为会话 token
+export function renameSession(id, deviceName) {
+  return request(`/api/admin/sessions/${id}/name`, { method: 'PUT', body: { deviceName } });
+}
+
+// 删除设备会话（撤销其登录凭证，该设备必须重新认证）
+export function deleteSession(id) {
+  return request(`/api/admin/sessions/${id}`, { method: 'DELETE' });
+}

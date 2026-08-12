@@ -19,6 +19,7 @@ export default function CommandPalette({ onClose, onSwitchTab, onShowReset, onLo
       { id: 'system', label: '跳到系统页', hint: '打开系统监控', run: () => propsRef.current.onSwitchTab('system') },
       { id: 'version', label: '跳到版本页', hint: '查看软件版本', run: () => propsRef.current.onSwitchTab('version') },
       { id: 'blog', label: '跳到博客页', hint: '管理博客文章', run: () => propsRef.current.onSwitchTab('blog') },
+      { id: 'manage', label: '跳到管理页', hint: '管理已登录设备', run: () => propsRef.current.onSwitchTab('manage') },
       { id: 'chat', label: '跳到聊天页', hint: '回到聊天界面', run: () => propsRef.current.onSwitchTab('chat') },
       { id: 'pwd', label: '重置验证器', hint: '更换 TOTP 验证器', run: () => propsRef.current.onShowReset() },
       { id: 'copy', label: '复制当前会话ID', hint: '复制到剪贴板', run: () => getAction('copySessionId')?.() },

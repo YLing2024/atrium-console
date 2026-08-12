@@ -8,6 +8,7 @@ import BlogAdmin from './BlogAdmin.jsx';
 import VersionPanel from './VersionPanel.jsx';
 import ResetTotp from './ResetTotp.jsx';
 import CommandPalette from './CommandPalette.jsx';
+import Manage from './Manage.jsx';
 
 export default function Main() {
   const [tab, setTab] = useState(() => localStorage.getItem('admin_tab') || 'chat');
@@ -95,6 +96,12 @@ export default function Main() {
           >
             博客
           </button>
+          <button
+            className={'tab' + (tab === 'manage' ? ' active' : '')}
+            onClick={() => switchTab('manage')}
+          >
+            管理
+          </button>
         </nav>
         <div className="user-menu" ref={menuRef}>
           <button
@@ -155,6 +162,9 @@ export default function Main() {
         </div>
         <div className="pane" hidden={tab !== 'blog'}>
           <BlogAdmin />
+        </div>
+        <div className="pane" hidden={tab !== 'manage'}>
+          <Manage />
         </div>
       </div>
 
