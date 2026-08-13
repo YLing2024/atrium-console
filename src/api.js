@@ -202,6 +202,28 @@ export function deleteSession(id) {
   return request(`/api/admin/sessions/${id}`, { method: 'DELETE' });
 }
 
+// ============ 接口令牌管理（与登录设备完全隔离） ============
+
+// 接口令牌列表，返回 { tokens: [...] }（绝不含 token 明文）
+export function getApiTokens() {
+  return request('/api/admin/api-tokens');
+}
+
+// 生成接口令牌，data: { name, note, expiresInDays }，返回 { id, token, meta }（明文仅此一次）
+export function createApiToken(data) {
+  return request('/api/admin/api-tokens', { method: 'POST', body: data });
+}
+
+// 更新接口令牌，patch 可选 { name, note, expiresInDays }
+export function updateApiToken(id, patch) {
+  return request(`/api/admin/api-tokens/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch });
+}
+
+// 吊销接口令牌（立即失效）
+export function deleteApiToken(id) {
+  return request(`/api/admin/api-tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 // ============ 历史会话浏览（只读） ============
 
 // 历史会话列表，返回 { sessions: [{ id, title, time, message_count }] }

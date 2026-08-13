@@ -3,6 +3,10 @@ import {
   getSessions,
   renameSession,
   deleteSession,
+  getApiTokens,
+  createApiToken,
+  updateApiToken,
+  deleteApiToken,
   clearToken,
   redirectToSso
 } from '../api.js';
@@ -15,6 +19,17 @@ function formatTime(ms) {
   if (!ms) return '—';
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatDate(ms) {
+  if (!ms) return '—';
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function remainingDays(expiresAt) {
+  if (!expiresAt) return 0;
+  return Math.max(0, Math.floor((expiresAt - Date.now()) / 86400000));
 }
 
 function relativeTime(ms) {
@@ -38,6 +53,28 @@ export default function Manage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // ===== 接口令牌状态 =====
+  const [apiTokens, setApiTokens] = useState([]);
+  const [apiLoading, setApiLoading] = useState(true);
+  const [apiError, setApiError] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [createNote, setCreateNote] = useState('');
+  const [createDays, setCreateDays] = useState('30');
+  const [createCustomDays, setCreateCustomDays] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+  const [createdToken, setCreatedToken] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editNote, setEditNote] = useState('');
+  const [editDays, setEditDays] = useState('');
+  const [apiEditSaving, setApiEditSaving] = useState(false);
+  const [apiEditError, setApiEditError] = useState('');
+  const [revokeTarget, setRevokeTarget] = useState(null);
+  const [revoking, setRevoking] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -51,9 +88,23 @@ export default function Manage() {
     }
   }, []);
 
+  const loadTokens = useCallback(async () => {
+    setApiLoading(true);
+    setApiError('');
+    try {
+      const data = await getApiTokens();
+      setApiTokens(data.tokens || []);
+    } catch (e) {
+      setApiError(e.message);
+    } finally {
+      setApiLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadTokens();
+  }, [load, loadTokens]);
 
   function startRename(s) {
     setEditingId(s.id);
@@ -122,6 +173,127 @@ export default function Manage() {
       setDeleteTarget(null);
     } finally {
       setDeleting(false);
+    }
+  }
+
+  // ===== 接口令牌操作 =====
+
+  function openCreate() {
+    setCreateName('');
+    setCreateNote('');
+    setCreateDays('30');
+    setCreateCustomDays('');
+    setCreateError('');
+    setShowCreate(true);
+  }
+
+  function resolveDays() {
+    if (createDays === 'custom') {
+      const n = parseInt(createCustomDays, 10);
+      if (!Number.isInteger(n) || n < 1 || n > 365) return null;
+      return n;
+    }
+    const n = parseInt(createDays, 10);
+    return Number.isInteger(n) && n >= 1 && n <= 365 ? n : null;
+  }
+
+  async function submitCreate() {
+    const name = createName.trim();
+    if (!name) {
+      setCreateError('令牌名称不能为空');
+      return;
+    }
+    const days = resolveDays();
+    if (!days) {
+      setCreateError('有效期需为 1~365 天的整数');
+      return;
+    }
+    setCreating(true);
+    setCreateError('');
+    try {
+      const data = await createApiToken({ name, note: createNote.trim(), expiresInDays: days });
+      setCreatedToken({
+        token: data.token,
+        curl: `curl -H "Authorization: Bearer ${data.token}" https://zhangyunling.cn/api/admin/system`
+      });
+      setShowCreate(false);
+      await loadTokens();
+    } catch (e) {
+      setCreateError(e.message);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  async function copyToken(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      setCopied(false);
+    }
+  }
+
+  function openEdit(t) {
+    setEditTarget(t);
+    setEditName(t.name || '');
+    setEditNote(t.note || '');
+    setEditDays('');
+    setEditError('');
+  }
+
+  async function submitEdit() {
+    if (!editTarget || apiEditSaving) return;
+    const name = editName.trim();
+    if (!name) {
+      setApiEditError('令牌名称不能为空');
+      return;
+    }
+    const patch = {};
+    if (name !== (editTarget.name || '')) patch.name = name;
+    if (editNote.trim() !== (editTarget.note || '')) patch.note = editNote.trim();
+    if (editDays) {
+      const n = parseInt(editDays, 10);
+      if (!Number.isInteger(n) || n < 1 || n > 365) {
+        setApiEditError('有效期需为 1~365 天的整数');
+        return;
+      }
+      patch.expiresInDays = n;
+    }
+    if (!Object.keys(patch).length) {
+      setEditTarget(null); // 无改动：直接关闭
+      return;
+    }
+    setApiEditSaving(true);
+    setApiEditError('');
+    try {
+      await updateApiToken(editTarget.id, patch);
+      setEditTarget(null);
+      await loadTokens();
+    } catch (e) {
+      setApiEditError(e.message);
+    } finally {
+      setApiEditSaving(false);
+    }
+  }
+
+  function askRevoke(t) {
+    setRevokeTarget(t);
+  }
+
+  async function confirmRevoke() {
+    if (!revokeTarget || revoking) return;
+    setRevoking(true);
+    try {
+      await deleteApiToken(revokeTarget.id);
+      setApiTokens((list) => list.filter((x) => x.id !== revokeTarget.id));
+      setRevokeTarget(null);
+    } catch (e) {
+      setApiError(e.message);
+      setRevokeTarget(null);
+    } finally {
+      setRevoking(false);
     }
   }
 
@@ -254,6 +426,226 @@ export default function Manage() {
               </button>
               <button className="btn-primary" onClick={confirmDelete} disabled={deleting}>
                 {deleting ? '删除中…' : '删除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ 接口令牌区块（与设备管理视觉隔离，独立表格） ============ */}
+      <div className="manage-sep" />
+      <div className="system-head">
+        <h2>接口令牌</h2>
+        <button className="btn-ghost" onClick={openCreate} disabled={creating}>
+          生成令牌
+        </button>
+      </div>
+
+      <p className="manage-desc muted">
+        接口令牌用于第三方工具调用 Admin 接口。调用时在请求头携带{' '}
+        <code className="usage-code">Authorization: Bearer &lt;令牌&gt;</code> 即可。
+        令牌与登录设备相互独立，不占用设备登录。请妥善保管令牌，泄露可随时吊销。
+      </p>
+
+      {apiError && <div className="error">{apiError}</div>}
+
+      {apiLoading ? (
+        <div className="empty">加载中…</div>
+      ) : apiTokens.length === 0 ? (
+        <div className="empty">暂无接口令牌</div>
+      ) : (
+        <div className="blog-table-wrap">
+          <table className="blog-table api-token-table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>备注</th>
+                <th>创建时间</th>
+                <th>过期时间</th>
+                <th>最近使用</th>
+                <th className="blog-ops">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {apiTokens.map((t) => {
+                const expired = t.expiresAt > 0 && t.expiresAt <= Date.now();
+                return (
+                  <tr key={t.id}>
+                    <td className="api-token-name">{t.name}</td>
+                    <td className="muted">{t.note || '—'}</td>
+                    <td className="dev-time">{formatDate(t.createdAt)}</td>
+                    <td className="dev-time">
+                      {expired ? (
+                        <span className="blog-status danger">已过期</span>
+                      ) : (
+                        <span>
+                          {formatDate(t.expiresAt)} · 剩余 {remainingDays(t.expiresAt)} 天
+                        </span>
+                      )}
+                    </td>
+                    <td className="dev-time">
+                      {t.lastUsedAt ? formatTime(t.lastUsedAt) : <span className="muted">从未使用</span>}
+                    </td>
+                    <td className="blog-ops">
+                      <button className="link-btn" onClick={() => openEdit(t)}>
+                        编辑
+                      </button>
+                      <button className="link-btn danger" onClick={() => askRevoke(t)}>
+                        吊销
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 生成令牌弹窗 */}
+      {showCreate && (
+        <div className="modal-mask" onClick={() => !creating && setShowCreate(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">生成接口令牌</div>
+            <label className="field-label" htmlFor="api-token-name">令牌名称</label>
+            <input
+              id="api-token-name"
+              className="input"
+              value={createName}
+              maxLength={64}
+              placeholder="如：行情脚本"
+              onChange={(e) => setCreateName(e.target.value)}
+            />
+            <label className="field-label" htmlFor="api-token-note">备注（选填）</label>
+            <input
+              id="api-token-note"
+              className="input"
+              value={createNote}
+              maxLength={200}
+              placeholder="用途说明"
+              onChange={(e) => setCreateNote(e.target.value)}
+            />
+            <label className="field-label" htmlFor="api-token-days">有效期</label>
+            <select
+              id="api-token-days"
+              className="input blog-select"
+              value={createDays}
+              onChange={(e) => setCreateDays(e.target.value)}
+            >
+              <option value="7">7 天</option>
+              <option value="30">30 天</option>
+              <option value="90">90 天</option>
+              <option value="custom">自定义天数</option>
+            </select>
+            {createDays === 'custom' && (
+              <input
+                className="input"
+                type="number"
+                min="1"
+                max="365"
+                placeholder="1~365"
+                value={createCustomDays}
+                onChange={(e) => setCreateCustomDays(e.target.value)}
+              />
+            )}
+            {createError && <div className="error">{createError}</div>}
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setShowCreate(false)} disabled={creating}>
+                取消
+              </button>
+              <button className="btn-primary" onClick={submitCreate} disabled={creating}>
+                {creating ? '生成中…' : '生成'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 令牌展示弹窗（明文仅此一次） */}
+      {createdToken && (
+        <div className="modal-mask" onClick={() => setCreatedToken(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">接口令牌已生成</div>
+            <p className="modal-body muted">令牌仅显示一次，关闭后无法再次查看，请立即保存。</p>
+            <div className="token-display">
+              {createdToken.token}
+            </div>
+            <div className="token-actions">
+              <button className="btn-primary" onClick={() => copyToken(createdToken.token)}>
+                {copied ? '已复制' : '复制令牌'}
+              </button>
+            </div>
+            <label className="field-label">curl 用法示例</label>
+            <div className="curl-display">{createdToken.curl}</div>
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setCreatedToken(null)}>
+                关闭
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑令牌弹窗 */}
+      {editTarget && (
+        <div className="modal-mask" onClick={() => !apiEditSaving && setEditTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">编辑接口令牌</div>
+            <label className="field-label" htmlFor="edit-token-name">令牌名称</label>
+            <input
+              id="edit-token-name"
+              className="input"
+              value={editName}
+              maxLength={64}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+            <label className="field-label" htmlFor="edit-token-note">备注（选填）</label>
+            <input
+              id="edit-token-note"
+              className="input"
+              value={editNote}
+              maxLength={200}
+              placeholder="用途说明"
+              onChange={(e) => setEditNote(e.target.value)}
+            />
+            <label className="field-label" htmlFor="edit-token-days">重置有效期（选填）</label>
+            <input
+              id="edit-token-days"
+              className="input"
+              type="number"
+              min="1"
+              max="365"
+              placeholder="留空则保持当前有效期"
+              value={editDays}
+              onChange={(e) => setEditDays(e.target.value)}
+            />
+            {apiEditError && <div className="error">{apiEditError}</div>}
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setEditTarget(null)} disabled={apiEditSaving}>
+                取消
+              </button>
+              <button className="btn-primary" onClick={submitEdit} disabled={apiEditSaving}>
+                {apiEditSaving ? '保存中…' : '保存'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 吊销确认弹窗 */}
+      {revokeTarget && (
+        <div className="modal-mask" onClick={() => !revoking && setRevokeTarget(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-title">吊销接口令牌</div>
+            <p className="modal-body">
+              吊销令牌「{revokeTarget.name}」？吊销后立即失效，使用该令牌的工具将无法再调用接口。
+            </p>
+            <div className="modal-actions">
+              <button className="btn-ghost" onClick={() => setRevokeTarget(null)} disabled={revoking}>
+                取消
+              </button>
+              <button className="btn-primary" onClick={confirmRevoke} disabled={revoking}>
+                {revoking ? '吊销中…' : '吊销'}
               </button>
             </div>
           </div>

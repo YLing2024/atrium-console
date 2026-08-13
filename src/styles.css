@@ -2204,3 +2204,71 @@ button {
 .modal-body.muted {
   color: var(--muted);
 }
+
+/* ============ 接口令牌（管理 Tab） ============ */
+.manage-sep {
+  border-top: 1px solid var(--border);
+  margin: 34px 0 22px;
+}
+
+.api-token-table td {
+  vertical-align: top;
+}
+
+.api-token-name {
+  font-weight: 500;
+  color: var(--fg);
+  word-break: break-all;
+}
+
+.usage-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.blog-status.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.field-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: -6px;
+}
+
+.token-display {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: break-all;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+
+.token-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.curl-display {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.6;
+  word-break: break-all;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  user-select: all;
+}
