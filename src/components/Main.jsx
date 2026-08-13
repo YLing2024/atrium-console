@@ -12,7 +12,7 @@ import Manage from './Manage.jsx';
 export default function Main() {
   // 旧版 Tab key 'chat'（聊天）兼容：按 'browse'（浏览）处理
   const [tab, setTab] = useState(() => {
-    const saved = localStorage.getItem('admin_tab') || 'browse';
+    const saved = sessionStorage.getItem('admin_tab') || 'browse';
     return saved === 'chat' ? 'browse' : saved;
   });
   const [showReset, setShowReset] = useState(false);
@@ -24,7 +24,7 @@ export default function Main() {
 
   function switchTab(t) {
     setTab(t);
-    localStorage.setItem('admin_tab', t); // 持久化：刷新后停留在上次 Tab
+    sessionStorage.setItem('admin_tab', t); // 会话级记忆：同标签页内刷新后停留在上次 Tab
   }
 
   function handleResetClose() {
