@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getSystem, getSystemHistory, getServices } from '../api.js';
+import { getToken } from '../api.js';
 
 function fmtBytes(n) {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -268,7 +268,7 @@ const IO_SERIES = [
   { key: 'disk_io_write', label: '写', color: 'var(--muted)', format: fmtRate }
 ];
 
-export default function System() {
+export default function System({ active }) {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
   const [services, setServices] = useState([]);
@@ -278,77 +278,81 @@ export default function System() {
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
 
+  // SSE 实时推送：仅 active（系统 Tab 激活）时建连，切走立即断开，无任何轮询。
+  // 不用 EventSource 是因为无法携带 Authorization header，改用 fetch + ReadableStream
   useEffect(() => {
-    let timer;
-    let alive = true;
+    if (!active) return;
 
-    async function load() {
-      try {
-        const d = await getSystem();
-        if (!alive) return;
-        setData(d);
-        setUpdated(new Date());
-        setError('');
-      } catch (e) {
-        if (alive) setError(e.message);
+    let disposed = false;
+    let retryTimer = null;
+    let ctrl = null;
+
+    // 解析单条 SSE 帧（event: / data: 行），data 为 JSON { system, services, history }
+    function parseFrame(frame) {
+      let event = null;
+      let data = null;
+      for (const line of frame.split('\n')) {
+        if (line.startsWith('event:')) event = line.slice(6).trim();
+        else if (line.startsWith('data:')) data = line.slice(5).trim();
       }
+      if (event !== 'snapshot' || data == null) return;
+      let d;
+      try {
+        d = JSON.parse(data);
+      } catch (e) {
+        return;
+      }
+      if (!d || d.system == null) return;
+      setData(d.system);
+      setHistory(Array.isArray(d.history) ? d.history : []);
+      const s = d.services || {};
+      setServices(Array.isArray(s) ? s : s.services || []);
+      setProcesses(s.processes || []);
+      setTotalCpu(s.total_cpu != null ? s.total_cpu : null);
+      setUpdated(new Date());
+      setError('');
     }
 
-    load();
-    timer = setInterval(load, 1000); // 每 1 秒刷新
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
-
-  // 历史采样：每 1 秒拉一次，供趋势图使用
-  useEffect(() => {
-    let timer;
-    let alive = true;
-
-    async function load() {
+    async function connect() {
+      if (disposed) return;
+      ctrl = new AbortController();
       try {
-        const h = await getSystemHistory();
-        if (!alive) return;
-        setHistory(Array.isArray(h) ? h : []);
+        const resp = await fetch('/api/admin/system/stream', {
+          headers: { Authorization: 'Bearer ' + getToken() },
+          signal: ctrl.signal
+        });
+        if (!resp.ok || !resp.body) throw new Error('SSE HTTP ' + resp.status);
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (!disposed && !ctrl.signal.aborted) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let idx;
+          while ((idx = buf.indexOf('\n\n')) !== -1) {
+            const frame = buf.slice(0, idx);
+            buf = buf.slice(idx + 2);
+            if (frame) parseFrame(frame);
+          }
+        }
       } catch (e) {
-        // 失败时保留已有数据，避免趋势图闪断
+        if (disposed || ctrl.signal.aborted) return; // 主动断开：静默退出
       }
+      if (disposed || ctrl.signal.aborted) return;
+      // 连接断开（或流结束）且 Tab 仍激活：提示并 5s 后自动重试
+      setError('连接已断开，正在重连…');
+      retryTimer = setTimeout(connect, 5000);
     }
 
-    load();
-    timer = setInterval(load, 1000);
+    connect();
+
     return () => {
-      alive = false;
-      clearInterval(timer);
+      disposed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      ctrl?.abort(); // 切走 / 卸载立即断开，零残留
     };
-  }, []);
-
-  // 服务状态：每 1 秒拉一次
-  useEffect(() => {
-    let timer;
-    let alive = true;
-
-    async function load() {
-      try {
-        const s = await getServices();
-        if (!alive) return;
-        setServices(Array.isArray(s) ? s : s?.services || []);
-        setProcesses(s?.processes || []);
-        setTotalCpu(s?.total_cpu != null ? s.total_cpu : null);
-      } catch (e) {
-        // 失败时保留已有数据
-      }
-    }
-
-    load();
-    timer = setInterval(load, 1000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, []);
+  }, [active]);
 
   if (!data) {
     return (

@@ -156,7 +156,7 @@ export default function Main() {
           <Browse active={tab === 'browse'} />
         </div>
         <div className="pane" hidden={tab !== 'system'}>
-          <System />
+          <System active={tab === 'system'} />
         </div>
         <div className="pane" hidden={tab !== 'version'}>
           <VersionPanel active={tab === 'version'} />
