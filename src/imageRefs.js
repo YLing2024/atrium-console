@@ -20,7 +20,10 @@ export function normalizeImageRefPath(raw) {
   if (p.length >= 2 && p[0] === p[p.length - 1] && '`"\' '.includes(p[0])) {
     p = p.slice(1, -1).trim();
   }
-  return p.replace(/^[`"']+/, '').replace(/[`"',.;:)}\]]+$/, '');
+  p = p.replace(/^[`"']+/, '').replace(/[`"',.;:)}\\]]+$/, '');
+  // 路径形状守卫：真实路径必含 / 或 \(排除代码片段/正则文本里 @image: 后的乱匹配)
+  if (!p.includes('/') && !p.includes('\\')) return '';
+  return p;
 }
 
 /**
