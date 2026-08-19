@@ -140,11 +140,10 @@ export default function BlogAdmin() {
     }
   }
 
-  // 自动保存草稿（防抖 1.5s）+ 进入编辑器恢复
+  // 进入编辑器时恢复一次草稿（仅 editing 变化触发，不随输入反复覆盖）
   useEffect(() => {
     if (editing === null) return;
     const key = 'blog_draft_' + (editing === 'new' ? 'new' : editing);
-    // 恢复
     try {
       const saved = localStorage.getItem(key);
       if (saved) {
@@ -153,7 +152,13 @@ export default function BlogAdmin() {
         setTimeout(() => setDraftNotice(''), 3000);
       }
     } catch { /* 忽略损坏草稿 */ }
-    // 防抖保存
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing]);
+
+  // 自动保存草稿（防抖 1.5s，随输入变化触发）
+  useEffect(() => {
+    if (editing === null) return;
+    const key = 'blog_draft_' + (editing === 'new' ? 'new' : editing);
     const t = setTimeout(() => {
       try { localStorage.setItem(key, JSON.stringify(form)); } catch { /* 存储满忽略 */ }
     }, 1500);
