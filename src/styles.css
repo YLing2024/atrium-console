@@ -1554,7 +1554,7 @@ button {
 /* ============ 趋势图（纯 SVG） ============ */
 .chart-wrap {
   position: relative;
-  overflow-x: auto;
+  overflow: hidden;
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -1587,9 +1587,15 @@ button {
 
 .chart {
   width: 100%;
-  min-width: 520px;
+  min-width: 0;
+  max-width: 100%;
   height: auto;
   display: block;
+}
+
+.trend-block .card {
+  min-width: 0;
+  overflow: hidden;
 }
 
 .chart-grid {
