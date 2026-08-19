@@ -105,17 +105,26 @@ function LineChart({ data, series, yMax, yLabel }) {
   const wrapRef = useRef(null);
   const dragRef = useRef(null);
   const prevLenRef = useRef(0);
+  const followRef = useRef(true);
 
-  // 数据更新时自动跟随：offset 在最近位置（跟随模式）则右移显示最新；
-  // 已左移查看历史时保持当前位置不跳动
+  // 数据更新时自动跟随：初始及跟随状态下始终对齐最新；
+  // 用户手动平移离开最新后保持当前位置不跳动
   useEffect(() => {
     if (!data) return;
     const prevLen = prevLenRef.current;
     prevLenRef.current = data.length;
-    if (data.length <= prevLen) return;
-    setOffset((cur) =>
-      cur + WINDOW >= prevLen ? Math.max(0, data.length - WINDOW) : cur
-    );
+    if (followRef.current) {
+      const next = Math.max(0, data.length - WINDOW);
+      setOffset((cur) => (cur !== next ? next : cur));
+    } else {
+      // 非跟随：仅在越界时 clamp，避免保留非法 offset
+      if (data.length <= prevLen) {
+        setOffset((cur) => clampOffset(cur, data.length));
+      } else {
+        // 长度增长但已不在跟随态：保持当前位置，仅做边界修正
+        setOffset((cur) => clampOffset(cur, data.length));
+      }
+    }
   }, [data]);
 
   // 鼠标滚轮水平平移（deltaY/deltaX）
@@ -126,7 +135,11 @@ function LineChart({ data, series, yMax, yLabel }) {
       e.preventDefault();
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (!Number.isFinite(delta) || Math.abs(delta) < 1) return;
-      setOffset((cur) => clampOffset(cur + Math.round(delta / 20), data.length));
+      setOffset((cur) => {
+        const next = clampOffset(cur + Math.round(delta / 20), data.length);
+        followRef.current = next + WINDOW >= data.length;
+        return next;
+      });
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -172,7 +185,9 @@ function LineChart({ data, series, yMax, yLabel }) {
   const onPointerMove = (e) => {
     if (!dragRef.current) return;
     const dx = dragRef.current.startX - e.clientX;
-    setOffset(clampOffset(dragRef.current.startOffset + Math.round(dx / pxPerPoint), len));
+    const next = clampOffset(dragRef.current.startOffset + Math.round(dx / pxPerPoint), len);
+    followRef.current = next + WINDOW >= len;
+    setOffset(next);
   };
   const endDrag = (e) => {
     dragRef.current = null;
@@ -228,7 +243,13 @@ function LineChart({ data, series, yMax, yLabel }) {
       </svg>
 
       {!isFollowing && (
-        <button className="chart-back-btn" onClick={() => setOffset(Math.max(0, len - WINDOW))}>
+        <button
+          className="chart-back-btn"
+          onClick={() => {
+            followRef.current = true;
+            setOffset(Math.max(0, len - WINDOW));
+          }}
+        >
           回最新
         </button>
       )}
