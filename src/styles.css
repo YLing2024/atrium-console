@@ -1656,7 +1656,9 @@ button {
 
 .blog-table {
   width: 100%;
-  border-collapse: collapse;
+  min-width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--surface);
   border: 1px solid var(--border);
 }
@@ -1690,7 +1692,7 @@ button {
 .blog-title {
   font-weight: 500;
   color: var(--fg);
-  word-break: break-all;
+  white-space: nowrap;
 }
 
 /* 状态：方形细线标签（Swiss tag） */
@@ -1715,7 +1717,8 @@ button {
 
 .blog-tags {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   gap: 4px;
 }
 
@@ -1731,6 +1734,17 @@ button {
 .blog-ops .link-btn + .link-btn {
   margin-left: 4px;
 }
+
+.blog-table th.blog-ops,
+.blog-table td.blog-ops {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+}
+.blog-table thead th.blog-ops { z-index: 2; }
+.blog-table th.blog-ops { background: var(--surface-2); }
+.blog-table td.blog-ops { background: var(--surface); }
+.blog-table tbody tr:hover td.blog-ops { background: var(--bg-soft); }
 
 .blog-foot {
   margin-top: 16px;
