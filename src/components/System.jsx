@@ -74,6 +74,27 @@ function Row({ k, v }) {
   );
 }
 
+// 百分比小数的展示：有限数保留一位小数，null/非法显示 —
+function fmtPct(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(1) : '—';
+}
+
+// PSI 行：k=资源名，o=/proc/pressure 解析结果（{ some:{avg10,..}, full:{..} } 或 null）。
+// 显示 some/full 的 avg10；无 PSI 时显示 —。压力越大颜色越警示（some≥50 红、≥30 橙）
+function PsiRow({ k, o }) {
+  if (!o || !o.some) return <Row k={k} v="—" />;
+  const s = Number(o.some.avg10);
+  const color = s >= 50 ? 'var(--danger)' : s >= 30 ? 'var(--warn)' : undefined;
+  const v = `some ${fmtPct(o.some.avg10)}% · full ${fmtPct(o.full ? o.full.avg10 : null)}%`;
+  return (
+    <div className="row">
+      <span className="row-k">{k}</span>
+      <span className="row-v" style={color ? { color } : undefined}>{v}</span>
+    </div>
+  );
+}
+
 // 向上取整到友好刻度（1/2/5×10^n），用于速率类 Y 轴
 function niceMax(v) {
   if (v <= 0) return 1;
@@ -280,6 +301,11 @@ const MEM_SERIES = [
   { key: 'mem_percent', label: '物理内存', color: 'var(--accent)' },
   { key: 'swap_percent', label: 'Swap', color: 'var(--ok)' }
 ];
+const PSI_SERIES = [
+  { key: 'psi_mem_avg10', label: '内存', color: 'var(--danger)', format: fmtPct },
+  { key: 'psi_cpu_avg10', label: 'CPU', color: 'var(--accent)', format: fmtPct },
+  { key: 'psi_io_avg10', label: 'I/O', color: 'var(--muted)', format: fmtPct }
+];
 const NET_SERIES = [
   { key: 'net_rx_rate', label: '↓ 下载', color: 'var(--accent)', format: fmtRate },
   { key: 'net_tx_rate', label: '↑ 上传', color: 'var(--muted)', format: fmtRate }
@@ -392,6 +418,7 @@ export default function System({ active }) {
   const { uptime, os, hostname } = data;
   const swap = memory.swapTotal ? memory : null;
   const zram = memory.zram || null;
+  const psi = data.psi || {};
   // loadavg 防御：服务端可能给数组（[1,5,15]）或字符串/缺失，非数组不调用 .map 以免整页崩溃
   const loadavg = Array.isArray(cpu.loadavg)
     ? cpu.loadavg.map((v) => Number(v).toFixed(2)).join(' / ')
@@ -458,6 +485,13 @@ export default function System({ active }) {
               <Row k="备注" v="本机未配置 swap" />
             </>
           )}
+        </Card>
+
+        <Card title="PSI 压力">
+          <PsiRow k="内存 (memory)" o={psi.memory} />
+          <PsiRow k="CPU" o={psi.cpu} />
+          <PsiRow k="I/O" o={psi.io} />
+          <Row k="说明" v="avg10 压力 · some/full" />
         </Card>
 
         <Card title="系统">
@@ -561,6 +595,10 @@ export default function System({ active }) {
           <Card title="CPU / 内存 / Swap（%）">
             <Legend series={MEM_SERIES} data={history} />
             <LineChart data={history} series={MEM_SERIES} yMax={100} yLabel="%" />
+          </Card>
+          <Card title="PSI 压力 · some avg10（%）">
+            <Legend series={PSI_SERIES} data={history} />
+            <LineChart data={history} series={PSI_SERIES} yMax={100} yLabel="%" />
           </Card>
           <Card title="网速（/s）">
             <Legend series={NET_SERIES} data={history} />
