@@ -276,9 +276,9 @@ function Legend({ series, data }) {
 }
 
 // 趋势序列定义：单点缀色（琥珀）+ 中性灰，走 CSS 变量自动适配明暗
-const CPU_SERIES = [
-  { key: 'cpu', label: 'CPU', color: 'var(--accent)' },
-  { key: 'mem_percent', label: '内存', color: 'var(--muted)' }
+const MEM_SERIES = [
+  { key: 'mem_percent', label: '物理内存', color: 'var(--accent)' },
+  { key: 'swap_percent', label: 'Swap', color: 'var(--ok)' }
 ];
 const NET_SERIES = [
   { key: 'net_rx_rate', label: '↓ 下载', color: 'var(--accent)', format: fmtRate },
@@ -390,6 +390,8 @@ export default function System({ active }) {
   const disk_io = data.disk_io || null;
   const procCount = data.processes || null;
   const { uptime, os, hostname } = data;
+  const swap = memory.swapTotal ? memory : null;
+  const zram = memory.zram || null;
   // loadavg 防御：服务端可能给数组（[1,5,15]）或字符串/缺失，非数组不调用 .map 以免整页崩溃
   const loadavg = Array.isArray(cpu.loadavg)
     ? cpu.loadavg.map((v) => Number(v).toFixed(2)).join(' / ')
@@ -430,8 +432,32 @@ export default function System({ active }) {
           <div className="big">{memory.percent == null ? '—' : memory.percent + '%'}</div>
           <Bar percent={memory.percent} />
           <Row k="已用" v={fmtBytes(memory.used)} />
-          <Row k="剩余" v={fmtBytes(memory.free)} />
-          <Row k="总计" v={fmtBytes(memory.total)} />
+          <Row k="可用" v={memory.available != null ? fmtBytes(memory.available) : '—'} />
+          <Row k="缓冲缓存" v={memory.buffCache != null ? fmtBytes(memory.buffCache) : '—'} />
+          <Row k="剩余 / 总计" v={`${fmtBytes(memory.free)} / ${fmtBytes(memory.total)}`} />
+        </Card>
+
+        <Card title="Swap">
+          {swap ? (
+            <>
+              <div className="big">{memory.swapPercent + '%'}</div>
+              <Bar percent={memory.swapPercent} />
+              <Row k="已用" v={fmtBytes(memory.swapUsed)} />
+              <Row k="剩余 / 总计" v={`${fmtBytes(memory.swapFree)} / ${fmtBytes(memory.swapTotal)}`} />
+              {zram ? (
+                <Row k="zram (lz4)" v={`${fmtBytes(zram.used)} / ${fmtBytes(zram.total)}`} />
+              ) : (
+                <Row k="zram" v="无" />
+              )}
+            </>
+          ) : (
+            <>
+              <div className="big muted">0%</div>
+              <Bar percent={0} />
+              <Row k="zram" v="无" />
+              <Row k="备注" v="本机未配置 swap" />
+            </>
+          )}
         </Card>
 
         <Card title="系统">
@@ -532,9 +558,9 @@ export default function System({ active }) {
       <div className="trend-block">
         <h3 className="block-title">趋势</h3>
         <div className="cards">
-          <Card title="CPU / 内存（%）">
-            <Legend series={CPU_SERIES} data={history} />
-            <LineChart data={history} series={CPU_SERIES} yMax={100} yLabel="%" />
+          <Card title="CPU / 内存 / Swap（%）">
+            <Legend series={MEM_SERIES} data={history} />
+            <LineChart data={history} series={MEM_SERIES} yMax={100} yLabel="%" />
           </Card>
           <Card title="网速（/s）">
             <Legend series={NET_SERIES} data={history} />
