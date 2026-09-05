@@ -31,7 +31,7 @@ export function applyTheme(theme) {
   localStorage.setItem(THEME_KEY, theme);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
-    meta.setAttribute('content', effectiveTheme(theme) === 'dark' ? '#1c1917' : '#fafaf9');
+    meta.setAttribute('content', effectiveTheme(theme) === 'dark' ? '#13110f' : '#f7f6f3');
   }
 }
 
