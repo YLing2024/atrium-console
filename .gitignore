@@ -1,0 +1,12 @@
+# 依赖与构建产物（绝不应入库）
+node_modules/
+dist/
+
+# 本地环境变量：真实私有地址只存本地，仓库只留 .env.example
+.env
+.env.local
+.env.*.local
+
+# 系统与日志
+.DS_Store
+*.log
