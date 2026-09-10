@@ -4,7 +4,10 @@
  */
 
 const TOKEN_KEY = 'auth_token';
-const AUTH_CENTER_URL = 'https://auth.zhangyunling.cn/auth';
+// 认证中心地址：构建时由 VITE_AUTH_CENTER_URL 注入（真实地址只存本地 .env，不入库）
+// 未注入时回退占位符，保证开源克隆 / 未配置环境下不暴露私有地址
+const AUTH_CENTER_URL =
+  (import.meta.env.VITE_AUTH_CENTER_URL || '').trim() || 'https://auth.example.com/auth';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);

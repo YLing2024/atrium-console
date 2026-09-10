@@ -214,7 +214,7 @@ export default function Manage() {
       const data = await createApiToken({ name, note: createNote.trim(), expiresInDays: days });
       setCreatedToken({
         token: data.token,
-        curl: `curl -H "Authorization: Bearer ${data.token}" https://zhangyunling.cn/api/admin/system`
+        curl: `curl -H "Authorization: Bearer ${data.token}" ${location.origin}/api/admin/system`
       });
       setShowCreate(false);
       await loadTokens();
