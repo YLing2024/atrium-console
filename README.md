@@ -11,8 +11,11 @@
 
 ## SSO 接入架构（Nginx 探针 + auth_token）
 
-1. 未登录访问任意受保护页 → `Login` 组件自动跳转 `https://auth.zhangyunling.cn/auth?redirect=<当前地址>`；
+> 认证中心地址由构建时环境变量 `VITE_AUTH_CENTER_URL` 注入（模板见 `.env.example`，真实 `.env` 不入库）。
+> 未配置时回退占位符 `https://auth.example.com/auth`。
+
+1. 未登录访问任意受保护页 → `Login` 组件自动跳转 `<认证中心>/auth?redirect=<当前地址>`；
 2. 认证中心登录成功回跳 `redirect#token=<token>`（fragment，不进服务器日志）；
 3. `App.jsx` 解析 fragment（或 query）中的 token → **直接存入 `localStorage.auth_token`** → 立即清掉 URL；
-4. 所有 REST 请求（`api.js`）携带 `Authorization: Bearer *** Nginx 探针验证；
+4. 所有 REST 请求（`api.js`）携带 `Authorization: Bearer <token>` 头，由 Nginx 探针验证；
 5. 任意接口 401 → 清 token → 跳回认证中心。
