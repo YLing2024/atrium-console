@@ -12,6 +12,7 @@ import {
   updateBlogCollection,
   deleteBlogCollection
 } from '../api.js';
+import MarkdownEditor from './MarkdownEditor.jsx';
 
 const EMPTY_FORM = {
   title: '',
@@ -26,8 +27,9 @@ const EMPTY_COLLECTION_FORM = { name: '', slug: '', description: '' };
 
 export default function BlogAdmin() {
   const [posts, setPosts] = useState([]);
-  const contentRef = useRef(null); // 正文 textarea（插图光标插入用）
+  const editorApiRef = useRef(null); // MarkdownEditor 命令式 API（插图光标插入用）
   const imgInputRef = useRef(null); // 插图文件选择
+  const previewRef = useRef(null); // 预览滚动容器（滚动同步用）
   const [draftNotice, setDraftNotice] = useState(''); // 草稿恢复提示
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -38,8 +40,10 @@ export default function BlogAdmin() {
   const [saveError, setSaveError] = useState('');
   // 列表视图：'posts' 文章 / 'collections' 合集
   const [view, setView] = useState('posts');
-  // 正文编辑/预览切换
-  const [previewMode, setPreviewMode] = useState(false);
+  // 正文视图模式：'edit' 仅编辑 / 'split' 分栏 / 'preview' 仅预览
+  const [viewMode, setViewMode] = useState('split');
+  // 编辑器全屏/专注模式
+  const [fullscreen, setFullscreen] = useState(false);
   // 合集管理：列表 / 表单（'new' 或合集 id）
   const [collections, setCollections] = useState([]);
   const [editingCollection, setEditingCollection] = useState(null);
@@ -80,6 +84,21 @@ export default function BlogAdmin() {
     [form.content]
   );
 
+  // 字数统计：中文按字计、英文按词计；阅读时长按 300 字/分钟
+  const contentStats = useMemo(() => {
+    const text = form.content || '';
+    const cjk = (text.match(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g) || []).length;
+    const latinWords = (
+      text.replace(/[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g, ' ').match(/[A-Za-z0-9_]+/g) || []
+    ).length;
+    const words = cjk + latinWords;
+    return {
+      chars: text.length,
+      words,
+      minutes: words ? Math.max(1, Math.round(words / 300)) : 0
+    };
+  }, [form.content]);
+
   function startNew() {
     setForm(EMPTY_FORM);
     setSaveError('');
@@ -98,40 +117,41 @@ export default function BlogAdmin() {
     });
     setSaveError('');
     setEditing(post.id);
-    setPreviewMode(false);
+    setViewMode('split');
   }
 
   function cancelEdit() {
     setEditing(null);
     setSaveError('');
-    setPreviewMode(false);
+    setViewMode('split');
   }
 
   function setField(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
-  // 选择图片上传 → 在正文光标处插入 ![](url)
+  // 选择图片上传 → 在编辑器光标处插入![](relative url)（相对路径，换域名也正确）
   async function onPickImage(e) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
+    await handleUploadImage(file);
+  }
+
+  // 粘贴/拖拽/文件选择共用的图片上传插入
+  async function handleUploadImage(file) {
+    if (!file) return;
     try {
       const { url } = await uploadBlogImage(file);
-      const ta = contentRef.current;
-      const markdown = `![](https://zhangyunling.cn${url})`;
-      if (ta) {
-        const start = ta.selectionStart ?? form.content.length;
-        const end = ta.selectionEnd ?? form.content.length;
-        const next = form.content.slice(0, start) + markdown + form.content.slice(end);
-        setField('content', next);
-        requestAnimationFrame(() => {
-          ta.focus();
-          const pos = start + markdown.length;
-          ta.setSelectionRange(pos, pos);
-        });
+      const alt = (file.name || '')
+        .replace(/\.[^.]+$/, '')
+        .replace(/[\[\]()"]/g, '')
+        .trim();
+      const markdown = `![${alt}](${url})`;
+      if (editorApiRef.current) {
+        editorApiRef.current.insert(markdown);
       } else {
-        setField('content', form.content + '\n' + markdown);
+        setField('content', (form.content ? form.content + '\n' : '') + markdown);
       }
       setDraftNotice('图片已插入');
       setTimeout(() => setDraftNotice(''), 2500);
@@ -168,8 +188,72 @@ export default function BlogAdmin() {
   // 保存/发布成功清除草稿
   function clearDraft() {
     const key = 'blog_draft_' + (editing === 'new' ? 'new' : editing);
-    try { localStorage.removeItem(key); } catch { /* ignore */ }
+    try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
   }
+
+  // 分栏模式滚动同步：按滚动百分比在编辑区与预览区之间双向同步
+  useEffect(() => {
+    if (viewMode !== 'split') return undefined;
+    const api = editorApiRef.current;
+    const preview = previewRef.current;
+    if (!api || !preview || !api.scrollDOM) return undefined;
+    const editorDOM = api.scrollDOM;
+    // 记录程序写入的 scrollTop，对应源下一次自身触发的滚动事件视为程序回声，跳过防止回环
+    const expected = { editor: null, preview: null };
+    const onEditorScroll = () => {
+      if (expected.editor != null && Math.abs(editorDOM.scrollTop - expected.editor) < 2) {
+        expected.editor = null;
+        return;
+      }
+      expected.editor = null;
+      const sMax = editorDOM.scrollHeight - editorDOM.clientHeight;
+      const tMax = preview.scrollHeight - preview.clientHeight;
+      if (sMax <= 0 || tMax <= 0) return;
+      const top = (editorDOM.scrollTop / sMax) * tMax;
+      expected.preview = top;
+      preview.scrollTop = top;
+    };
+    const onPreviewScroll = () => {
+      if (expected.preview != null && Math.abs(preview.scrollTop - expected.preview) < 2) {
+        expected.preview = null;
+        return;
+      }
+      expected.preview = null;
+      const sMax = editorDOM.scrollHeight - editorDOM.clientHeight;
+      const tMax = preview.scrollHeight - preview.clientHeight;
+      if (sMax <= 0 || tMax <= 0) return;
+      const top = (preview.scrollTop / tMax) * sMax;
+      expected.editor = top;
+      editorDOM.scrollTop = top;
+    };
+    editorDOM.addEventListener('scroll', onEditorScroll, { passive: true });
+    preview.addEventListener('scroll', onPreviewScroll, { passive: true });
+    return () => {
+      editorDOM.removeEventListener('scroll', onEditorScroll);
+      preview.removeEventListener('scroll', onPreviewScroll);
+    };
+  }, [viewMode]);
+
+  // 全屏模式下 Esc 退出
+  useEffect(() => {
+    if (!fullscreen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setFullscreen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
+
+  // 工具栏按钮执行：仅预览模式先切回分栏，保证编辑器可见
+  function runTool(fn) {
+    return () => {
+      if (viewMode === 'preview') setViewMode('split');
+      const api = editorApiRef.current;
+      if (api) fn(api);
+    };
+  }
+
+  const modKey = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
   async function submit(published) {
     if (saving) return;
@@ -414,47 +498,201 @@ export default function BlogAdmin() {
 
           <div className="blog-field">
             <span className="blog-label">内容（Markdown）</span>
-            <div className="blog-toolbar">
-              {!previewMode && (
-                <button
-                  type="button"
-                  className="btn-ghost blog-img-btn"
-                  onClick={() => imgInputRef.current && imgInputRef.current.click()}
-                >
-                  插图
-                </button>
-              )}
-              <input
-                ref={imgInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={onPickImage}
-              />
-              <button
-                type="button"
-                className={'btn-ghost blog-img-btn' + (previewMode ? ' active' : '')}
-                onClick={() => setPreviewMode((v) => !v)}
-              >
-                {previewMode ? '编辑' : '预览'}
-              </button>
-              {draftNotice && <span className="blog-draft-notice">{draftNotice}</span>}
+            <div className={'blog-md-wrap' + (fullscreen ? ' fullscreen' : '')}>
+              <div className="blog-toolbar blog-md-toolbar">
+                <div className="blog-md-tools">
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title={'一级标题 ' + modKey + '⇧1'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.heading(1))}
+                  >
+                    H1
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title={'二级标题 ' + modKey + '⇧2'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.heading(2))}
+                  >
+                    H2
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title={'三级标题 ' + modKey + '⇧3'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.heading(3))}
+                  >
+                    H3
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn blog-tool-bold"
+                    title={'粗体 ' + modKey + 'B'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.wrap('**', '**', '粗体'))}
+                  >
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn blog-tool-italic"
+                    title={'斜体 ' + modKey + 'I'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.wrap('*', '*', '斜体'))}
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title={'行内代码 ' + modKey + 'E'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.wrap('`', '`', '代码'))}
+                  >
+                    ‹›
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title="代码块"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.insertBlock('```\n代码\n```'))}
+                  >
+                    ```
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title="引用"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.linePrefix('> '))}
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title="无序列表"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.linePrefix('- '))}
+                  >
+                    •
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title="有序列表"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.orderedList())}
+                  >
+                    1.
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title={'链接 ' + modKey + 'K'}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.link())}
+                  >
+                    链接
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title="表格"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) =>
+                      api.insertBlock('| 列一 | 列二 | 列三 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |')
+                    )}
+                  >
+                    表格
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title="分隔线"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={runTool((api) => api.insertBlock('---'))}
+                  >
+                    —
+                  </button>
+                </div>
+                <div className="blog-md-tools blog-md-right">
+                  <button
+                    type="button"
+                    className="btn-ghost blog-tool-btn"
+                    title="插入图片（支持粘贴 / 拖拽）"
+                    onClick={() => imgInputRef.current && imgInputRef.current.click()}
+                  >
+                    插图
+                  </button>
+                  <input
+                    ref={imgInputRef}
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    onChange={onPickImage}
+                  />
+                  <button
+                    type="button"
+                    className={'btn-ghost blog-tool-btn' + (viewMode === 'edit' ? ' active' : '')}
+                    title="仅编辑"
+                    onClick={() => setViewMode('edit')}
+                  >
+                    编辑
+                  </button>
+                  <button
+                    type="button"
+                    className={'btn-ghost blog-tool-btn' + (viewMode === 'split' ? ' active' : '')}
+                    title="编辑并排预览"
+                    onClick={() => setViewMode('split')}
+                  >
+                    并排
+                  </button>
+                  <button
+                    type="button"
+                    className={'btn-ghost blog-tool-btn' + (viewMode === 'preview' ? ' active' : '')}
+                    title="仅预览"
+                    onClick={() => setViewMode('preview')}
+                  >
+                    预览
+                  </button>
+                  <button
+                    type="button"
+                    className={'btn-ghost blog-tool-btn' + (fullscreen ? ' active' : '')}
+                    title={fullscreen ? '退出全屏（Esc）' : '全屏'}
+                    onClick={() => setFullscreen((v) => !v)}
+                  >
+                    {fullscreen ? '退出全屏' : '全屏'}
+                  </button>
+                </div>
+                {draftNotice && <span className="blog-draft-notice">{draftNotice}</span>}
+              </div>
+              <div className={'blog-split mode-' + viewMode}>
+                <div className="blog-edit-pane">
+                  <MarkdownEditor
+                    value={form.content}
+                    onChange={(text) => setField('content', text)}
+                    apiRef={editorApiRef}
+                    onUploadImage={handleUploadImage}
+                  />
+                </div>
+                <div
+                  ref={previewRef}
+                  className={'blog-preview blog-preview-pane' + (viewMode === 'edit' ? ' hidden' : '')}
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              </div>
+              <div className="blog-statusbar">
+                <span>字符 {contentStats.chars}</span>
+                <span>字数 {contentStats.words}</span>
+                <span>阅读约 {contentStats.minutes} 分钟</span>
+              </div>
             </div>
-            {previewMode ? (
-              <div
-                className="input blog-preview"
-                dangerouslySetInnerHTML={{ __html: previewHtml }}
-              />
-            ) : (
-              <textarea
-                ref={contentRef}
-                className="input blog-content"
-                rows={14}
-                value={form.content}
-                onChange={(e) => setField('content', e.target.value)}
-                placeholder="支持 Markdown 语法"
-              />
-            )}
           </div>
 
           <label className="blog-publish">
