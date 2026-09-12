@@ -458,9 +458,9 @@ export default function System({ active }) {
         <Card title="内存">
           <div className="big">{memory.percent == null ? '—' : memory.percent + '%'}</div>
           <Bar percent={memory.percent} />
-          <Row k="已用" v={fmtBytes(memory.used)} />
+          <Row k="已用（不含缓存）" v={fmtBytes(memory.used)} />
           <Row k="可用" v={memory.available != null ? fmtBytes(memory.available) : '—'} />
-          <Row k="缓冲缓存" v={memory.buffCache != null ? fmtBytes(memory.buffCache) : '—'} />
+          <Row k="其中缓存（可回收）" v={memory.buffCache != null ? fmtBytes(memory.buffCache) : '—'} />
           <Row k="剩余 / 总计" v={`${fmtBytes(memory.free)} / ${fmtBytes(memory.total)}`} />
         </Card>
 
