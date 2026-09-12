@@ -18,6 +18,7 @@ export default function CommandPalette({ onClose, onSwitchTab, onShowReset, onLo
       { id: 'version', label: '跳到版本页', hint: '查看软件版本', run: () => propsRef.current.onSwitchTab('version') },
       { id: 'blog', label: '跳到博客页', hint: '管理博客文章', run: () => propsRef.current.onSwitchTab('blog') },
       { id: 'manage', label: '跳到管理页', hint: '管理已登录设备', run: () => propsRef.current.onSwitchTab('manage') },
+      { id: 'terminal', label: '打开终端', hint: '服务器 Web 终端', run: () => propsRef.current.onSwitchTab('terminal') },
       { id: 'browse', label: '跳到浏览页', hint: '查看历史会话', run: () => propsRef.current.onSwitchTab('browse') },
       { id: 'pwd', label: '重置验证器', hint: '更换 TOTP 验证器', run: () => propsRef.current.onShowReset() },
       { id: 'logout', label: '退出登录', hint: '安全退出', run: () => propsRef.current.onLogout() }

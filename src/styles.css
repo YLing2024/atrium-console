@@ -641,6 +641,51 @@ button {
   display: none;
 }
 
+/* ============ 内嵌 Web 终端（ttyd /term/ 反代） ============ */
+.pane--term {
+  padding: 0;
+  overflow: hidden;
+}
+
+.term {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* 顶部一条发丝线工具条，只有一个「重连」——不写技术说明文案 */
+.term-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 32px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line-soft);
+  flex-shrink: 0;
+}
+
+.term-btn {
+  padding: 3px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border: 1px solid var(--line-soft);
+}
+
+.term-btn:hover {
+  color: var(--fg);
+  border-color: var(--line);
+}
+
+.term-frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  display: block;
+  background: #13110f; /* 终端底色，消除加载瞬间的白闪 */
+}
+
 /* ============ 登录页 ============ */
 .login-wrap {
   height: 100dvh;

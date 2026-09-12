@@ -8,6 +8,7 @@ import VersionPanel from './VersionPanel.jsx';
 import ResetTotp from './ResetTotp.jsx';
 import CommandPalette from './CommandPalette.jsx';
 import Manage from './Manage.jsx';
+import Terminal from './Terminal.jsx';
 
 export default function Main() {
   // 旧版 Tab key 'chat'（聊天）兼容：按 'browse'（浏览）处理
@@ -104,6 +105,12 @@ export default function Main() {
           >
             管理
           </button>
+          <button
+            className={'tab' + (tab === 'terminal' ? ' active' : '')}
+            onClick={() => switchTab('terminal')}
+          >
+            终端
+          </button>
         </nav>
         <div className="user-menu" ref={menuRef}>
           <button
@@ -166,6 +173,9 @@ export default function Main() {
         </div>
         <div className="pane" hidden={tab !== 'manage'}>
           <Manage />
+        </div>
+        <div className="pane pane--term" hidden={tab !== 'terminal'}>
+          <Terminal active={tab === 'terminal'} />
         </div>
       </div>
 
