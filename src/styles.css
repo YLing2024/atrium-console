@@ -723,6 +723,7 @@ button {
 }
 
 .term-add,
+.term-lock,
 .term-reconnect {
   padding: 0 14px;
   font-family: var(--font-mono);
@@ -733,6 +734,7 @@ button {
 }
 
 .term-add:hover,
+.term-lock:hover,
 .term-reconnect:hover {
   color: var(--fg);
 }
@@ -757,6 +759,64 @@ button {
   border: 0;
   display: block;
   background: #13110f; /* 终端底色，消除加载瞬间的白闪 */
+}
+
+/* 二次验证门：极简一栏，输入口令后进入终端 */
+.term-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+}
+
+.term-gate-form {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.term-gate-input {
+  width: 200px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 0;
+  outline: none;
+}
+
+.term-gate-input:focus {
+  border-color: var(--accent);
+}
+
+.term-gate-btn {
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  border: 1px solid var(--line);
+}
+
+.term-gate-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.term-gate-btn:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.term-gate-err {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--danger);
 }
 
 /* ============ 登录页 ============ */
