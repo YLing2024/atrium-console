@@ -2043,6 +2043,22 @@ button {
   white-space: nowrap;
 }
 
+/* 标题即入口：点进文章页（草稿走带预览令牌的地址） */
+.blog-title-link {
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease),
+    border-color 0.15s var(--ease);
+}
+
+.blog-title-link:hover {
+  color: var(--accent-ink);
+  border-bottom-color: currentColor;
+}
+
 /* 状态：方形细线标签（Swiss tag） */
 .blog-status {
   display: inline-block;

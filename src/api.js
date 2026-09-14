@@ -156,6 +156,11 @@ export function deleteBlogPost(id) {
   return request(`/api/blog/admin/posts/${id}`, { method: 'DELETE' });
 }
 
+// 取「打开文章页」地址（需鉴权）：已发布回公开地址，草稿附短时效预览令牌
+export function getBlogPostPreviewLink(id) {
+  return request(`/api/blog/admin/posts/${id}/preview-link`);
+}
+
 // ---------- 合集接口 ----------
 
 // 公开合集列表（仅已发布文章数，返回 { list }）

@@ -6,6 +6,7 @@ import {
   createBlogPost,
   updateBlogPost,
   deleteBlogPost,
+  getBlogPostPreviewLink,
   uploadBlogImage,
   getBlogAdminCollections,
   createBlogCollection,
@@ -298,6 +299,24 @@ export default function BlogAdmin() {
       await load();
     } catch (e) {
       setError(e.message);
+    }
+  }
+
+  // 打开文章页（新标签）：已发布走公开地址，草稿先取带短时效预览令牌的地址。
+  // 草稿要先请求令牌，故先同步开一个空标签再改地址 —— 避免 await 之后被浏览器当弹窗拦截。
+  async function openPost(post) {
+    if (post.published) {
+      window.open(`/blog/${post.slug}`, '_blank', 'noopener');
+      return;
+    }
+    const win = window.open('', '_blank');
+    try {
+      const { url } = await getBlogPostPreviewLink(post.id);
+      if (win) win.location.href = url;
+      else window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      if (win) win.close();
+      setError(`生成草稿预览链接失败：${e.message}`);
     }
   }
 
@@ -776,7 +795,17 @@ export default function BlogAdmin() {
                 {posts.map((p) => (
                   <tr key={p.id}>
                     <td className="blog-title">
-                      {p.title}
+                      <a
+                        className="blog-title-link"
+                        href={`/blog/${p.slug}`}
+                        title={p.published ? '打开文章页' : '打开文章页（草稿预览，链接 30 分钟内有效）'}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          openPost(p);
+                        }}
+                      >
+                        {p.title}
+                      </a>
                       {p.collection && (
                         <span className="blog-collection-tag">合集：{p.collection.name}</span>
                       )}
