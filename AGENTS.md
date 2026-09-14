@@ -8,11 +8,12 @@
 
 | Tab | 组件 | 说明 |
 |---|---|---|
-| 终端 | `Terminal.jsx` | 浏览器内连服务器终端（ttyd + tmux，多标签、口令二次验证） |
-| 聊天 | `Main.jsx` / `Browse.jsx` | 与 Hermes 网关对话、历史会话只读浏览 |
-| 博客 | `BlogAdmin.jsx` | 文章 / 合集管理（接口走 `/api/blog/admin/*`） |
 | 系统 | `System.jsx` | CPU / 内存 / 磁盘 / 网络实时与历史趋势 |
-| 管理 | `Manage.jsx` / `VersionPanel.jsx` | 服务状态、版本、API Token、TOTP 重置 |
+| 版本 | `VersionPanel.jsx` | 软件版本 |
+| 博客 | `BlogAdmin.jsx` | 文章 / 合集管理（接口走 `/api/blog/admin/*`） |
+| 管理 | `Manage.jsx` | 服务状态、API Token、TOTP 重置 |
+| 终端 | `Terminal.jsx` | 浏览器内连服务器终端（ttyd + tmux，多标签、口令二次验证） |
+| 文件 | `Files.jsx` | 资源管理器式文件区：目录导航 / 拖拽上传（进度条）/ 新建 / 重命名 / 删除 / 下载 |
 
 后端是 `../admin-server`（`:3100`），博客数据在 `../blog/server`（`:4000`）。
 
@@ -35,15 +36,13 @@ src/
 ├── App.jsx / main.jsx      # 登录态判断 + 路由
 ├── api.js                  # REST 封装、token 存取、401 跳 SSO（唯一鉴权入口）
 ├── theme.js                # 深浅色，localStorage('admin_theme')
-├── fileRefs.js             # @file:<路径> 引用解析
-├── imageRefs.js            # @image: / MEDIA 引用解析
-├── mediaTags.js            # 受保护片段（代码块等）边界计算
 ├── styles.css              # 设计令牌 + 全站样式
 └── components/
     ├── Main.jsx / Login.jsx / CommandPalette.jsx
-    ├── Browse.jsx / System.jsx / Manage.jsx / VersionPanel.jsx
+    ├── System.jsx / Manage.jsx / VersionPanel.jsx
     ├── BlogAdmin.jsx / MarkdownEditor.jsx / ResetTotp.jsx
-    └── Terminal.jsx        # 终端 Tab（ttyd iframe、多标签、口令门）
+    ├── Terminal.jsx        # 终端 Tab（ttyd iframe、多标签、口令门）
+    └── Files.jsx           # 文件 Tab（资源管理器：目录导航/拖拽上传/进度条/增删改）
 e2e/                        # Playwright 端到端（独立 package.json）
 test/                       # 单测
 ```
@@ -92,7 +91,8 @@ npm run preview
   - ttyd 参数是 `--url-arg`：第 1 个 arg = 会话名（`term-*` 白名单 `^term-[a-z0-9][a-z0-9-]{0,31}$`），第 2 个 arg = 口令票据。
   - 关窗必须断连：`pagehide/beforeunload` 用 `navigator.sendBeacon`（**token 必须挂 query**，sendBeacon 不能带自定义头，否则被 nginx SSO 探针拦 401），并用 `performance.getEntriesByType('navigation')[0].type === 'reload'` 区分 F5（刷新要保留会话）。
   - 存活点轮询 6s，iframe `onLoad` 后 0.8s 校正一次，别再把间隔调大（曾 20s 被用户投诉「变绿太慢」）。
-- 引用了 Hermes 消息里的 `@file:` / `@image:` / MEDIA 标签时，解析器必须跳过代码块内片段（`mediaTags.js#findProtectedRanges`），否则文档里的示例会被误当附件。
+- **「浏览」Tab 已删除**（2026-09-14，用户不用历史会话浏览）：连同 `Browse.jsx`、`fileRefs.js`、`imageRefs.js`、`mediaTags.js` 一并移除。若将来要恢复历史浏览，从 git 历史取回即可；后端 `/api/admin/history` 接口**保留未删**。
+- **默认 Tab 是「系统」**：`sessionStorage.admin_tab` 读出的值必须在 `TABS` 白名单内，否则回退 `system`——直接写 `|| 'browse'` 那种回退会白屏。
 - 这是 **JSX 项目**，不要用 `node --check` 做语法校验（会报错），用 `vite build` 或 eslint。
 - 博客后台的文章/合集标识已切到**雪花 ID（`public_id`）**：表单不再手填 slug，只读展示「合集 ID」；改动链接逻辑时前后端（`blog-server`）要一起改。
 - `e2e/` 有独立的 `package.json`（Playwright），根目录 `npm install` 不会装它。
