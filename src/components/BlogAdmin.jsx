@@ -25,7 +25,7 @@ const EMPTY_FORM = {
   published: false,
   collection_id: ''
 };
-const EMPTY_COLLECTION_FORM = { name: '', slug: '', description: '' };
+const EMPTY_COLLECTION_FORM = { name: '', slug: '', public_id: '', description: '' };
 
 export default function BlogAdmin() {
   const [posts, setPosts] = useState([]);
@@ -334,6 +334,7 @@ export default function BlogAdmin() {
     setCollectionForm({
       name: c.name,
       slug: c.slug,
+      public_id: c.public_id || '',
       description: c.description || ''
     });
     setCollectionError('');
@@ -414,12 +415,14 @@ export default function BlogAdmin() {
           </label>
 
           <label className="blog-field">
-            <span className="blog-label">Slug</span>
+            <span className="blog-label">合集 ID</span>
             <input
               className="input"
-              value={collectionForm.slug}
-              onChange={(e) => setCollectionField('slug', e.target.value)}
-              placeholder="留空自动生成"
+              value={collectionForm.public_id || ''}
+              readOnly
+              disabled
+              placeholder="保存后自动生成（雪花 ID，URL 用它）"
+              title="URL 标识：/blog/collections/&lt;合集 ID&gt;，保存后固定不变"
             />
           </label>
 
@@ -872,7 +875,17 @@ export default function BlogAdmin() {
             <tbody>
               {collections.map((c) => (
                 <tr key={c.id}>
-                  <td className="blog-title">{c.name}</td>
+                  <td className="blog-title">
+                    <a
+                      className="blog-title-link"
+                      href={`/blog/collections/${c.public_id || c.slug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="打开合集页"
+                    >
+                      {c.name}
+                    </a>
+                  </td>
                   <td className="muted">{c.description || '—'}</td>
                   <td>{c.post_count}</td>
                   <td className="blog-ops">
