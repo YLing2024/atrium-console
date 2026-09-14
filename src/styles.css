@@ -2847,6 +2847,10 @@ button {
 
 .files {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 420px;
 }
 
 /* ---- 工具栏 ---- */
@@ -3002,10 +3006,11 @@ button {
 
 /* ---- 列表 ---- */
 .files-body {
+  flex: 1 1 auto;
+  min-height: 0;
   margin-top: 14px;
   border-top: 1px solid var(--line-soft);
   overflow: auto;
-  max-height: calc(100vh - 250px);
 }
 
 .files-head,
@@ -3122,6 +3127,10 @@ button {
 }
 
 .files-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
   padding: 36px 8px;
   text-align: center;
   font-size: 13px;

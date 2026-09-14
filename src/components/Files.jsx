@@ -47,6 +47,38 @@ function extOf(name) {
   return name.slice(i + 1).toUpperCase().slice(0, 5);
 }
 
+// 递归读取拖入的目录条目（DataTransfer 的 webkitGetAsEntry）
+function readAllEntries(reader) {
+  return new Promise((resolve, reject) => {
+    const out = [];
+    const next = () => {
+      reader.readEntries((batch) => {
+        if (!batch.length) return resolve(out);
+        out.push(...batch);
+        return next();
+      }, reject);
+    };
+    next();
+  });
+}
+
+// 把目录条目展开成 [{ file, dir }]；dir 为相对被拖入目录的上级路径
+async function walkEntry(entry, dir, acc) {
+  if (entry.isFile) {
+    const file = await new Promise((res, rej) => entry.file(res, rej));
+    acc.push({ file, dir });
+    return;
+  }
+  if (entry.isDirectory) {
+    const sub = dir ? `${dir}/${entry.name}` : entry.name;
+    const children = await readAllEntries(entry.createReader());
+    for (const c of children) {
+      // eslint-disable-next-line no-await-in-loop
+      await walkEntry(c, sub, acc);
+    }
+  }
+}
+
 function IconFolder() {
   return (
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
@@ -109,6 +141,17 @@ export default function Files({ active }) {
     }
   }, [active, load]);
 
+  // 拖拽落在 .files 之外时阻止浏览器默认行为（否则会直接打开/下载被拖入的文件）
+  useEffect(() => {
+    if (!active) return undefined;
+    const prevent = (e) => e.preventDefault();
+    window.addEventListener('dragover', prevent);
+    window.addEventListener('drop', prevent);
+    return () => {
+      window.removeEventListener('dragover', prevent);
+      window.removeEventListener('drop', prevent);
+    };
+  }, [active]);
   /* ---------------- 上传队列（串行，带进度） ---------------- */
 
   const pump = useCallback(async () => {
@@ -157,25 +200,32 @@ export default function Files({ active }) {
     load(pathRef.current); // 全部结束刷新当前目录
   }, [load]);
 
+  // items: [{ file, dir }]，dir 为相对当前目录的子路径（拖入文件夹时保留结构）
   const enqueue = useCallback(
-    (files) => {
-      const list = Array.from(files || []);
+    (items) => {
+      const list = (items || []).filter((x) => x && x.file);
       if (!list.length) return;
       setNotice('');
-      const target = pathRef.current;
+      const base = pathRef.current;
       const stamp = Date.now();
-      const recs = list.map((f, i) => ({
-        id: `${stamp}-${i}-${f.name}`,
-        name: f.name,
-        size: f.size,
-        loaded: 0,
-        percent: 0,
-        speed: 0,
-        eta: 0,
-        status: 'waiting',
-        error: ''
-      }));
-      const jobs = list.map((f, i) => ({ id: recs[i].id, file: f, size: f.size, target }));
+      const recs = [];
+      const jobs = [];
+      list.forEach((x, i) => {
+        const target = x.dir ? (base ? `${base}/${x.dir}` : x.dir) : base;
+        const id = `${stamp}-${i}-${x.dir || ''}-${x.file.name}`;
+        recs.push({
+          id,
+          name: x.dir ? `${x.dir}/${x.file.name}` : x.file.name,
+          size: x.file.size,
+          loaded: 0,
+          percent: 0,
+          speed: 0,
+          eta: 0,
+          status: 'waiting',
+          error: ''
+        });
+        jobs.push({ id, file: x.file, size: x.file.size, target });
+      });
       setUploads((u) => [...recs, ...u].slice(0, 40));
       pendingRef.current.push(...jobs);
       pump();
@@ -214,21 +264,34 @@ export default function Files({ active }) {
     setDragOver(false);
     const dt = e.dataTransfer;
     if (!dt) return;
-    // 拖入文件夹：不做递归展开（v1 只支持文件），明确告知而不是静默失败
+
+    // 拖拽数据只在事件同步阶段有效：先把 entry / 文件列表快照出来，再异步展开
+    const entries = [];
     const items = dt.items ? Array.from(dt.items) : [];
-    const hasDir = items.some((it) => {
-      try {
-        const entry = it.webkitGetAsEntry && it.webkitGetAsEntry();
-        return entry && entry.isDirectory;
-      } catch (err) {
-        return false;
-      }
-    });
-    if (hasDir) {
-      setNotice('暂不支持拖拽文件夹，请先把文件夹打包，或拖入其中的文件');
+    for (const it of items) {
+      if (it.kind !== 'file' || !it.webkitGetAsEntry) continue;
+      const entry = it.webkitGetAsEntry();
+      if (entry) entries.push(entry);
+    }
+    const plain = dt.files ? Array.from(dt.files).map((f) => ({ file: f, dir: '' })) : [];
+
+    if (!entries.length) {
+      if (plain.length) enqueue(plain);
       return;
     }
-    if (dt.files && dt.files.length) enqueue(dt.files);
+
+    // 递归展开：支持整个文件夹拖入，并在目标端保留相对目录结构
+    (async () => {
+      const acc = [];
+      for (const entry of entries) {
+        // eslint-disable-next-line no-await-in-loop
+        await walkEntry(entry, '', acc);
+      }
+      if (acc.length) enqueue(acc);
+      else if (plain.length) enqueue(plain);
+    })().catch(() => {
+      if (plain.length) enqueue(plain);
+    });
   }
 
   /* ---------------- 目录导航 ---------------- */
@@ -359,7 +422,7 @@ export default function Files({ active }) {
         multiple
         style={{ display: 'none' }}
         onChange={(e) => {
-          enqueue(e.target.files);
+          enqueue(Array.from(e.target.files || []).map((f) => ({ file: f, dir: '' })));
           e.target.value = '';
         }}
       />
@@ -430,7 +493,7 @@ export default function Files({ active }) {
 
         {!err && !loading && shown.length === 0 && (
           <div className="files-empty">
-            这里还是空的 —— 把文件拖进这个区域即可上传
+            把文件或整个文件夹拖到这里即可上传
           </div>
         )}
 
