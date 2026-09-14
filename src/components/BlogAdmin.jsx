@@ -18,6 +18,7 @@ import MarkdownEditor from './MarkdownEditor.jsx';
 const EMPTY_FORM = {
   title: '',
   slug: '',
+  public_id: '',
   tags: '',
   excerpt: '',
   content: '',
@@ -110,6 +111,7 @@ export default function BlogAdmin() {
     setForm({
       title: post.title,
       slug: post.slug,
+      public_id: post.public_id || '',
       tags: (post.tags || []).join(', '),
       excerpt: post.excerpt || '',
       content: post.content || '',
@@ -305,8 +307,9 @@ export default function BlogAdmin() {
   // 打开文章页（新标签）：已发布走公开地址，草稿先取带短时效预览令牌的地址。
   // 草稿要先请求令牌，故先同步开一个空标签再改地址 —— 避免 await 之后被浏览器当弹窗拦截。
   async function openPost(post) {
+    const key = post.public_id || post.slug;
     if (post.published) {
-      window.open(`/blog/${post.slug}`, '_blank', 'noopener');
+      window.open(`/blog/${key}`, '_blank', 'noopener');
       return;
     }
     const win = window.open('', '_blank');
@@ -451,9 +454,21 @@ export default function BlogAdmin() {
       <div className="system blog-admin">
         <div className="system-head">
           <h2>{editing === 'new' ? '新建文章' : '编辑文章'}</h2>
-          <button className="btn-ghost" onClick={cancelEdit} disabled={saving}>
-            ← 返回列表
-          </button>
+          <div className="blog-head-actions">
+            {form.public_id && (
+              <a
+                className="btn-ghost"
+                href={`/blog/${form.public_id}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                在 /blog 查看
+              </a>
+            )}
+            <button className="btn-ghost" onClick={cancelEdit} disabled={saving}>
+              ← 返回列表
+            </button>
+          </div>
         </div>
 
         <div className="blog-editor">
@@ -469,12 +484,14 @@ export default function BlogAdmin() {
           </label>
 
           <label className="blog-field">
-            <span className="blog-label">Slug</span>
+            <span className="blog-label">文章 ID</span>
             <input
               className="input"
-              value={form.slug}
-              onChange={(e) => setField('slug', e.target.value)}
-              placeholder="留空自动生成（如 my-first-post）"
+              value={form.public_id || ''}
+              readOnly
+              disabled
+              placeholder="保存后自动生成（雪花 ID，URL 用它）"
+              title="URL 标识：/blog/&lt;文章 ID&gt;，保存后固定不变，改标题不影响"
             />
           </label>
 
@@ -797,7 +814,7 @@ export default function BlogAdmin() {
                     <td className="blog-title">
                       <a
                         className="blog-title-link"
-                        href={`/blog/${p.slug}`}
+                        href={`/blog/${p.public_id || p.slug}`}
                         title={p.published ? '打开文章页' : '打开文章页（草稿预览，链接 30 分钟内有效）'}
                         onClick={(e) => {
                           e.preventDefault();
@@ -872,12 +889,6 @@ export default function BlogAdmin() {
           </table>
         </div>
       )}
-
-      <div className="blog-foot">
-        <a href={`/blog/${form.slug || ''}`} target="_blank" rel="noreferrer">
-          在 /blog 查看
-        </a>
-      </div>
     </div>
   );
 }

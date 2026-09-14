@@ -2118,6 +2118,19 @@ button {
   text-align: right;
 }
 
+/* 编辑页右上角动作区（「在 /blog 查看」+「返回列表」） */
+.blog-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.blog-head-actions .btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .blog-foot a {
   color: var(--muted);
   font-family: var(--font-sans);
