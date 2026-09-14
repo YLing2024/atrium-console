@@ -41,6 +41,20 @@ function fmtDuration(sec) {
   return `${Math.floor(sec / 60)} 分 ${Math.ceil(sec % 60)} 秒`;
 }
 
+// 上传行的状态文案。
+// 注意：XHR 进度只反映「浏览器 → nginx」这一段；字节发完后服务端还要
+// nginx 缓冲落盘 → 转发后端 → 后端写成正式文件（大文件可达数秒）。
+// 那段时间百分比会停在 99% 不动，必须给明确状态，否则看起来像卡死。
+function uploadMeta(u) {
+  if (u.status === 'error') return u.error;
+  if (u.status === 'done') return `${fmtSize(u.size)} · 完成`;
+  if (u.percent >= 99) return `${fmtSize(u.size)} · 写入服务器…`;
+  const parts = [`${fmtSize(u.loaded)} / ${fmtSize(u.size)}`, `${u.percent.toFixed(0)}%`];
+  if (u.speed) parts.push(`${fmtSize(u.speed)}/s`);
+  if (u.eta) parts.push(`剩余 ${fmtDuration(u.eta)}`);
+  return parts.join(' · ');
+}
+
 function extOf(name) {
   const i = name.lastIndexOf('.');
   if (i <= 0 || i === name.length - 1) return '';
@@ -455,15 +469,7 @@ export default function Files({ active }) {
                   <span className="up-name" title={u.name}>
                     {u.name}
                   </span>
-                  <span className="up-meta mono">
-                    {u.status === 'error'
-                      ? u.error
-                      : u.status === 'done'
-                        ? `${fmtSize(u.size)} · 完成`
-                        : `${fmtSize(u.loaded)} / ${fmtSize(u.size)} · ${u.percent.toFixed(0)}%` +
-                          (u.speed ? ` · ${fmtSize(u.speed)}/s` : '') +
-                          (u.eta ? ` · 剩余 ${fmtDuration(u.eta)}` : '')}
-                  </span>
+                  <span className="up-meta mono">{uploadMeta(u)}</span>
                 </div>
                 <div className={'up-bar ' + u.status}>
                   <div className="up-bar-fill" style={{ width: `${u.status === 'done' ? 100 : u.percent}%` }} />
