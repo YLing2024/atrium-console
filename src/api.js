@@ -243,3 +243,75 @@ export function getHistorySessions() {
 export function getHistoryMessages(id) {
   return request('/api/admin/history/' + encodeURIComponent(id));
 }
+
+// ============ 文件区（目录浏览 / 上传 / 下载 / 新建 / 重命名 / 删除） ============
+// path 均为相对文件区根目录的路径，根目录为 ''（后端做越界校验）
+
+// 列目录，返回 { path, parent, entries: [{ name, type: 'dir'|'file', size, mtime }] }
+export function listFiles(path = '') {
+  return request(`/api/admin/files?path=${encodeURIComponent(path)}`);
+}
+
+// 新建文件夹
+export function makeDir(path, name) {
+  return request('/api/admin/files/mkdir', { method: 'POST', body: { path, name } });
+}
+
+// 重命名文件或目录（path 为完整相对路径，name 为新名称）
+export function renameEntry(path, name) {
+  return request('/api/admin/files/rename', { method: 'POST', body: { path, name } });
+}
+
+// 删除文件或目录（目录递归）
+export function deleteEntry(path) {
+  return request(`/api/admin/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+}
+
+// 下载地址：<a>/window.open 无法带自定义头，token 只能走 query（nginx 探针支持 ?token=）
+export function fileDownloadUrl(path) {
+  const token = getToken() || '';
+  return `/api/admin/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`;
+}
+
+// 上传单个文件（必须用 XHR：fetch 拿不到上传进度）
+// onProgress({ loaded, total, percent }) · onDone(data) · onError(err)；返回 xhr 供调用方 abort()
+export function uploadFileTo(path, file, { onProgress, onDone, onError } = {}) {
+  const xhr = new XMLHttpRequest();
+  const token = getToken();
+  xhr.open('POST', `/api/admin/files/upload?path=${encodeURIComponent(path)}`);
+  if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+  xhr.upload.onprogress = (e) => {
+    if (onProgress && e.lengthComputable) {
+      onProgress({
+        loaded: e.loaded,
+        total: e.total,
+        percent: e.total ? (e.loaded / e.total) * 100 : 0
+      });
+    }
+  };
+  xhr.onload = () => {
+    let data = {};
+    try {
+      data = JSON.parse(xhr.responseText || '{}');
+    } catch (e) {
+      data = {};
+    }
+    if (xhr.status === 401) {
+      logout(); // 凭证失效
+      return;
+    }
+    if (xhr.status >= 200 && xhr.status < 300) {
+      if (onDone) onDone(data);
+    } else if (onError) {
+      onError(new Error(data.error || `HTTP ${xhr.status}`));
+    }
+  };
+  xhr.onerror = () => onError && onError(new Error('网络错误，上传中断'));
+  xhr.onabort = () => onError && onError(new Error('已取消'));
+
+  const fd = new FormData();
+  fd.append('file', file);
+  xhr.send(fd);
+  return xhr;
+}

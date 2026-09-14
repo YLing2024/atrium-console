@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { logout } from '../api.js';
 import { getTheme, effectiveTheme, toggleTheme } from '../theme.js';
-import Browse from './Browse.jsx';
 import System from './System.jsx';
 import BlogAdmin from './BlogAdmin.jsx';
 import VersionPanel from './VersionPanel.jsx';
@@ -9,12 +8,14 @@ import ResetTotp from './ResetTotp.jsx';
 import CommandPalette from './CommandPalette.jsx';
 import Manage from './Manage.jsx';
 import Terminal from './Terminal.jsx';
+import Files from './Files.jsx';
 
 export default function Main() {
-  // 旧版 Tab key 'chat'（聊天）兼容：按 'browse'（浏览）处理
+  // 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat'）一律回退到首个 Tab
+  const TABS = ['system', 'version', 'blog', 'manage', 'terminal', 'files'];
   const [tab, setTab] = useState(() => {
-    const saved = sessionStorage.getItem('admin_tab') || 'browse';
-    return saved === 'chat' ? 'browse' : saved;
+    const saved = sessionStorage.getItem('admin_tab');
+    return TABS.includes(saved) ? saved : 'system';
   });
   const [showReset, setShowReset] = useState(false);
   const [toast, setToast] = useState('');
@@ -76,12 +77,6 @@ export default function Main() {
       <header className="topbar">
         <nav className="tabs">
           <button
-            className={'tab' + (tab === 'browse' ? ' active' : '')}
-            onClick={() => switchTab('browse')}
-          >
-            浏览
-          </button>
-          <button
             className={'tab' + (tab === 'system' ? ' active' : '')}
             onClick={() => switchTab('system')}
           >
@@ -110,6 +105,12 @@ export default function Main() {
             onClick={() => switchTab('terminal')}
           >
             终端
+          </button>
+          <button
+            className={'tab' + (tab === 'files' ? ' active' : '')}
+            onClick={() => switchTab('files')}
+          >
+            文件
           </button>
         </nav>
         <div className="user-menu" ref={menuRef}>
@@ -159,9 +160,6 @@ export default function Main() {
 
       <div className="content">
         {/* 面板常驻挂载，仅切换显隐：避免切 tab 时浏览状态/内容丢失 */}
-        <div className="pane" hidden={tab !== 'browse'}>
-          <Browse active={tab === 'browse'} />
-        </div>
         <div className="pane" hidden={tab !== 'system'}>
           <System active={tab === 'system'} />
         </div>
@@ -176,6 +174,9 @@ export default function Main() {
         </div>
         <div className="pane pane--term" hidden={tab !== 'terminal'}>
           <Terminal active={tab === 'terminal'} />
+        </div>
+        <div className="pane" hidden={tab !== 'files'}>
+          <Files active={tab === 'files'} />
         </div>
       </div>
 
