@@ -45,14 +45,62 @@ function fmtTime(ts) {
   return `${hh}:${mm}:${ss}`;
 }
 
-// 进度条（CPU / 内存 / 磁盘共用）。动态变色：>80% 红、60-80% 橙、<60% 绿
+// 占用率 → 颜色分级：>80% 红、60-80% 橙、<60% 绿（Bar 与每核小条共用）
+function toneFor(percent) {
+  const p = Math.max(0, Math.min(100, Number(percent) || 0));
+  return p > 80 ? 'hi' : p >= 60 ? 'mid' : 'low';
+}
+
+// 进度条（CPU / 内存 / 磁盘共用）。动态变色规则见 toneFor
 function Bar({ percent }) {
   const p = Math.max(0, Math.min(100, percent || 0));
-  const tone = p > 80 ? 'hi' : p >= 60 ? 'mid' : 'low';
   return (
     <div className="bar">
-      <div className={'bar-fill ' + tone} style={{ width: p + '%' }} />
+      <div className={'bar-fill ' + toneFor(p)} style={{ width: p + '%' }} />
     </div>
+  );
+}
+
+// 每核占用区块：cpu.per_core 缺失或为空时整块不渲染（兼容旧后端）
+function CoreGrid({ cores }) {
+  if (!Array.isArray(cores) || cores.length === 0) return null;
+  return (
+    <div className="cores">
+      {cores.map((c, i) => {
+        const id = c && c.id != null ? c.id : i;
+        const raw = c && c.usage_percent != null ? Number(c.usage_percent) : 0;
+        const p = Math.max(0, Math.min(100, Number.isFinite(raw) ? raw : 0));
+        return (
+          <div className="core" key={id}>
+            <div className="core-top">
+              <span className="core-id">#{id}</span>
+              <span className="core-pct">{p.toFixed(1)}%</span>
+            </div>
+            <div className="core-bar">
+              <div className={'bar-fill ' + toneFor(p)} style={{ width: p + '%' }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// 单块磁盘卡片：多盘列表与旧单盘回退共用同一结构
+function DiskCard({ title, disk }) {
+  return (
+    <Card title={title}>
+      <div className="disk">
+        <div className="disk-top">
+          <span>已用 {fmtBytes(disk.used)}</span>
+          <span className="muted">
+            {disk.percent == null ? '—' : disk.percent + '%'} · 共 {fmtBytes(disk.total)}
+          </span>
+        </div>
+        <Bar percent={disk.percent} />
+        <Row k="剩余 / 总" v={`${fmtBytes(disk.free)} / ${fmtBytes(disk.total)}`} />
+      </div>
+    </Card>
   );
 }
 
@@ -449,6 +497,7 @@ export default function System({ active }) {
         <Card title="CPU">
           <div className="big">{cpu.usage_percent == null ? '—' : cpu.usage_percent + '%'}</div>
           <Bar percent={cpu.usage_percent} />
+          <CoreGrid cores={cpu.per_core} />
           <Row k="型号" v={cpu.model} />
           <Row k="核心数" v={cpu.cores} />
           <Row k="进程" v={procCount ? `${procCount.running} / ${procCount.total}` : '—'} />
@@ -516,20 +565,15 @@ export default function System({ active }) {
       </div>
 
       <div className="cards">
-        {disk && (
-          <Card title="磁盘">
-            <div className="disk">
-              <div className="disk-top">
-                <span>已用 {fmtBytes(disk.used)}</span>
-                <span className="muted">
-                  {disk.percent == null ? '—' : disk.percent + '%'} · 共 {fmtBytes(disk.total)}
-                </span>
-              </div>
-              <Bar percent={disk.percent} />
-              <Row k="剩余 / 总" v={`${fmtBytes(disk.free)} / ${fmtBytes(disk.total)}`} />
-            </div>
-          </Card>
-        )}
+        {Array.isArray(data.disks) && data.disks.length > 0
+          ? data.disks.map((d, i) => (
+              <DiskCard
+                key={(d && d.mount ? d.mount : 'disk') + '-' + i}
+                title={'磁盘 ' + (d && d.mount ? d.mount : '')}
+                disk={d || {}}
+              />
+            ))
+          : disk && <DiskCard title="磁盘" disk={disk} />}
       </div>
 
       {processes.length > 0 && (

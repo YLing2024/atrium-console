@@ -3183,3 +3183,48 @@ button {
     justify-content: flex-start;
   }
 }
+
+/* ============ 每核 CPU 占用 ============ */
+.cores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin: 0 0 14px;
+}
+
+.core {
+  min-width: 0;
+}
+
+.core-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.core-id {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.core-pct {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+.core-bar {
+  height: 3px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+@media (max-width: 420px) {
+  .cores {
+    gap: 8px;
+  }
+}
