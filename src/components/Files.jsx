@@ -7,6 +7,7 @@ import {
   fileDownloadUrl,
   uploadFileTo
 } from '../api.js';
+import { ShareCreateModal, ShareManageModal } from './FileShare.jsx';
 
 /**
  * 文件区：目录浏览 / 拖拽上传（带进度条）/ 新建文件夹 / 重命名 / 删除 / 下载。
@@ -122,6 +123,8 @@ export default function Files({ active }) {
   const [dialog, setDialog] = useState(null); // { type: 'mkdir'|'rename'|'delete', target, value, title }
   const [dialogBusy, setDialogBusy] = useState(false);
   const [dialogErr, setDialogErr] = useState('');
+  const [shareTarget, setShareTarget] = useState(null); // { target, name } 创建临时链接
+  const [sharePanel, setSharePanel] = useState(false); // 临时链接管理面板
 
   const dragDepth = useRef(0);
   const loadedOnce = useRef(false);
@@ -421,6 +424,9 @@ export default function Files({ active }) {
           <button className="btn-ghost" onClick={() => openDialog('mkdir')}>
             新建文件夹
           </button>
+          <button className="btn-ghost" onClick={() => setSharePanel(true)}>
+            临时链接
+          </button>
           <button className="btn-ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
             选择文件
           </button>
@@ -533,6 +539,19 @@ export default function Files({ active }) {
                     下载
                   </a>
                 )}
+                {entry.type === 'file' && (
+                  <button
+                    className="link-btn"
+                    onClick={() =>
+                      setShareTarget({
+                        target: path ? `${path}/${entry.name}` : entry.name,
+                        name: entry.name
+                      })
+                    }
+                  >
+                    链接
+                  </button>
+                )}
                 <button className="link-btn" onClick={() => openDialog('rename', entry)}>
                   重命名
                 </button>
@@ -581,6 +600,18 @@ export default function Files({ active }) {
           </form>
         </div>
       )}
+
+      {/* 创建临时链接 */}
+      {shareTarget && (
+        <ShareCreateModal
+          target={shareTarget.target}
+          name={shareTarget.name}
+          onClose={() => setShareTarget(null)}
+        />
+      )}
+
+      {/* 临时链接管理面板 */}
+      {sharePanel && <ShareManageModal onClose={() => setSharePanel(false)} />}
     </div>
   );
 }

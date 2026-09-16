@@ -3228,3 +3228,209 @@ button {
     gap: 8px;
   }
 }
+
+/* ==========================================================================
+   文件临时链接（限时分享）—— 创建弹窗 + 管理面板
+   语义对齐 v2link：expiresAt 0 = 永久；状态 active 绿 / expired 橙 / revoked 红
+   ========================================================================== */
+
+.fshare-modal {
+  max-width: 420px;
+}
+
+.fshare-wide {
+  max-width: 960px;
+}
+
+.fshare-target {
+  font-size: 13px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fshare-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fshare-label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fshare-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fshare-chip {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  transition: color 0.14s var(--ease), border-color 0.14s var(--ease),
+    background-color 0.14s var(--ease);
+}
+
+.fshare-chip:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+.fshare-chip.on {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.fshare-hint {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.fshare-url {
+  font-size: 12px;
+}
+
+/* ---- 管理面板 ---- */
+.fshare-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fshare-top .modal-title {
+  padding-bottom: 0;
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.fshare-empty {
+  padding: 36px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.fshare-list {
+  max-height: 56vh;
+  overflow: auto;
+}
+
+.fshare-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 76px 150px 56px 120px 64px 210px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.fshare-row-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  padding: 6px 2px;
+}
+
+.fshare-col {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.fshare-col-ops {
+  text-align: right;
+}
+
+.fshare-name {
+  font-size: 13px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fshare-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.fshare-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  background: var(--muted);
+  transform: rotate(45deg);
+}
+
+.fshare-dot.active {
+  background: var(--ok);
+}
+
+.fshare-dot.expired {
+  background: var(--warn);
+}
+
+.fshare-dot.revoked {
+  background: var(--danger);
+}
+
+.fshare-expiry,
+.fshare-num {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fshare-file {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.fshare-file.gone {
+  color: var(--danger);
+}
+
+.fshare-ops {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.fshare-ops .link-btn {
+  font-size: 11.5px;
+  padding: 4px 6px;
+}
+
+.fshare-ops .link-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .fshare-list {
+    overflow-x: auto;
+  }
+}

@@ -315,3 +315,37 @@ export function uploadFileTo(path, file, { onProgress, onDone, onError } = {}) {
   xhr.send(fd);
   return xhr;
 }
+
+// ============ 文件临时链接（限时分享） ============
+// 语义与 v2link 对齐：expiresAt === 0 表示永久有效；status 由后端按
+// revokedAt / expiresAt 推导。链接地址一律用后端返回的 url，前端不拼域名。
+
+// 创建临时链接：path 为文件区相对路径；data 可含 { expiresAt }（ms，0 = 永久）
+// 或 { ttlHours }（二选一，同时给以 expiresAt 为准），以及可选 note。
+export function createFileShare(path, data = {}) {
+  return request('/api/admin/files/shares', {
+    method: 'POST',
+    body: { path, ...data }
+  });
+}
+
+// 临时链接列表（按 createdAt 倒序），返回 { shares: [...] }
+// 每项含计算字段：url / status / remainingMs / fileExists
+export function listFileShares() {
+  return request('/api/admin/files/shares');
+}
+
+// 改期 / 转永久（expiresAt: 0）/ 改备注 / 撤销（revoked: true，不可逆）
+export function updateFileShare(id, patch) {
+  return request(`/api/admin/files/shares/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: patch
+  });
+}
+
+// 删除链接记录（不动磁盘文件）
+export function deleteFileShare(id) {
+  return request(`/api/admin/files/shares/${encodeURIComponent(id)}`, {
+    method: 'DELETE'
+  });
+}
