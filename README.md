@@ -1,6 +1,6 @@
 # admin-web
 
-个人网站 Admin 管理后台前端（React + Vite SPA，部署于 `/admin/` 路径）：历史会话只读浏览、系统监控、博客管理。构建产物输出到 `/var/www/admin/`。
+个人网站 Admin 管理后台前端（React + Vite SPA，部署于独立子域，见 `AGENTS.md` 的部署段）：历史会话只读浏览、系统监控、博客管理。构建产物输出到 `/var/www/admin/`。
 
 ## 项目作用
 

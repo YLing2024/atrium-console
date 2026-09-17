@@ -4,7 +4,7 @@
 
 ## 这个项目是什么
 
-个人网站的管理后台前端（React + Vite SPA），部署在 `/admin/`。包含五个功能面：
+个人网站的管理后台前端（React + Vite SPA），部署在独立子域（域名与 nginx 配置见服务器 `/etc/nginx/conf.d/admin.conf`；主域旧 `/admin` 路径保留 301 兼容）。2026-09-17 从主域路径迁出。包含五个功能面：
 
 | Tab | 组件 | 说明 |
 |---|---|---|
@@ -51,7 +51,7 @@ test/                       # 单测
 
 ```bash
 npm install
-npm run dev      # Vite，base=/admin/，/api 代理到 127.0.0.1:3100
+npm run dev      # Vite，base=/，/api 代理到 127.0.0.1:3100
 npm run build    # 输出到 /var/www/admin（vite.config.js 写死 outDir + emptyOutDir）
 npm run preview
 ```
@@ -60,9 +60,11 @@ npm run preview
 
 ## 部署
 
-- nginx：主域 `zhangyunling.cn` 下 `location /admin/` → `/var/www/admin`；`/api/admin/*` 反代到 `127.0.0.1:3100`。
+- 站点：独立子域 vhost（服务器 `/etc/nginx/conf.d/admin.conf`，`root /var/www/admin`，Vite `base='/'`）。主域旧 `/admin` 与 `/admin/` 保留 **301** 到新子域。
+- 反代：`/api/admin/*` → `127.0.0.1:3100`（`login|sso/verify|totp/setup|totp/reset` 免鉴权）；`/api/blog/admin/*` → `127.0.0.1:4000`；`/s/<token>` 公开临时链接（**不加探针**）；`/term/` → ttyd `127.0.0.1:7681 --base-path /term`（`ttyd-webterm.service`）。
 - 鉴权链路：浏览器带 `Authorization: Bearer <token>` → nginx `auth_request /auth-check` → 认证中心 `127.0.0.1:3200/api/verify` → 注入 `X-Auth-User` 给后端。
-- 终端的额外一层：nginx `location /term/`（WebSocket 透传）→ `ttyd` `127.0.0.1:7681 --base-path /term`，`ttyd-webterm.service`。
+- 主域暂时仍保留一份 `/api/admin/*` 与 `/s/`（供 home-admin App 等旧客户端过渡），待 App 切到新域后可撤。
+- 分享链接由后端按请求 Host 拼（`shareBaseUrl()` 读 `x-forwarded-host`），因此新域名下发的链接自动是新域。
 
 ## SSO 约定（强约束）
 
