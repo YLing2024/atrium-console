@@ -87,6 +87,14 @@ export function getSystemHistory() {
   return request('/api/admin/system/history');
 }
 
+// 粒度聚合历史（趋势图切换分钟/小时/天档位时使用）
+// 返回 { step, range, points: [{ ts, cpu, mem_percent, ... }] }（points 与 /history 同构）
+export function getSystemMetrics(range, step) {
+  return request(
+    `/api/admin/system/metrics?range=${encodeURIComponent(range)}&step=${encodeURIComponent(step)}`
+  );
+}
+
 // 服务状态列表
 export function getServices() {
   return request('/api/admin/services');

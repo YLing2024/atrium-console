@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getToken } from '../api.js';
+import { getToken, getSystemMetrics } from '../api.js';
 
 function fmtBytes(n) {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -363,6 +363,34 @@ const IO_SERIES = [
   { key: 'disk_io_write', label: '写', color: 'var(--muted)', format: fmtRate }
 ];
 
+// 趋势粒度：秒 = 现有 SSE 实时流（默认，行为不变）；其它档位改用历史聚合接口。
+// 选择存 sessionStorage，刷新后保持；首次访问默认「秒」。
+const GRANULARITY_KEY = 'admin_trend_granularity';
+const GRANULARITY_OPTIONS = [
+  { id: 'sec', label: '秒' },
+  { id: 'min', label: '分钟' },
+  { id: 'hour', label: '小时' },
+  { id: 'day', label: '天' }
+];
+const GRANULARITY_IDS = GRANULARITY_OPTIONS.map((g) => g.id);
+// 非秒档位的 range/step 与刷新频率（与需求表一致）
+const GRANULARITY_QUERY = {
+  min: { range: '1d', step: '1m', refreshMs: 30000 },
+  hour: { range: '7d', step: '1h', refreshMs: 300000 },
+  day: { range: '30d', step: '1d', refreshMs: 1800000 }
+};
+
+// 读取上次选择：非法值（含旧版本残留）一律回退「秒」
+function readGranularity() {
+  try {
+    const v = sessionStorage.getItem(GRANULARITY_KEY);
+    if (GRANULARITY_IDS.includes(v)) return v;
+  } catch (e) {
+    // sessionStorage 不可用：走默认
+  }
+  return 'sec';
+}
+
 export default function System({ active }) {
   const [data, setData] = useState(null);
   const [history, setHistory] = useState([]);
@@ -372,6 +400,9 @@ export default function System({ active }) {
   const [procSort, setProcSort] = useState('mem');
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState(null);
+  const [granularity, setGranularity] = useState(readGranularity);
+  const [trendPoints, setTrendPoints] = useState([]);
+  const trendCacheRef = useRef({}); // 各档位上次成功的数据，切回时立即命中，避免闪空
 
   // SSE 实时推送：仅 active（系统 Tab 激活）时建连，切走立即断开，无任何轮询。
   // 不用 EventSource 是因为无法携带 Authorization header，改用 fetch + ReadableStream
@@ -449,6 +480,50 @@ export default function System({ active }) {
     };
   }, [active]);
 
+  // 非「秒」档位：忽略 SSE 数据对趋势图的影响，改从历史聚合接口按刷新频率拉取。
+  // 切换档位立即拉一次；失败保持上一帧（不清空），不闪空、不影响页面其它部分。
+  useEffect(() => {
+    const cfg = GRANULARITY_QUERY[granularity];
+    if (!active || !cfg) return;
+
+    let disposed = false;
+    let timer = null;
+
+    // 该档位已有缓存：先立即渲染，避免切回时闪空
+    const cached = trendCacheRef.current[granularity];
+    if (Array.isArray(cached)) setTrendPoints(cached);
+
+    async function load() {
+      try {
+        const d = await getSystemMetrics(cfg.range, cfg.step);
+        if (disposed) return;
+        if (d && Array.isArray(d.points)) {
+          trendCacheRef.current[granularity] = d.points;
+          setTrendPoints(d.points);
+        }
+      } catch (e) {
+        // 请求失败：保留上一帧，等待下次刷新重试
+      }
+    }
+
+    load();
+    timer = setInterval(load, cfg.refreshMs);
+    return () => {
+      disposed = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [granularity, active]);
+
+  // 切换粒度并记忆到 sessionStorage
+  function selectGranularity(id) {
+    setGranularity(id);
+    try {
+      sessionStorage.setItem(GRANULARITY_KEY, id);
+    } catch (e) {
+      // 存储不可用：仅本次不记忆，不影响切换
+    }
+  }
+
   if (!data) {
     return (
       <div className="system">
@@ -483,6 +558,9 @@ export default function System({ active }) {
     const bv = Number(procSort === 'mem' ? b.mem_mb : b.cpu) || 0;
     return bv - av;
   });
+
+  // 趋势数据源：秒档位沿用 SSE 实时 history；其它档位用聚合接口结果
+  const trend = granularity === 'sec' ? history : trendPoints;
 
   return (
     <div className="system">
@@ -634,23 +712,38 @@ export default function System({ active }) {
       )}
 
       <div className="trend-block">
-        <h3 className="block-title">趋势</h3>
+        <div className="trend-head">
+          <h3 className="block-title">趋势</h3>
+          <div className="granularity" role="group" aria-label="趋势粒度">
+            {GRANULARITY_OPTIONS.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                className={'gran-btn' + (granularity === g.id ? ' active' : '')}
+                aria-pressed={granularity === g.id}
+                onClick={() => selectGranularity(g.id)}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="cards cards-charts">
           <Card title="CPU / 内存 / Swap（%）">
-            <Legend series={MEM_SERIES} data={history} />
-            <LineChart data={history} series={MEM_SERIES} yMax={100} yLabel="%" />
+            <Legend series={MEM_SERIES} data={trend} />
+            <LineChart data={trend} series={MEM_SERIES} yMax={100} yLabel="%" />
           </Card>
           <Card title="PSI 压力 · some avg10（%）">
-            <Legend series={PSI_SERIES} data={history} />
-            <LineChart data={history} series={PSI_SERIES} yMax={100} yLabel="%" />
+            <Legend series={PSI_SERIES} data={trend} />
+            <LineChart data={trend} series={PSI_SERIES} yMax={100} yLabel="%" />
           </Card>
           <Card title="网速（/s）">
-            <Legend series={NET_SERIES} data={history} />
-            <LineChart data={history} series={NET_SERIES} />
+            <Legend series={NET_SERIES} data={trend} />
+            <LineChart data={trend} series={NET_SERIES} />
           </Card>
           <Card title="磁盘 I/O（/s）">
-            <Legend series={IO_SERIES} data={history} />
-            <LineChart data={history} series={IO_SERIES} />
+            <Legend series={IO_SERIES} data={trend} />
+            <LineChart data={trend} series={IO_SERIES} />
           </Card>
         </div>
       </div>

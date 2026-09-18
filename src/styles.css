@@ -1755,6 +1755,59 @@ button {
   border-bottom-color: var(--accent);
 }
 
+/* 趋势区标题行：左侧标题 + 右侧粒度分段控件 */
+.trend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.trend-head .block-title {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+/* 粒度分段控件：直角、发丝线，选中档位单琥珀点缀；小屏不换行不溢出 */
+.granularity {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.gran-btn {
+  font: inherit;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-left: 1px solid var(--border);
+  padding: 5px 10px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+}
+
+.gran-btn:first-child {
+  border-left: none;
+}
+
+.gran-btn:hover {
+  color: var(--fg);
+}
+
+.gran-btn.active {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
 /* 进程排行（单列） */
 .process-list {
   display: flex;
@@ -1971,6 +2024,14 @@ button {
 @media (max-width: 640px) {
   .cards-charts {
     grid-template-columns: 1fr;
+  }
+
+  .trend-head {
+    gap: 8px;
+  }
+
+  .gran-btn {
+    padding: 5px 7px;
   }
 }
 
