@@ -156,45 +156,80 @@ const CHART_W = 640;
 const CHART_H = 200;
 const PAD = { l: 46, r: 12, t: 12, b: 24 };
 
-// 固定时间窗口（30 个点）+ 平移查看历史。WINDOW 即默认显示最近 30 秒。
+// 秒档默认窗口（30 个点，行为保持不变）；分钟/小时/天档默认最近约 60 个点
 const WINDOW = 30;
+const WINDOW_WIDE = 60;
 
-function clampOffset(o, len) {
-  return Math.min(Math.max(0, o), Math.max(0, len - WINDOW));
+// 各档位 / 各图表的平移位置记忆（内存即可）：切走再切回时恢复上次位置，不回弹
+const chartViewMemory = new Map();
+
+function clampOffset(o, len, win) {
+  return Math.min(Math.max(0, o), Math.max(0, len - win));
+}
+
+// X 轴时间刻度格式化：分钟 HH:mm、小时 MM-DD HH:00、天 MM-DD、秒 HH:mm:ss（秒档不变）
+function formatTick(ts, granularity) {
+  const t = new Date(ts);
+  const p = (n) => String(n).padStart(2, '0');
+  if (granularity === 'hour') return `${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:00`;
+  if (granularity === 'day') return `${p(t.getMonth() + 1)}-${p(t.getDate())}`;
+  if (granularity === 'min') return `${p(t.getHours())}:${p(t.getMinutes())}`;
+  return fmtTime(ts); // 秒档 HH:mm:ss（沿用原函数，行为不变）
 }
 
 // 纯 SVG 折线图：多序列共用一个 Y 轴。yMax 固定时（百分比）用 0-100 刻度，
-// 否则根据数据最大值动态取整。支持滚轮 / 拖拽平移窗口查看历史。
-function LineChart({ data, series, yMax, yLabel }) {
+// 否则根据数据最大值动态取整。
+// - 秒档（granularity='sec'）行为保持原样：窗口 30 点、跟随最新、可拖拽/滚轮、回最新按钮。
+// - 分钟/小时/天档（sparse=true）：窗口 60 点；0 点占位、1 点也画出（点 + 水平虚线参考线）；
+//   拖动平移，到边即停并给反馈，松手不回弹，位置按档位记忆在内存。
+function LineChart({ data, series, yMax, yLabel, granularity, chartId, recordedMinutes }) {
   const iw = CHART_W - PAD.l - PAD.r;
   const ih = CHART_H - PAD.t - PAD.b;
 
-  const [offset, setOffset] = useState(0);
+  const sparse = granularity !== 'sec';
+  const win = sparse ? WINDOW_WIDE : WINDOW;
+  const memoryKey = sparse && chartId ? granularity + ':' + chartId : null;
+
+  const remembered = memoryKey ? chartViewMemory.get(memoryKey) : null;
+  const [offset, setOffset] = useState(remembered ? remembered.offset : 0);
   const [dragging, setDragging] = useState(false);
+  const [edge, setEdge] = useState(null);
   const wrapRef = useRef(null);
   const dragRef = useRef(null);
-  const prevLenRef = useRef(0);
-  const followRef = useRef(true);
+  const followRef = useRef(remembered ? remembered.follow : true);
+
+  // 记住当前平移位置（仅非秒档；秒档 memoryKey=null，行为不变）
+  function remember(nextOffset, following) {
+    followRef.current = following;
+    if (memoryKey) chartViewMemory.set(memoryKey, { offset: nextOffset, follow: following });
+  }
+
+  // 切换档位（memoryKey 变化）：先恢复该档位上次的平移位置（须在下面的数据 effect 之前执行）
+  useEffect(() => {
+    if (!memoryKey) return;
+    const m = chartViewMemory.get(memoryKey);
+    followRef.current = m ? m.follow : true;
+    setOffset(m ? m.offset : 0);
+    setEdge(null);
+  }, [memoryKey]);
 
   // 数据更新时自动跟随：初始及跟随状态下始终对齐最新；
   // 用户手动平移离开最新后保持当前位置不跳动
   useEffect(() => {
     if (!data) return;
-    const prevLen = prevLenRef.current;
-    prevLenRef.current = data.length;
     if (followRef.current) {
-      const next = Math.max(0, data.length - WINDOW);
+      const next = Math.max(0, data.length - win);
       setOffset((cur) => (cur !== next ? next : cur));
+      if (memoryKey) chartViewMemory.set(memoryKey, { offset: next, follow: true });
     } else {
-      // 非跟随：仅在越界时 clamp，避免保留非法 offset
-      if (data.length <= prevLen) {
-        setOffset((cur) => clampOffset(cur, data.length));
-      } else {
-        // 长度增长但已不在跟随态：保持当前位置，仅做边界修正
-        setOffset((cur) => clampOffset(cur, data.length));
-      }
+      // 非跟随：仅在越界时 clamp，避免保留非法 offset，绝不回弹到最新
+      setOffset((cur) => {
+        const next = clampOffset(cur, data.length, win);
+        if (memoryKey) chartViewMemory.set(memoryKey, { offset: next, follow: false });
+        return next;
+      });
     }
-  }, [data]);
+  }, [data, win, memoryKey]);
 
   // 鼠标滚轮水平平移（deltaY/deltaX）
   useEffect(() => {
@@ -205,24 +240,37 @@ function LineChart({ data, series, yMax, yLabel }) {
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (!Number.isFinite(delta) || Math.abs(delta) < 1) return;
       setOffset((cur) => {
-        const next = clampOffset(cur + Math.round(delta / 20), data.length);
-        followRef.current = next + WINDOW >= data.length;
+        const next = clampOffset(cur + Math.round(delta / 20), data.length, win);
+        remember(next, next + win >= data.length);
         return next;
       });
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [data]);
+  }, [data, win, memoryKey]);
 
-  if (!data || data.length < 2) {
+  // 空数据：非秒档给出「数据积累中」占位（带已记录分钟数），秒档维持原文案
+  if (!data || data.length === 0) {
+    return sparse ? (
+      <div className="chart-empty muted">
+        数据积累中（已记录 {recordedMinutes == null ? 0 : recordedMinutes} 分钟）
+      </div>
+    ) : (
+      <div className="chart-empty muted">数据采集中…（约 3 秒后显示趋势）</div>
+    );
+  }
+  // 秒档不足 2 点：行为保持原样（占位）；非秒档单点也要可见
+  if (!sparse && data.length < 2) {
     return <div className="chart-empty muted">数据采集中…（约 3 秒后显示趋势）</div>;
   }
 
   const len = data.length;
-  const windowData = data.slice(offset, offset + WINDOW);
+  const windowData = data.slice(offset, offset + win);
   const W = windowData.length;
+  const single = W === 1;
   const pxPerPoint = iw / Math.max(1, W - 1);
-  const isFollowing = offset + WINDOW >= len;
+  const isFollowing = offset + win >= len;
+  const maxOffset = Math.max(0, len - win);
 
   const maxVal = Math.max(
     1,
@@ -230,7 +278,8 @@ function LineChart({ data, series, yMax, yLabel }) {
   );
   const axisMax = yMax || niceMax(maxVal);
 
-  const x = (i) => PAD.l + (i / Math.max(1, W - 1)) * iw;
+  // 单点时落在绘图区水平中央，其它情况按点均匀铺开
+  const x = (i) => (single ? PAD.l + iw / 2 : PAD.l + (i / Math.max(1, W - 1)) * iw);
   const y = (v) => PAD.t + (1 - (Number(v) || 0) / axisMax) * ih;
   const pathFor = (key) =>
     windowData
@@ -247,20 +296,28 @@ function LineChart({ data, series, yMax, yLabel }) {
 
   const onPointerDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // 点在「回最新」按钮上时不接管指针，保证按钮可正常点击
+    if (e.target && e.target.closest && e.target.closest('button')) return;
+    if (e.preventDefault) e.preventDefault();
     dragRef.current = { startX: e.clientX, startOffset: offset };
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragging(true);
   };
   const onPointerMove = (e) => {
     if (!dragRef.current) return;
+    if (e.preventDefault) e.preventDefault();
     const dx = dragRef.current.startX - e.clientX;
-    const next = clampOffset(dragRef.current.startOffset + Math.round(dx / pxPerPoint), len);
-    followRef.current = next + WINDOW >= len;
+    const raw = dragRef.current.startOffset + Math.round(dx / pxPerPoint);
+    const next = clampOffset(raw, len, win);
+    remember(next, next + win >= len);
+    // 到边反馈仅非秒档（秒档行为保持不变）
+    if (sparse) setEdge(raw < 0 ? 'start' : raw > maxOffset ? 'end' : null);
     setOffset(next);
   };
   const endDrag = (e) => {
     dragRef.current = null;
     setDragging(false);
+    setEdge(null);
     if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
@@ -269,7 +326,11 @@ function LineChart({ data, series, yMax, yLabel }) {
   return (
     <div
       ref={wrapRef}
-      className={'chart-wrap' + (dragging ? ' dragging' : '')}
+      className={
+        'chart-wrap' +
+        (dragging ? ' dragging' : '') +
+        (edge ? ' edge-' + edge : '')
+      }
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endDrag}
@@ -296,27 +357,43 @@ function LineChart({ data, series, yMax, yLabel }) {
             className="chart-axis"
             textAnchor="middle"
           >
-            {fmtTime(windowData[i].ts)}
+            {formatTick(windowData[i].ts, granularity)}
           </text>
         ))}
 
-        {series.map((s) => (
-          <path
-            key={s.key}
-            d={pathFor(s.key)}
-            className="chart-line"
-            fill="none"
-            style={{ stroke: s.color }}
-          />
-        ))}
+        {single
+          ? series.map((s) => (
+              <g key={s.key}>
+                <line
+                  x1={PAD.l}
+                  y1={y(windowData[0][s.key])}
+                  x2={CHART_W - PAD.r}
+                  y2={y(windowData[0][s.key])}
+                  className="chart-line chart-line-single"
+                  style={{ stroke: s.color }}
+                />
+                <circle cx={x(0)} cy={y(windowData[0][s.key])} r={3} fill={s.color} />
+              </g>
+            ))
+          : series.map((s) => (
+              <path
+                key={s.key}
+                d={pathFor(s.key)}
+                className="chart-line"
+                fill="none"
+                style={{ stroke: s.color }}
+              />
+            ))}
       </svg>
+
+      {sparse && edge && <div className={'chart-edge chart-edge-' + edge} aria-hidden="true" />}
 
       {!isFollowing && (
         <button
           className="chart-back-btn"
           onClick={() => {
-            followRef.current = true;
-            setOffset(Math.max(0, len - WINDOW));
+            remember(Math.max(0, len - win), true);
+            setOffset(Math.max(0, len - win));
           }}
         >
           回最新
@@ -402,7 +479,10 @@ export default function System({ active }) {
   const [updated, setUpdated] = useState(null);
   const [granularity, setGranularity] = useState(readGranularity);
   const [trendPoints, setTrendPoints] = useState([]);
+  // 非秒档最近一次成功响应里的 meta（用于「数据积累中（已记录 X 分钟）」占位）
+  const [trendRecordedMinutes, setTrendRecordedMinutes] = useState(null);
   const trendCacheRef = useRef({}); // 各档位上次成功的数据，切回时立即命中，避免闪空
+  const trendMetaCacheRef = useRef({}); // 各档位上次成功的 meta
 
   // SSE 实时推送：仅 active（系统 Tab 激活）时建连，切走立即断开，无任何轮询。
   // 不用 EventSource 是因为无法携带 Authorization header，改用 fetch + ReadableStream
@@ -492,6 +572,10 @@ export default function System({ active }) {
     // 该档位已有缓存：先立即渲染，避免切回时闪空
     const cached = trendCacheRef.current[granularity];
     if (Array.isArray(cached)) setTrendPoints(cached);
+    const cachedMeta = trendMetaCacheRef.current[granularity];
+    if (cachedMeta && Number.isFinite(Number(cachedMeta.recordedSeconds))) {
+      setTrendRecordedMinutes(Math.floor(Number(cachedMeta.recordedSeconds) / 60));
+    }
 
     async function load() {
       try {
@@ -500,6 +584,10 @@ export default function System({ active }) {
         if (d && Array.isArray(d.points)) {
           trendCacheRef.current[granularity] = d.points;
           setTrendPoints(d.points);
+          if (d.meta && Number.isFinite(Number(d.meta.recordedSeconds))) {
+            trendMetaCacheRef.current[granularity] = d.meta;
+            setTrendRecordedMinutes(Math.floor(Number(d.meta.recordedSeconds) / 60));
+          }
         }
       } catch (e) {
         // 请求失败：保留上一帧，等待下次刷新重试
@@ -731,19 +819,47 @@ export default function System({ active }) {
         <div className="cards cards-charts">
           <Card title="CPU / 内存 / Swap（%）">
             <Legend series={MEM_SERIES} data={trend} />
-            <LineChart data={trend} series={MEM_SERIES} yMax={100} yLabel="%" />
+            <LineChart
+              data={trend}
+              series={MEM_SERIES}
+              yMax={100}
+              yLabel="%"
+              granularity={granularity}
+              chartId="mem"
+              recordedMinutes={trendRecordedMinutes}
+            />
           </Card>
           <Card title="PSI 压力 · some avg10（%）">
             <Legend series={PSI_SERIES} data={trend} />
-            <LineChart data={trend} series={PSI_SERIES} yMax={100} yLabel="%" />
+            <LineChart
+              data={trend}
+              series={PSI_SERIES}
+              yMax={100}
+              yLabel="%"
+              granularity={granularity}
+              chartId="psi"
+              recordedMinutes={trendRecordedMinutes}
+            />
           </Card>
           <Card title="网速（/s）">
             <Legend series={NET_SERIES} data={trend} />
-            <LineChart data={trend} series={NET_SERIES} />
+            <LineChart
+              data={trend}
+              series={NET_SERIES}
+              granularity={granularity}
+              chartId="net"
+              recordedMinutes={trendRecordedMinutes}
+            />
           </Card>
           <Card title="磁盘 I/O（/s）">
             <Legend series={IO_SERIES} data={trend} />
-            <LineChart data={trend} series={IO_SERIES} />
+            <LineChart
+              data={trend}
+              series={IO_SERIES}
+              granularity={granularity}
+              chartId="io"
+              recordedMinutes={trendRecordedMinutes}
+            />
           </Card>
         </div>
       </div>

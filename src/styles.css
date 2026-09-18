@@ -1955,6 +1955,29 @@ button {
   cursor: grabbing;
 }
 
+/* 稀疏数据：单点时画点 + 水平虚线参考线 */
+.chart-line-single {
+  stroke-dasharray: 4 3;
+}
+
+/* 拖动到数据边界时的反馈条（到边即停，不继续偏移） */
+.chart-edge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.chart-edge-start {
+  left: 0;
+}
+
+.chart-edge-end {
+  right: 0;
+}
+
 .chart-back-btn {
   position: absolute;
   top: 8px;
