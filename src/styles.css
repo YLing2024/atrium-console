@@ -1939,6 +1939,41 @@ button {
   overflow: hidden;
 }
 
+/* 趋势图组专用：一行一张、卡与字号放大（只作用于底部曲线卡，不影响其它 .cards 网格） */
+.cards-charts {
+  grid-template-columns: 1fr;
+}
+
+.cards-charts .card {
+  min-height: 240px;
+}
+
+.cards-charts .card h3 {
+  font-size: 13px;
+}
+
+.cards-charts .chart-legend {
+  font-size: 14px;
+}
+
+.cards-charts .chart-last {
+  font-size: 14px;
+}
+
+.cards-charts .chart-axis {
+  font-size: 13px;
+}
+
+.cards-charts .chart-empty {
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .cards-charts {
+    grid-template-columns: 1fr;
+  }
+}
+
 .chart-grid {
   stroke: var(--border);
   stroke-width: 1;

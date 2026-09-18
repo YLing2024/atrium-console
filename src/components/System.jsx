@@ -635,7 +635,7 @@ export default function System({ active }) {
 
       <div className="trend-block">
         <h3 className="block-title">趋势</h3>
-        <div className="cards">
+        <div className="cards cards-charts">
           <Card title="CPU / 内存 / Swap（%）">
             <Legend series={MEM_SERIES} data={history} />
             <LineChart data={history} series={MEM_SERIES} yMax={100} yLabel="%" />
