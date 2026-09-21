@@ -237,8 +237,101 @@ button {
 /* ============ 布局 ============ */
 .app {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   height: 100dvh;
+}
+
+/* ---------- 侧栏导航（桌面左侧固定；窄屏右侧抽屉见文末媒体查询） ---------- */
+.sidenav {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 200px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+  border-right: 1px solid var(--line-soft);
+}
+
+/* 复用既有品牌标记（.brand + .dot），仅调整侧栏内的内边距 */
+.sidenav-brand {
+  flex-shrink: 0;
+  height: 56px;
+  padding: 0 20px;
+  color: var(--fg);
+}
+
+.sidenav-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.sidenav-item {
+  position: relative;
+  width: 100%;
+  padding: 10px 20px 10px 22px;
+  text-align: left;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+}
+
+.sidenav-item:hover {
+  color: var(--fg);
+}
+
+/* 当前项：左侧琥珀短竖线 + 文字转 fg */
+.sidenav-item.active {
+  color: var(--fg);
+}
+
+.sidenav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 16px;
+  background: var(--accent);
+}
+
+/* 主列：顶栏 + 内容区，占满侧栏之外的全部宽度 */
+.main-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+/* 窄屏菜单按钮与遮罩：桌面端隐藏 */
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.nav-toggle svg {
+  display: block;
+}
+
+.nav-toggle svg line {
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.sidenav-backdrop {
+  display: none;
 }
 
 .topbar {
@@ -2501,6 +2594,44 @@ button {
 .blog-preview img {
   max-width: 100%;
   border-radius: 0;
+}
+
+/* ---------- 窄屏（<1024px）：侧栏收为左侧滑出抽屉，顶部菜单按钮常驻 ---------- */
+@media (max-width: 1023px) {
+  .nav-toggle {
+    display: flex;
+  }
+
+  .sidenav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 78vw;
+    max-width: 300px;
+    height: 100%;
+    z-index: 120;
+    border-left: none;
+    border-right: 1px solid var(--border);
+    background: var(--surface);
+    transform: translateX(-105%);
+    translate: -105%;
+    transition: transform 0.24s var(--ease), translate 0.24s var(--ease);
+    box-shadow: 0 1px 0 var(--line-soft), 0 8px 24px rgba(23, 21, 18, 0.06);
+  }
+
+  .sidenav.open {
+    transform: translateX(0);
+    translate: 0;
+  }
+
+  .sidenav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(23, 21, 18, 0.5);
+    z-index: 115;
+  }
 }
 
 /* ============ 移动端 ============ */
