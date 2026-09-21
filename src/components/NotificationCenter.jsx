@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { getNotifications, markNotificationRead, deleteNotification } from '../api.js';
+import {
+  getNotifications,
+  getNotificationTypes,
+  markNotificationRead,
+  deleteNotification
+} from '../api.js';
 import { useNotificationStream } from '../notificationStream.js';
 
 /**
@@ -49,12 +54,15 @@ function streamStatusTitle(status) {
 export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick = 0 }) {
   const [items, setItems] = useState([]);
   const [sources, setSources] = useState([]);
+  // 通知类别由服务端定义：客户端不内置任何类别字符串，一律从 /notifications/types 拉取。
+  const [types, setTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hasMore, setHasMore] = useState(false);
   const [filterUnread, setFilterUnread] = useState(false);
   const [filterLevel, setFilterLevel] = useState('');
   const [filterSource, setFilterSource] = useState('');
+  const [filterType, setFilterType] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [highlightId, setHighlightId] = useState(null);
   const [permission, setPermission] = useState(() =>
@@ -66,7 +74,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const filtersRef = useRef({});
-  filtersRef.current = { filterUnread, filterLevel, filterSource };
+  filtersRef.current = { filterUnread, filterLevel, filterSource, filterType };
   const desktopPrefRef = useRef(desktopPref);
   desktopPrefRef.current = desktopPref;
   const onUnreadChangeRef = useRef(onUnreadChange);
@@ -83,11 +91,19 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
     });
   }
 
+  // 类别名一律用服务端 label；取不到（旧数据 / 接口失败 / 已归档）才回退原始 key。
+  function typeLabel(key) {
+    if (!key) return '';
+    const t = types.find((x) => x.key === key);
+    return t && t.label ? t.label : key;
+  }
+
   function matchesFilter(item) {
     const f = filtersRef.current;
     if (f.filterUnread && item.readAt) return false;
     if (f.filterLevel && item.level !== f.filterLevel) return false;
     if (f.filterSource && item.source !== f.filterSource) return false;
+    if (f.filterType && (item.type || item.source) !== f.filterType) return false;
     return true;
   }
 
@@ -113,6 +129,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
       if (filterUnread) params.unread = true;
       if (filterLevel) params.level = filterLevel;
       if (filterSource) params.source = filterSource;
+      if (filterType) params.type = filterType;
       const d = await getNotifications(params);
       const list = Array.isArray(d.items) ? d.items : [];
       setItems((prev) => (reset ? list : prev.concat(list)));
@@ -126,11 +143,27 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
     }
   }
 
+  // 类别清单：进入通知页时从接口拉取；只用于渲染筛选器与列表项类别名。
+  // 接口失败 → 降级为空清单（筛选器只剩「全部类别」，列表项回退原始 key），不阻塞列表加载。
+  useEffect(() => {
+    let alive = true;
+    getNotificationTypes()
+      .then((d) => {
+        if (alive) setTypes(Array.isArray(d && d.types) ? d.types : []);
+      })
+      .catch(() => {
+        if (alive) setTypes([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // 筛选变化：重置列表重新拉取
   useEffect(() => {
     load(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterUnread, filterLevel, filterSource]);
+  }, [filterUnread, filterLevel, filterSource, filterType]);
 
   // 通知管理页操作（发通知 / 批量删除 / 清空已读）后，由 Main 递增此值触发本页刷新
   useEffect(() => {
@@ -265,6 +298,9 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
     );
   }
 
+  // 筛选器只展示服务端标记为 enabled 的类别（停用的历史类别不出现在这里，但其通知仍可按类别查）。
+  const enabledTypes = types.filter((t) => Number(t.enabled) === 1);
+
   return (
     <div className="notif">
       <div className="notif-head">
@@ -303,6 +339,18 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
           </select>
           <select
             className="notif-select"
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+          >
+            <option value="">全部类别</option>
+            {enabledTypes.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label || t.key}
+              </option>
+            ))}
+          </select>
+          <select
+            className="notif-select"
             value={filterSource}
             onChange={(e) => setFilterSource(e.target.value)}
           >
@@ -333,7 +381,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
             <button className="notif-main" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
               <span className={'notif-level ' + item.level}>{LEVEL_LABELS[item.level] || item.level}</span>
               <span className="notif-item-title">{item.title}</span>
-              <span className="notif-src">{item.source}</span>
+              <span className="notif-src">{typeLabel(item.type || item.source)}</span>
               <span className="notif-time mono">{fmtTime(item.ts)}</span>
               {!item.readAt && <span className="notif-dot" />}
             </button>

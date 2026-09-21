@@ -359,17 +359,24 @@ export function deleteFileShare(id) {
 }
 
 // ============ 通知中心 ============
-// 返回 { items: [{ id, ts, level, source, title, body, link, readAt }], unread, total }
-// ts / readAt 为 epoch 秒。params: { limit, before, level, source, unread }
+// 返回 { items: [{ id, ts, level, source, type, title, body, link, readAt }], unread, total }
+// ts / readAt 为 epoch 秒。params: { limit, before, level, source, type, unread }
 export function getNotifications(params = {}) {
   const q = new URLSearchParams();
   if (params.limit) q.set('limit', String(params.limit));
   if (params.before) q.set('before', String(params.before));
   if (params.level) q.set('level', params.level);
   if (params.source) q.set('source', params.source);
+  if (params.type) q.set('type', params.type);
   if (params.unread) q.set('unread', '1');
   const s = q.toString();
   return request('/api/admin/notifications' + (s ? '?' + s : ''));
+}
+
+// 通知类别（服务端定义）→ { types: [{ key, label, description, defaultLevel, sort, enabled, count, unread }] }
+// 客户端不得内置任何类别清单，筛选器一律由此接口动态渲染。
+export function getNotificationTypes() {
+  return request('/api/admin/notifications/types');
 }
 
 // 单条已读
