@@ -4,11 +4,15 @@ import {
   bulkDeleteNotifications,
   getNotificationStats
 } from '../api.js';
+import { usePushWait, onNotificationPush } from '../notificationPush.js';
+import PushWaitResult from './PushWaitResult.jsx';
 
 /**
  * 通知管理（管理面）：发通知（compose + 推送）、批量删除 / 清空已读、统计、去重键说明。
  * - 与「通知」展示页分离：展示页只读，本页做写入与批量动作。
- * - 成功发通知后由 Main 递增 refreshTick 让展示页刷新；同时 SSE 也会广播（不依赖）。
+ * - 发通知铁律：POST 成功后不本地插入、不重拉列表、不刷统计——只等服务器 SSE 推送到达，
+ *   并用 PushWaitResult 显示耗时/超时（连通性检测）。统计随推送更新。
+ * - 批量删除 / 清空已读属于本地用户动作，仍就地刷新。
  */
 
 const LEVEL_LABELS = { urgent: '紧急', normal: '常规', digest: '汇总' };
@@ -28,6 +32,8 @@ export default function NotificationManage({ onChanged, active = false }) {
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [repulled, setRepulled] = useState(false);
+  const { pushState, beginPushWait, markWaiting, resetPushWait } = usePushWait();
 
   // 批量操作的筛选条件（无筛选 = 全部）
   const [mUnread, setMUnread] = useState(false);
@@ -61,7 +67,13 @@ export default function NotificationManage({ onChanged, active = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  // 发通知：POST 成功后清空表单并就地提示；不等待 SSE
+  // 统计只随服务器推送更新：SSE 推来新通知时刷新计数（发送方自己不刷，避免掩盖断链）
+  useEffect(() => {
+    return onNotificationPush(() => refreshStats());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 发通知：POST 成功后清空表单、只显示「已提交、等待推送」；不插入、不重拉、不刷统计
   async function handleSend(e) {
     e.preventDefault();
     const title = compose.title.trim();
@@ -77,21 +89,31 @@ export default function NotificationManage({ onChanged, active = false }) {
       link: compose.link.trim(),
       dedupKey: compose.dedupKey.trim()
     };
+    const startedAt = Date.now();
     setSending(true);
     setError('');
     setNotice('');
+    setRepulled(false);
+    markWaiting(startedAt);
     try {
-      await createNotification(payload);
+      const data = await createNotification(payload);
       setCompose({ level: 'normal', source: 'admin', title: '', body: '', link: '', dedupKey: '' });
       setShowAdvanced(false);
-      setNotice(`已发送「${title}」`);
-      refreshStats();
-      onChangedRef.current && onChangedRef.current();
+      // 只等待服务器 SSE 推回；到达/超时由 PushWaitResult 呈现
+      beginPushWait({ id: data && data.id, title, source: payload.source }, startedAt);
     } catch (err) {
+      resetPushWait();
       setError(err.message || '发送失败');
     } finally {
       setSending(false);
     }
+  }
+
+  // 超时后的显式动作：重新拉取列表（用户主动触发，允许刷新展示页与统计）
+  function handleRepull() {
+    setRepulled(true);
+    refreshStats();
+    onChangedRef.current && onChangedRef.current();
   }
 
   // 当前筛选条件 → 批量删除 body（无筛选即全部删除）
@@ -306,6 +328,14 @@ export default function NotificationManage({ onChanged, active = false }) {
           </button>
         </div>
       </form>
+
+      {/* 发通知后的推送等待/结果（只经服务器 SSE 进入列表；结果留到下次发送） */}
+      <PushWaitResult
+        state={pushState}
+        onRepull={handleRepull}
+        repulled={repulled}
+        className="notif-push"
+      />
 
       {/* 去重键说明（克制一行） */}
       <p className="manage-desc muted notif-dedup-note">

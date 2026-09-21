@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { createNotification, getNotifications, getToken } from '../api.js';
+import { usePushWait, emitNotificationPush } from '../notificationPush.js';
+import PushWaitResult from './PushWaitResult.jsx';
 
 /**
  * 通知调试（调试页的第一个工具）：
  *  1) 实时状态：SSE 是否已连接、最近一次事件/心跳时间（相对）、当前未读数；
- *  2) 发一条测试通知（默认 source=admin-debug）；
+ *  2) 发一条测试通知（默认 source=admin-debug）：POST 成功后不本地刷新未读、不插入，
+ *     只等待服务器 SSE 推回并显示耗时/超时（连通性检测）；
  *  3) 接口说明：字段表 + 运行时域名拼出的可复制 curl；
  *  4) 调用结果：最近一次调用的 HTTP 状态与响应体（截断）。
  *
@@ -41,6 +44,8 @@ export default function NotificationDebug() {
   const [sending, setSending] = useState(false);
   const [callResult, setCallResult] = useState(null); // { ok, status, body, at }
   const [copied, setCopied] = useState(false);
+  const [repulled, setRepulled] = useState(false);
+  const { pushState, beginPushWait, markWaiting, resetPushWait } = usePushWait();
 
   const curlRef = useRef(null);
 
@@ -91,6 +96,12 @@ export default function NotificationDebug() {
         setLastHeartbeatAt(Date.now());
       } else if (event === 'notification') {
         setLastEventAt(Date.now());
+        // 广播给「等待推送」的发送方；本页未读计数同样只随推送更新
+        try {
+          emitNotificationPush(JSON.parse(data));
+        } catch (e) {
+          // 解析失败忽略
+        }
         refreshUnread();
       }
     }
@@ -136,7 +147,8 @@ export default function NotificationDebug() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 发测试通知：默认 source=admin-debug；记录 HTTP 状态与响应体
+  // 发测试通知：默认 source=admin-debug；记录 HTTP 状态与响应体。
+  // 铁律：不本地刷新未读、不插入——只等服务器 SSE 推回（到达/超时由 PushWaitResult 呈现）
   async function handleSendTest(e) {
     e.preventDefault();
     const t = title.trim();
@@ -145,12 +157,16 @@ export default function NotificationDebug() {
       return;
     }
     const payload = { level, source: 'admin-debug', title: t, body };
+    const startedAt = Date.now();
     setSending(true);
+    setRepulled(false);
+    markWaiting(startedAt);
     try {
       const data = await createNotification(payload);
       setCallResult({ ok: true, status: 201, body: JSON.stringify(data), at: Date.now() });
-      refreshUnread();
+      beginPushWait({ id: data && data.id, title: t, source: 'admin-debug' }, startedAt);
     } catch (err) {
+      resetPushWait();
       setCallResult({
         ok: false,
         status: err.status || 0,
@@ -160,6 +176,12 @@ export default function NotificationDebug() {
     } finally {
       setSending(false);
     }
+  }
+
+  // 超时后的显式动作：重新拉取（用户主动触发，允许刷新未读计数）
+  function handleRepull() {
+    setRepulled(true);
+    refreshUnread();
   }
 
   async function copyCurl() {
@@ -259,6 +281,13 @@ export default function NotificationDebug() {
             </button>
           </div>
         </form>
+        {/* 发测试通知后的推送等待/结果（结果留到下次发送） */}
+        <PushWaitResult
+          state={pushState}
+          onRepull={handleRepull}
+          repulled={repulled}
+          className="ndbg-push"
+        />
       </section>
 
       {/* 3) 接口说明 */}

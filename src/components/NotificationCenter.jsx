@@ -5,6 +5,7 @@ import {
   deleteNotification,
   getToken
 } from '../api.js';
+import { emitNotificationPush } from '../notificationPush.js';
 
 /**
  * 通知（展示/阅读页）：列表 + 筛选 + 单条已读/删除 + 桌面通知开关。
@@ -187,6 +188,8 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
         return;
       }
       if (!item || item.id == null) return;
+      // 广播给「发通知后等待推送」的发送方（只观察，不插入）——本页仍只由推送更新列表
+      emitNotificationPush(item);
       insertItem(item);
       maybeDesktopNotify(item);
       refreshUnread();

@@ -4156,6 +4156,61 @@ span.notif-desktop {
   color: var(--ok);
 }
 
+/* ==========================================================================
+   发通知后的「推送等待/结果」行（通知管理页 / 调试页共用，见 PushWaitResult.jsx）
+   等待带指示，成功/超时保留直到下次发送
+   ========================================================================== */
+
+.push-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.push-result-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.push-result-line.ok {
+  color: var(--ok);
+}
+
+.push-result-line.bad {
+  color: var(--danger);
+}
+
+.push-spinner {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--line-soft);
+  border-top-color: var(--accent);
+  animation: push-spin 0.7s linear infinite;
+}
+
+@keyframes push-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.push-result-repull {
+  padding: 5px 10px;
+}
+
+.push-result-note {
+  font-size: 12px;
+}
+
+.ndbg-push {
+  margin-top: 12px;
+}
+
 /* 接口令牌：权限标志 */
 .api-token-perm {
   display: inline-block;
