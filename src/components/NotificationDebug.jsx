@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { createNotification, getNotifications, getToken } from '../api.js';
-import { usePushWait, emitNotificationPush } from '../notificationPush.js';
+import { createNotification, getNotifications } from '../api.js';
+import { usePushWait } from '../notificationPush.js';
+import { useNotificationStream, notificationStreamLabel } from '../notificationStream.js';
 import PushWaitResult from './PushWaitResult.jsx';
 
 /**
@@ -32,9 +33,6 @@ function truncate(text) {
 }
 
 export default function NotificationDebug() {
-  const [connected, setConnected] = useState(false);
-  const [lastEventAt, setLastEventAt] = useState(0);
-  const [lastHeartbeatAt, setLastHeartbeatAt] = useState(0);
   const [unread, setUnread] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
@@ -79,73 +77,11 @@ export default function NotificationDebug() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // SSE 实时流：记录连接状态与最近事件/心跳时间
-  useEffect(() => {
-    let disposed = false;
-    let retryTimer = null;
-    let ctrl = null;
-
-    function handleFrame(frame) {
-      let event = null;
-      let data = null;
-      for (const line of frame.split('\n')) {
-        if (line.startsWith('event:')) event = line.slice(6).trim();
-        else if (line.startsWith('data:')) data = line.slice(5).trim();
-      }
-      if (event === 'heartbeat') {
-        setLastHeartbeatAt(Date.now());
-      } else if (event === 'notification') {
-        setLastEventAt(Date.now());
-        // 广播给「等待推送」的发送方；本页未读计数同样只随推送更新
-        try {
-          emitNotificationPush(JSON.parse(data));
-        } catch (e) {
-          // 解析失败忽略
-        }
-        refreshUnread();
-      }
-    }
-
-    async function connect() {
-      if (disposed) return;
-      ctrl = new AbortController();
-      try {
-        const resp = await fetch('/api/admin/notifications/stream', {
-          headers: { Authorization: 'Bearer ' + getToken() },
-          signal: ctrl.signal
-        });
-        if (!resp.ok || !resp.body) throw new Error('SSE HTTP ' + resp.status);
-        setConnected(true);
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = '';
-        while (!disposed && !ctrl.signal.aborted) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          let idx;
-          while ((idx = buf.indexOf('\n\n')) !== -1) {
-            const frame = buf.slice(0, idx);
-            buf = buf.slice(idx + 2);
-            if (frame) handleFrame(frame);
-          }
-        }
-      } catch (e) {
-        if (disposed || ctrl.signal.aborted) return;
-      }
-      setConnected(false);
-      if (disposed || ctrl.signal.aborted) return;
-      retryTimer = setTimeout(connect, 5000);
-    }
-
-    connect();
-    return () => {
-      disposed = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      ctrl && ctrl.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // SSE 实时流（全站单例）：本页只读状态；推送到达时刷新未读（等待推送的调度在 notificationPush）。
+  const stream = useNotificationStream({
+    onNotification: () => refreshUnread(),
+    onResync: () => refreshUnread()
+  });
 
   // 发测试通知：默认 source=admin-debug；记录 HTTP 状态与响应体。
   // 铁律：不本地刷新未读、不插入——只等服务器 SSE 推回（到达/超时由 PushWaitResult 呈现）
@@ -211,17 +147,22 @@ export default function NotificationDebug() {
       {/* 1) 实时状态 */}
       <section className="ndbg-block">
         <h3 className="ndbg-title">实时状态</h3>
-        <div className="ndbg-status">
-          <span className={'ndbg-dot' + (connected ? ' on' : '')} />
-          <span>{connected ? 'SSE 已连接' : 'SSE 未连接'}</span>
+        <div className="ndbg-status" data-conn={stream.status}>
+          <span
+            className={
+              'ndbg-dot' +
+              (stream.status === 'connected'
+                ? ' on'
+                : stream.status === 'reconnecting'
+                  ? ' warn'
+                  : '')
+            }
+          />
+          <span>{notificationStreamLabel(stream, now)}</span>
           <span className="muted">·</span>
-          <span className="muted">
-            最近事件 {relativeTime(lastEventAt, now)}
-          </span>
+          <span className="muted">最近事件 {relativeTime(stream.lastEventAt, now)}</span>
           <span className="muted">·</span>
-          <span className="muted">
-            最近心跳 {relativeTime(lastHeartbeatAt, now)}
-          </span>
+          <span className="muted">最近心跳 {relativeTime(stream.lastHeartbeatAt, now)}</span>
           <span className="muted">·</span>
           <span>
             未读 <span className="mono">{unread}</span>

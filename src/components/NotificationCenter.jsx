@@ -1,17 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  getNotifications,
-  markNotificationRead,
-  deleteNotification,
-  getToken
-} from '../api.js';
-import { emitNotificationPush } from '../notificationPush.js';
+import { getNotifications, markNotificationRead, deleteNotification } from '../api.js';
+import { useNotificationStream } from '../notificationStream.js';
 
 /**
  * 通知（展示/阅读页）：列表 + 筛选 + 单条已读/删除 + 桌面通知开关。
  * - 页面常驻挂载（Main 中 pane 只切显隐），因此 SSE 在整站打开期间一直在线，
  *   未读徽标与桌面通知在任意 Tab 都能工作。
- * - 实时流另开一条 /api/admin/notifications/stream，绝不复用系统指标 SSE。
+ * - 实时流走全站单例 notificationStream.js（/api/admin/notifications/stream），绝不复用系统指标 SSE；
+ *   顶部状态点展示已连接 / 重连中 / 已断开，重连成功后自动重拉一次对齐数据。
  * - 发通知 / 批量删除 / 清空已读 / 统计 / 接口说明都在「通知管理」「调试」两页，本页不做。
  */
 
@@ -41,6 +37,13 @@ function openLink(link) {
 
 function readDesktopPref() {
   return localStorage.getItem(DESKTOP_PREF_KEY) === '1';
+}
+
+// 顶部状态点的悬停说明（克制：只有文字说明，不弹窗不响铃）
+function streamStatusTitle(status) {
+  if (status === 'connected') return '实时通道：已连接';
+  if (status === 'disconnected') return '实时通道：已断开';
+  return '实时通道：重连中';
 }
 
 export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick = 0 }) {
@@ -167,72 +170,23 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
     });
   }
 
-  // SSE 实时流：整站打开期间常驻；断线 5s 后重连
-  useEffect(() => {
-    let disposed = false;
-    let retryTimer = null;
-    let ctrl = null;
+  // SSE 实时流（全站单例）：收到推送插入列表。
+  // 重连成功（再次握手）时重拉一次，补齐断线期间漏掉的通知；
+  // 铁律：这里只是「对齐服务器数据」，绝不拿拉取结果做乐观补写。
+  function handleStreamNotification(item) {
+    insertItem(item);
+    maybeDesktopNotify(item);
+    refreshUnread();
+  }
 
-    function handleFrame(frame) {
-      let event = null;
-      let data = null;
-      for (const line of frame.split('\n')) {
-        if (line.startsWith('event:')) event = line.slice(6).trim();
-        else if (line.startsWith('data:')) data = line.slice(5).trim();
-      }
-      if (event !== 'notification' || !data) return;
-      let item;
-      try {
-        item = JSON.parse(data);
-      } catch (e) {
-        return;
-      }
-      if (!item || item.id == null) return;
-      // 广播给「发通知后等待推送」的发送方（只观察，不插入）——本页仍只由推送更新列表
-      emitNotificationPush(item);
-      insertItem(item);
-      maybeDesktopNotify(item);
-      refreshUnread();
-    }
+  function handleStreamResync() {
+    load(true);
+  }
 
-    async function connect() {
-      if (disposed) return;
-      ctrl = new AbortController();
-      try {
-        const resp = await fetch('/api/admin/notifications/stream', {
-          headers: { Authorization: 'Bearer ' + getToken() },
-          signal: ctrl.signal
-        });
-        if (!resp.ok || !resp.body) throw new Error('SSE HTTP ' + resp.status);
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = '';
-        while (!disposed && !ctrl.signal.aborted) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          let idx;
-          while ((idx = buf.indexOf('\n\n')) !== -1) {
-            const frame = buf.slice(0, idx);
-            buf = buf.slice(idx + 2);
-            if (frame) handleFrame(frame);
-          }
-        }
-      } catch (e) {
-        if (disposed || ctrl.signal.aborted) return;
-      }
-      if (disposed || ctrl.signal.aborted) return;
-      retryTimer = setTimeout(connect, 5000);
-    }
-
-    connect();
-    return () => {
-      disposed = true;
-      if (retryTimer) clearTimeout(retryTimer);
-      ctrl && ctrl.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const stream = useNotificationStream({
+    onNotification: handleStreamNotification,
+    onResync: handleStreamResync
+  });
 
   // 高亮 / 滚动到被点击的系统通知对应条目
   useEffect(() => {
@@ -316,6 +270,11 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
       <div className="notif-head">
         <div className="notif-title-row">
           <h2>通知</h2>
+          <span
+            className={'notif-stream-dot ' + stream.status}
+            title={streamStatusTitle(stream.status)}
+            aria-label={streamStatusTitle(stream.status)}
+          />
         </div>
         <div className="notif-head-actions">{renderDesktopControl()}</div>
       </div>

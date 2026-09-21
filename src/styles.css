@@ -3750,6 +3750,26 @@ button {
   color: var(--fg);
 }
 
+/* 实时通道状态点：克制的小方块 + 悬停说明；断开 / 重连中转琥珀色，不弹窗不响铃 */
+.notif-stream-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  align-self: center;
+  background: var(--faint);
+  transform: rotate(45deg);
+  transition: background-color 0.14s var(--ease);
+}
+
+.notif-stream-dot.connected {
+  background: var(--ok);
+}
+
+.notif-stream-dot.reconnecting,
+.notif-stream-dot.disconnected {
+  background: var(--warn);
+}
+
 .notif-count {
   font-size: 12px;
   white-space: nowrap;
@@ -4348,6 +4368,10 @@ span.notif-desktop {
 
 .ndbg-dot.on {
   background: var(--ok);
+}
+
+.ndbg-dot.warn {
+  background: var(--warn);
 }
 
 .ndbg-send {
