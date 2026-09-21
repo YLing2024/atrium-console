@@ -73,9 +73,15 @@ npm run preview
   (import.meta.env.VITE_AUTH_CENTER_URL || '').trim() || 'https://auth.example.com/auth'
   ```
   见 `src/api.js`。仓库只提交 `.env.example`，真实 `.env` 被 `.gitignore` 忽略。
+- 侧栏「Hermes」页的 iframe 地址**只能**来自构建时环境变量：
+  ```js
+  (import.meta.env.VITE_HERMES_DASHBOARD_URL || '').trim() || 'https://hermes.example.com'
+  ```
+  见 `src/components/Hermes.jsx`。真实域名只写本地 `.env`，仓库只提交 `.env.example` 的占位项；
+  源码里 `grep hermes.zhangyunling` 应为 0。
 - 登录回跳格式：`<认证中心>/auth?redirect=<当前地址>` → 回跳 `#token=<token>`（fragment，不进服务器日志）→ 存 `localStorage.auth_token` → 清 URL。
 - 任意接口 401 → 清 token → 跳认证中心。**不要在组件里另写一套鉴权逻辑**，统一走 `api.js`。
-- 推送前自检：源码里 `grep zhangyunling\|auth\.\|127\.0\.0\.1\|公网 IP` 应为 0（终端 Tab 用同源相对路径 `/term/`，无硬编码）。
+- 推送前自检：源码里 `grep zhangyunling\|hermes\.\|auth\.\|127\.0\.0\.1\|公网 IP` 应为 0（终端 Tab 用同源相对路径 `/term/`，无硬编码；Hermes 地址走 `VITE_HERMES_DASHBOARD_URL`）。
 
 ## 设计系统（硬性，与 homepage / quotahub / v2link 同一套）
 

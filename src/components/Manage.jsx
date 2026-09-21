@@ -62,6 +62,7 @@ export default function Manage() {
   const [createNote, setCreateNote] = useState('');
   const [createDays, setCreateDays] = useState('30');
   const [createCustomDays, setCreateCustomDays] = useState('');
+  const [createCanWrite, setCreateCanWrite] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createdToken, setCreatedToken] = useState(null);
@@ -70,6 +71,7 @@ export default function Manage() {
   const [editName, setEditName] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editDays, setEditDays] = useState('');
+  const [editCanWrite, setEditCanWrite] = useState(false);
   const [apiEditSaving, setApiEditSaving] = useState(false);
   const [apiEditError, setApiEditError] = useState('');
   const [revokeTarget, setRevokeTarget] = useState(null);
@@ -183,6 +185,7 @@ export default function Manage() {
     setCreateNote('');
     setCreateDays('30');
     setCreateCustomDays('');
+    setCreateCanWrite(false);
     setCreateError('');
     setShowCreate(true);
   }
@@ -211,7 +214,7 @@ export default function Manage() {
     setCreating(true);
     setCreateError('');
     try {
-      const data = await createApiToken({ name, note: createNote.trim(), expiresInDays: days });
+      const data = await createApiToken({ name, note: createNote.trim(), expiresInDays: days, canWrite: createCanWrite });
       setCreatedToken({
         token: data.token,
         curl: `curl -H "Authorization: Bearer ${data.token}" ${location.origin}/api/admin/system`
@@ -240,6 +243,7 @@ export default function Manage() {
     setEditName(t.name || '');
     setEditNote(t.note || '');
     setEditDays('');
+    setEditCanWrite(t.canWrite === true);
     setEditError('');
   }
 
@@ -253,6 +257,7 @@ export default function Manage() {
     const patch = {};
     if (name !== (editTarget.name || '')) patch.name = name;
     if (editNote.trim() !== (editTarget.note || '')) patch.note = editNote.trim();
+    if (editCanWrite !== (editTarget.canWrite === true)) patch.canWrite = editCanWrite;
     if (editDays) {
       const n = parseInt(editDays, 10);
       if (!Number.isInteger(n) || n < 1 || n > 365) {
@@ -445,6 +450,7 @@ export default function Manage() {
         接口令牌用于第三方工具调用 Admin 接口。调用时在请求头携带{' '}
         <code className="usage-code">Authorization: Bearer &lt;令牌&gt;</code> 即可。
         令牌与登录设备相互独立，不占用设备登录。请妥善保管令牌，泄露可随时吊销。
+        标记为「只读」的令牌只能读取；需要调用写入接口（如发通知）请在创建时勾选「允许写入」。
       </p>
 
       {apiError && <div className="error">{apiError}</div>}
@@ -460,6 +466,7 @@ export default function Manage() {
               <tr>
                 <th>名称</th>
                 <th>备注</th>
+                <th>权限</th>
                 <th>创建时间</th>
                 <th>过期时间</th>
                 <th>最近使用</th>
@@ -473,6 +480,11 @@ export default function Manage() {
                   <tr key={t.id}>
                     <td className="api-token-name">{t.name}</td>
                     <td className="muted">{t.note || '—'}</td>
+                    <td>
+                      <span className={'api-token-perm' + (t.canWrite ? ' write' : '')}>
+                        {t.canWrite ? '可写' : '只读'}
+                      </span>
+                    </td>
                     <td className="dev-time">{formatDate(t.createdAt)}</td>
                     <td className="dev-time">
                       {expired ? (
@@ -548,6 +560,15 @@ export default function Manage() {
                 onChange={(e) => setCreateCustomDays(e.target.value)}
               />
             )}
+            <label className="checkbox-row" htmlFor="api-token-canwrite">
+              <input
+                id="api-token-canwrite"
+                type="checkbox"
+                checked={createCanWrite}
+                onChange={(e) => setCreateCanWrite(e.target.checked)}
+              />
+              <span>允许写入（可调用发通知等写入接口）</span>
+            </label>
             {createError && <div className="error">{createError}</div>}
             <div className="modal-actions">
               <button className="btn-ghost" onClick={() => setShowCreate(false)} disabled={creating}>
@@ -619,6 +640,15 @@ export default function Manage() {
               value={editDays}
               onChange={(e) => setEditDays(e.target.value)}
             />
+            <label className="checkbox-row" htmlFor="edit-token-canwrite">
+              <input
+                id="edit-token-canwrite"
+                type="checkbox"
+                checked={editCanWrite}
+                onChange={(e) => setEditCanWrite(e.target.checked)}
+              />
+              <span>允许写入（可调用发通知等写入接口）</span>
+            </label>
             {apiEditError && <div className="error">{apiEditError}</div>}
             <div className="modal-actions">
               <button className="btn-ghost" onClick={() => setEditTarget(null)} disabled={apiEditSaving}>

@@ -13,6 +13,9 @@
 
 > 认证中心地址由构建时环境变量 `VITE_AUTH_CENTER_URL` 注入（模板见 `.env.example`，真实 `.env` 不入库）。
 > 未配置时回退占位符 `https://auth.example.com/auth`。
+>
+> 侧栏「Hermes」页的 iframe 地址由构建时环境变量 `VITE_HERMES_DASHBOARD_URL` 注入，
+> 未配置时回退占位符 `https://hermes.example.com`。真实域名只写在本地 `.env`，仓库只留占位项。
 
 1. 未登录访问任意受保护页 → `Login` 组件自动跳转 `<认证中心>/auth?redirect=<当前地址>`；
 2. 认证中心登录成功回跳 `redirect#token=<token>`（fragment，不进服务器日志）；

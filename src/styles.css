@@ -269,6 +269,10 @@ button {
 
 .sidenav-item {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
   padding: 10px 20px 10px 22px;
   text-align: left;
@@ -278,6 +282,29 @@ button {
   font-weight: 500;
   letter-spacing: 0.06em;
   transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+}
+
+.sidenav-item-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* 未读数字徽标（未读 0 时不渲染） */
+.sidenav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
 }
 
 .sidenav-item:hover {
@@ -3682,5 +3709,789 @@ button {
 @media (max-width: 900px) {
   .fshare-list {
     overflow-x: auto;
+  }
+}
+
+/* ==========================================================================
+   通知中心（admin「通知」Tab）—— 归档 + 工作台
+   直角 · 发丝线 · 单一琥珀点缀 · 动效 ≤150ms
+   ========================================================================== */
+
+.notif {
+  padding: 24px;
+  overflow-y: auto;
+  height: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.notif-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.notif-head h2 {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.notif-count {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.notif-desktop {
+  flex-shrink: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 7px 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  transition: color 0.14s var(--ease), border-color 0.14s var(--ease);
+}
+
+.notif-desktop:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+span.notif-desktop {
+  border-color: transparent;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.notif-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-soft);
+  flex-wrap: wrap;
+}
+
+.notif-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+}
+
+.notif-seg-btn {
+  padding: 6px 14px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+}
+
+.notif-seg-btn + .notif-seg-btn {
+  border-left: 1px solid var(--border);
+}
+
+.notif-seg-btn.active {
+  color: var(--bg);
+  background: var(--fg);
+}
+
+.notif-selects {
+  display: flex;
+  gap: 8px;
+}
+
+.notif-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: 12.5px;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.notif-select:focus {
+  border-color: var(--accent);
+}
+
+.notif-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.notif-compose-toggle {
+  flex-shrink: 0;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 7px 12px;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  transition: color 0.14s var(--ease), border-color 0.14s var(--ease),
+    background-color 0.14s var(--ease);
+}
+
+.notif-compose-toggle:hover,
+.notif-compose-toggle.active {
+  color: var(--bg);
+  background: var(--fg);
+  border-color: var(--fg);
+}
+
+/* 统计行：共 N 条 · 未读 M · 来源 K 个（悬停/点击展开 Top 5） */
+.notif-stats {
+  position: relative;
+  min-width: 0;
+}
+
+.notif-stats-line {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: 2px 0;
+  transition: color 0.14s var(--ease);
+}
+
+.notif-stats-line:hover {
+  color: var(--fg);
+}
+
+.notif-stats-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 180px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--line-soft), 0 10px 24px rgba(23, 21, 18, 0.08);
+}
+
+.notif-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.notif-stats-src {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 150px;
+}
+
+/* 发通知表单（内联展开，非弹窗） */
+.notif-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.notif-compose-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.notif-compose-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.notif-compose-col .field-label {
+  margin-bottom: 0;
+}
+
+.notif-compose-level {
+  width: 96px;
+  flex-shrink: 0;
+}
+
+.notif-compose-source {
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.notif-compose-title {
+  flex: 1 1 220px;
+}
+
+.notif-compose-text {
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.5;
+  font-family: var(--font);
+}
+
+.notif-compose-adv {
+  flex-shrink: 0;
+  padding-bottom: 12px;
+}
+
+.notif-compose-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.notif-manage {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.notif-manage .btn-ghost {
+  padding: 7px 12px;
+}
+
+.notif-manage .btn-ghost.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.notif-manage .btn-ghost.danger:hover {
+  color: var(--bg);
+  background: var(--danger);
+}
+
+.notif-error {
+  margin: 12px 0;
+}
+
+.notif-list {
+  margin-top: 4px;
+}
+
+.notif-item {
+  border-bottom: 1px solid var(--line-soft);
+  transition: background-color 0.14s var(--ease);
+}
+
+.notif-item.is-highlight {
+  background: var(--accent-soft);
+  outline: 1px solid var(--accent-border);
+}
+
+.notif-main {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) minmax(0, 150px) 116px 10px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 4px;
+  text-align: left;
+  transition: background-color 0.14s var(--ease);
+}
+
+.notif-main:hover {
+  background: var(--surface-2);
+}
+
+.notif-level {
+  display: inline-block;
+  text-align: center;
+  padding: 2px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border: 1px solid var(--line-soft);
+}
+
+.notif-level.urgent {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+.notif-item-title {
+  font-size: 13.5px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif-item.is-read .notif-item-title {
+  color: var(--muted);
+}
+
+.notif-src {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notif-time {
+  font-size: 11.5px;
+  color: var(--faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.notif-dot {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  transform: rotate(45deg);
+  justify-self: end;
+}
+
+.notif-body {
+  padding: 4px 4px 16px 64px;
+}
+
+.notif-text {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.notif-ops {
+  display: flex;
+  gap: 4px;
+}
+
+.notif-empty {
+  padding: 60px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.notif-more {
+  display: block;
+  margin: 16px auto 4px;
+}
+
+@media (max-width: 768px) {
+  .notif {
+    padding: 16px;
+  }
+
+  .notif-main {
+    grid-template-columns: 48px minmax(0, 1fr) 10px;
+  }
+
+  .notif-src,
+  .notif-time {
+    display: none;
+  }
+
+  .notif-body {
+    padding-left: 4px;
+  }
+
+  .notif-manage {
+    margin-left: 0;
+  }
+
+  .notif-compose-source {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   通知管理页（admin「通知管理」Tab）—— 复用 .notif 基础样式，仅补少量差异
+   ========================================================================== */
+
+/* 发通知表单底部：左侧一行小字提示，右侧发送按钮 */
+.notif-compose-actions .notif-compose-hint {
+  margin-right: auto;
+  align-self: center;
+  font-size: 12px;
+}
+
+.notif-dedup-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+}
+
+.notif-notice {
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.notif-notice.ok {
+  color: var(--ok);
+}
+
+/* 接口令牌：权限标志 */
+.api-token-perm {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  color: var(--muted);
+  border: 1px solid var(--line-soft);
+}
+
+.api-token-perm.write {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.checkbox-row input {
+  accent-color: var(--accent);
+}
+
+/* ==========================================================================
+   调试页（admin「调试」Tab）—— 工具列表 + 工具面板
+   ========================================================================== */
+
+.debug {
+  padding: 24px;
+  overflow-y: auto;
+  height: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.debug-head {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.debug-head h2 {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+.debug-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin-top: 18px;
+}
+
+.debug-tools {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 150px;
+  border: 1px solid var(--border);
+}
+
+.debug-tool {
+  text-align: left;
+  width: 100%;
+  padding: 9px 12px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+}
+
+.debug-tool:hover {
+  color: var(--fg);
+}
+
+.debug-tool.active {
+  color: var(--bg);
+  background: var(--fg);
+}
+
+.debug-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.ndbg {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ndbg-block {
+  padding: 16px;
+  border: 1px solid var(--line-soft);
+}
+
+.ndbg-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.ndbg-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.ndbg-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--faint);
+  transform: rotate(45deg);
+}
+
+.ndbg-dot.on {
+  background: var(--ok);
+}
+
+.ndbg-send {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ndbg-send-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.ndbg-send-level {
+  width: 96px;
+  flex-shrink: 0;
+}
+
+.ndbg-send-title {
+  flex: 1 1 220px;
+}
+
+.ndbg-send-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.ndbg-src-hint {
+  font-size: 12px;
+  margin-right: auto;
+}
+
+.ndbg-block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ndbg-block-head .ndbg-title {
+  margin-bottom: 0;
+}
+
+.ndbg-table {
+  width: 100%;
+  margin-top: 12px;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.ndbg-table th,
+.ndbg-table td {
+  padding: 7px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--fg);
+}
+
+.ndbg-table th {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ndbg-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+}
+
+.ndbg-curl {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  user-select: all;
+}
+
+.ndbg-result-status {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.ndbg-result-status.ok {
+  color: var(--ok);
+}
+
+.ndbg-result-status.bad {
+  color: var(--danger);
+}
+
+.ndbg-result-body {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  max-height: 220px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+
+/* ==========================================================================
+   Hermes 页（admin「Hermes」Tab）—— iframe 铺满，无双层滚动条
+   ========================================================================== */
+
+.pane--hermes {
+  padding: 0;
+  overflow: hidden;
+}
+
+.hermes {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.hermes-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.hermes-bar h2 {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+/* 窄屏才提示：宽屏隐藏 */
+.hermes-hint {
+  display: none;
+  font-size: 12px;
+}
+
+.hermes-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.hermes-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.hermes-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg);
+}
+
+@media (max-width: 900px) {
+  .hermes-hint {
+    display: inline;
+  }
+}
+
+@media (max-width: 768px) {
+  .debug {
+    padding: 16px;
+  }
+
+  .debug-body {
+    flex-direction: column;
+  }
+
+  .debug-tools {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .ndbg-send-level {
+    width: 100%;
   }
 }

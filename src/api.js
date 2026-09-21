@@ -357,3 +357,54 @@ export function deleteFileShare(id) {
     method: 'DELETE'
   });
 }
+
+// ============ 通知中心 ============
+// 返回 { items: [{ id, ts, level, source, title, body, link, readAt }], unread, total }
+// ts / readAt 为 epoch 秒。params: { limit, before, level, source, unread }
+export function getNotifications(params = {}) {
+  const q = new URLSearchParams();
+  if (params.limit) q.set('limit', String(params.limit));
+  if (params.before) q.set('before', String(params.before));
+  if (params.level) q.set('level', params.level);
+  if (params.source) q.set('source', params.source);
+  if (params.unread) q.set('unread', '1');
+  const s = q.toString();
+  return request('/api/admin/notifications' + (s ? '?' + s : ''));
+}
+
+// 单条已读
+export function markNotificationRead(id) {
+  return request(`/api/admin/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' });
+}
+
+// 全部已读，返回 { ok, count }
+export function markAllNotificationsRead() {
+  return request('/api/admin/notifications/read-all', { method: 'POST' });
+}
+
+// 删除
+export function deleteNotification(id) {
+  return request(`/api/admin/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// 主动推送一条通知（发通知表单），返回 { id, ts }
+export function createNotification(payload) {
+  return request('/api/admin/notifications', { method: 'POST', body: payload });
+}
+
+// 批量删除：filters { level?, source?, unreadOnly?, readOnly?, dryRun? } → { ok, count }
+// dryRun=true 只统计不删除（用于二次确认时展示准确条数）
+export function bulkDeleteNotifications(filters = {}) {
+  const body = {};
+  if (filters.level) body.level = filters.level;
+  if (filters.source) body.source = filters.source;
+  if (filters.unreadOnly) body.unreadOnly = true;
+  if (filters.readOnly) body.readOnly = true;
+  if (filters.dryRun) body.dryRun = true;
+  return request('/api/admin/notifications/bulk-delete', { method: 'POST', body });
+}
+
+// 统计 → { total, unread, sources: [{ source, count }] }
+export function getNotificationStats() {
+  return request('/api/admin/notifications/stats');
+}

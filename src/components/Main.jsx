@@ -9,17 +9,36 @@ import CommandPalette from './CommandPalette.jsx';
 import Manage from './Manage.jsx';
 import Terminal from './Terminal.jsx';
 import Files from './Files.jsx';
+import NotificationCenter from './NotificationCenter.jsx';
+import NotificationManage from './NotificationManage.jsx';
+import Debug from './Debug.jsx';
+import Hermes from './Hermes.jsx';
 
 // 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat'）一律回退到首个 Tab
-const TABS = ['system', 'version', 'blog', 'manage', 'terminal', 'files'];
-// 标签文字与顺序：与改造前顶部 Tab 完全一致
+const TABS = [
+  'system',
+  'version',
+  'blog',
+  'manage',
+  'terminal',
+  'files',
+  'notifications',
+  'notification-manage',
+  'debug',
+  'hermes'
+];
+// 标签文字与顺序：原有六项相对顺序不变，其后依次追加「通知 / 通知管理 / 调试 / Hermes」
 const TAB_LABELS = {
   system: '系统',
   version: '版本',
   blog: '博客',
   manage: '管理',
   terminal: '终端',
-  files: '文件'
+  files: '文件',
+  notifications: '通知',
+  'notification-manage': '通知管理',
+  debug: '调试',
+  hermes: 'Hermes'
 };
 
 export default function Main() {
@@ -33,6 +52,8 @@ export default function Main() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // 窄屏：右侧抽屉是否展开
+  const [unread, setUnread] = useState(0); // 通知中心未读数（侧栏徽标）
+  const [notifRefreshTick, setNotifRefreshTick] = useState(0); // 管理页操作后触发展示页刷新
   const menuRef = useRef(null);
 
   function switchTab(t) {
@@ -112,7 +133,10 @@ export default function Main() {
               className={'sidenav-item' + (tab === id ? ' active' : '')}
               onClick={() => switchTab(id)}
             >
-              {TAB_LABELS[id]}
+              <span className="sidenav-item-label">{TAB_LABELS[id]}</span>
+              {id === 'notifications' && unread > 0 && (
+                <span className="sidenav-badge">{unread > 99 ? '99+' : unread}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -197,6 +221,25 @@ export default function Main() {
           </div>
           <div className="pane" hidden={tab !== 'files'}>
             <Files active={tab === 'files'} />
+          </div>
+          <div className="pane" hidden={tab !== 'notifications'}>
+            <NotificationCenter
+              refreshTick={notifRefreshTick}
+              onUnreadChange={setUnread}
+              onOpen={() => switchTab('notifications')}
+            />
+          </div>
+          <div className="pane" hidden={tab !== 'notification-manage'}>
+            <NotificationManage
+              active={tab === 'notification-manage'}
+              onChanged={() => setNotifRefreshTick((t) => t + 1)}
+            />
+          </div>
+          <div className="pane" hidden={tab !== 'debug'}>
+            <Debug />
+          </div>
+          <div className="pane pane--hermes" hidden={tab !== 'hermes'}>
+            <Hermes />
           </div>
         </div>
       </div>
