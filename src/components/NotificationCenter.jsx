@@ -22,11 +22,19 @@ const DESKTOP_PREF_KEY = 'admin_notifications_desktop';
 const LEVEL_LABELS = { urgent: '紧急', normal: '常规', digest: '汇总' };
 
 // ts / readAt 为 epoch 秒
+// 列表摘要用短时间（到分）；展开详情用完整时间（到秒，YYYY-MM-DD HH:mm:ss）。
 function fmtTime(ts) {
   if (!ts) return '';
   const d = new Date(ts * 1000);
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function fmtTimeFull(ts) {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 // 同源在当前窗口打开，外链新窗口
@@ -378,16 +386,45 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
               (highlightId === item.id ? ' is-highlight' : '')
             }
           >
-            <button className="notif-main" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+            <button
+              className="notif-main"
+              aria-expanded={expandedId === item.id}
+              onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+            >
               <span className={'notif-level ' + item.level}>{LEVEL_LABELS[item.level] || item.level}</span>
-              <span className="notif-item-title">{item.title}</span>
+              <span className="notif-main-text">
+                <span className="notif-item-title">{item.title}</span>
+                {item.body && <span className="notif-item-summary">{item.body}</span>}
+              </span>
               <span className="notif-src">{typeLabel(item.type || item.source)}</span>
               <span className="notif-time mono">{fmtTime(item.ts)}</span>
               {!item.readAt && <span className="notif-dot" />}
             </button>
             {expandedId === item.id && (
               <div className="notif-body">
-                {item.body ? <p className="notif-text">{item.body}</p> : <p className="notif-text muted">（无正文）</p>}
+                {item.body ? (
+                  <p className="notif-text">{item.body}</p>
+                ) : (
+                  <p className="notif-text muted">（无正文）</p>
+                )}
+                <div className="notif-meta">
+                  <span className="notif-meta-item">
+                    <span className="notif-meta-key">类别</span>
+                    {typeLabel(item.type || item.source) || '—'}
+                  </span>
+                  <span className="notif-meta-item">
+                    <span className="notif-meta-key">级别</span>
+                    {LEVEL_LABELS[item.level] || item.level || '—'}
+                  </span>
+                  <span className="notif-meta-item">
+                    <span className="notif-meta-key">来源</span>
+                    {item.source || '—'}
+                  </span>
+                  <span className="notif-meta-item">
+                    <span className="notif-meta-key">时间</span>
+                    <span className="mono">{fmtTimeFull(item.ts) || '—'}</span>
+                  </span>
+                </div>
                 <div className="notif-ops">
                   {item.link && (
                     <button className="link-btn" onClick={() => openLink(item.link)}>
