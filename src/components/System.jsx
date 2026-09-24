@@ -423,6 +423,7 @@ function Legend({ series, data }) {
 
 // 趋势序列定义：单点缀色（琥珀）+ 中性灰，走 CSS 变量自动适配明暗
 const MEM_SERIES = [
+  { key: 'cpu', label: 'CPU', color: 'var(--muted)' },
   { key: 'mem_percent', label: '物理内存', color: 'var(--accent)' },
   { key: 'swap_percent', label: 'Swap', color: 'var(--ok)' }
 ];
