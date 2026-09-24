@@ -6,6 +6,7 @@ import {
   deleteNotification
 } from '../api.js';
 import { useNotificationStream } from '../notificationStream.js';
+import MarkdownBody from './MarkdownBody.jsx';
 
 /**
  * 通知（展示/阅读页）：列表 + 筛选 + 单条已读/删除 + 桌面通知开关。
@@ -403,7 +404,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
             {expandedId === item.id && (
               <div className="notif-body">
                 {item.body ? (
-                  <p className="notif-text">{item.body}</p>
+                  <MarkdownBody className="notif-text notif-md" text={item.body} />
                 ) : (
                   <p className="notif-text muted">（无正文）</p>
                 )}
