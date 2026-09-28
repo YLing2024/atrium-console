@@ -7,8 +7,7 @@ import {
   createApiToken,
   updateApiToken,
   deleteApiToken,
-  clearToken,
-  redirectToSso
+  logout
 } from '../api.js';
 
 function pad(n) {
@@ -163,9 +162,8 @@ export default function Manage() {
     try {
       await deleteSession(deleteTarget.id);
       if (deleteTarget.isCurrent) {
-        // 删除当前设备：撤销自身凭证 → 立即跳认证中心重新登录
-        clearToken();
-        redirectToSso();
+        // 删除当前设备：撤销自身凭证 → 退出网关会话重新登录
+        logout();
         return;
       }
       setSessions((list) => list.filter((x) => x.id !== deleteTarget.id));

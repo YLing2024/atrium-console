@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { getToken, getSystemMetrics } from '../api.js';
+import { getSystemMetrics } from '../api.js';
 
 function fmtBytes(n) {
   if (n == null || !Number.isFinite(Number(n))) return '—';
@@ -486,7 +486,7 @@ export default function System({ active }) {
   const trendMetaCacheRef = useRef({}); // 各档位上次成功的 meta
 
   // SSE 实时推送：仅 active（系统 Tab 激活）时建连，切走立即断开，无任何轮询。
-  // 不用 EventSource 是因为无法携带 Authorization header，改用 fetch + ReadableStream
+  // 用 fetch + ReadableStream 自管流（非 EventSource）：需要在客户端做连接状态与重连观测；
   useEffect(() => {
     if (!active) return;
 
@@ -525,7 +525,6 @@ export default function System({ active }) {
       ctrl = new AbortController();
       try {
         const resp = await fetch('/api/admin/system/stream', {
-          headers: { Authorization: 'Bearer ' + getToken() },
           signal: ctrl.signal
         });
         if (!resp.ok || !resp.body) throw new Error('SSE HTTP ' + resp.status);

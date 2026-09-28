@@ -1,13 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { emitNotificationPush } from './notificationPush.js';
-import { getToken } from './api.js';
 
 /**
  * 通知 SSE 长连接（全站单例，原生 fetch + ReadableStream，无第三方依赖）。
  *
- * 为什么不用原生 EventSource：EventSource 不能携带 Authorization 头，而本项目
- * 走 nginx `auth_request` + Bearer token，因此沿用 fetch 流自行管理连接；
- * 也正因为自管，原生 EventSource「自动重连但不告知连接已死」的问题不存在。
+ * 身份由网关站点会话 cookie 证明（同源 fetch 自动携带），不再手动带 Authorization 头。
  *
  * 看门狗（本模块的核心）：
  *   - 连接建立（HTTP 200 + 首个字节）即视为「已连接」，开始计时；
@@ -196,12 +193,11 @@ async function connect() {
   connection = my;
   try {
     const resp = await fetch(NOTIFICATION_STREAM_PATH, {
-      headers: { Authorization: 'Bearer ' + getToken() },
       signal: my.ctrl.signal
     });
     if (my.aborted || !running || connection !== my) return;
     if (resp.status === 401 || resp.status === 403) {
-      // 凭证失效：重试无意义，停在这里（其余接口的 401 会统一跳 SSO）
+      // 凭证失效：重试无意义，停在这里（其余接口的 401 会统一跳网关登录页）
       connection = null;
       disarmWatchdog();
       setStatus('disconnected');

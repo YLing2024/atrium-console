@@ -1,42 +1,36 @@
 /**
- * REST API 封装：认证中心 token（auth_token）存取、统一请求、
- * 401 自动清 token 并跳认证中心（SSO）
+ * REST API 封装：身份由 Auth Gateway 的站点会话 cookie 证明（同源自动携带），
+ * 不再读写 localStorage token。全局 401 → 整页跳网关登录页。
  */
 
-const TOKEN_KEY = 'auth_token';
-// 认证中心地址：构建时由 VITE_AUTH_CENTER_URL 注入（真实地址只存本地 .env，不入库）
-// 未注入时回退占位符，保证开源克隆 / 未配置环境下不暴露私有地址
-const AUTH_CENTER_URL =
-  (import.meta.env.VITE_AUTH_CENTER_URL || '').trim() || 'https://auth.example.com/auth';
+let redirecting = false;
 
-export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+// 401 → 整页跳网关登录页，next 带回当前地址（pathname + search）
+export function redirectToLogin() {
+  if (redirecting) return;
+  redirecting = true;
+  const next = encodeURIComponent(location.pathname + location.search);
+  location.href = `/_auth/login?next=${next}`;
 }
 
-export function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
-
-// 携带回跳地址跳转认证中心
-export function redirectToSso() {
-  const redirect = encodeURIComponent(location.href);
-  location.href = `${AUTH_CENTER_URL}?redirect=${redirect}`;
-}
-
-// 清除 token 并跳转认证中心
+// 退出登录：交给网关清站点会话
 export function logout() {
-  clearToken();
-  redirectToSso();
+  location.href = '/_auth/logout';
 }
 
-async function request(path, options = {}, reqOpts = {}) {
+// 启动时问网关「当前是谁」：200 → 用户字段；401 → 跳登录并返回 null
+export async function getMe() {
+  const res = await fetch('/_auth/me', { credentials: 'same-origin' });
+  if (res.status === 401) {
+    redirectToLogin();
+    return null;
+  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json().catch(() => ({}));
+}
+
+async function request(path, options = {}) {
   const headers = { ...(options.headers || {}) };
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
 
   const opts = { ...options, headers };
   // 非 FormData 的 body 统一 JSON 序列化
@@ -47,9 +41,9 @@ async function request(path, options = {}, reqOpts = {}) {
 
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
-  // 非登录相关接口 401：凭证失效 → 清 token 并跳认证中心
-  if (res.status === 401 && !reqOpts.skip401) {
-    logout(); // 凭证失效，跳回认证中心
+  // 任意接口 401：凭证失效 → 整页跳网关登录页（不做重试循环）
+  if (res.status === 401) {
+    redirectToLogin();
     throw new Error('未登录或登录已过期');
   }
   if (!res.ok) {
@@ -127,8 +121,7 @@ export function uploadBlogImage(file) {
   return request('/api/blog/admin/upload', { method: 'POST', body: fd });
 }
 export function downloadUrl(filePath) {
-  const token = getToken() || '';
-  return `/api/admin/download?path=${encodeURIComponent(filePath)}&token=${encodeURIComponent(token)}`;
+  return `/api/admin/download?path=${encodeURIComponent(filePath)}`;
 }
 
 // ============ 博客接口 ============
@@ -275,19 +268,17 @@ export function deleteEntry(path) {
   return request(`/api/admin/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
 }
 
-// 下载地址：<a>/window.open 无法带自定义头，token 只能走 query（nginx 探针支持 ?token=）
+// 下载地址：<a>/window.open 无法带自定义头。身份由网关会话 cookie 证明，
+// 路径里不再拼 token（网关会剥掉客户端伪造的凭证头，cookie 已在同源请求里）。
 export function fileDownloadUrl(path) {
-  const token = getToken() || '';
-  return `/api/admin/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`;
+  return `/api/admin/files/download?path=${encodeURIComponent(path)}`;
 }
 
 // 上传单个文件（必须用 XHR：fetch 拿不到上传进度）
 // onProgress({ loaded, total, percent }) · onDone(data) · onError(err)；返回 xhr 供调用方 abort()
 export function uploadFileTo(path, file, { onProgress, onDone, onError } = {}) {
   const xhr = new XMLHttpRequest();
-  const token = getToken();
   xhr.open('POST', `/api/admin/files/upload?path=${encodeURIComponent(path)}`);
-  if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
 
   xhr.upload.onprogress = (e) => {
     if (onProgress && e.lengthComputable) {
@@ -306,7 +297,7 @@ export function uploadFileTo(path, file, { onProgress, onDone, onError } = {}) {
       data = {};
     }
     if (xhr.status === 401) {
-      logout(); // 凭证失效
+      redirectToLogin(); // 凭证失效
       return;
     }
     if (xhr.status >= 200 && xhr.status < 300) {

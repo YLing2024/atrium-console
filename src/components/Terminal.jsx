@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getToken } from '../api.js';
 
 /**
  * 服务器终端（多窗口 / 类似浏览器标签页）+ 二次验证
  *
  * 认证是两层：
- *   1. 本域 SSO（nginx /term/ 的 auth_request 探针）—— 与 admin 后台同一张通行证
+ *   1. 本域登录（网关对 /term/ 鉴权，通过后放行）—— 与 admin 后台同一张通行证
  *   2. 终端口令 —— 通过 POST /api/admin/term/unlock 换一张 12 小时票据，
  *      票据随 iframe 一起传给服务端 wrapper，wrapper 起 shell 前向 admin-server 校验；
  *      票据无效/缺失就拒绝起 shell（ttyd 只监听 127.0.0.1，绕不过 wrapper）
  *
  * 每个标签 = 一个独立 shell 会话：
- *   - iframe src = /term/?token=…&arg=<会话名>&arg=<票据>
+ *   - iframe src = /term/?arg=<会话名>&arg=<票据>（登录态由网关 cookie 证明）
  *   - ttyd --url-arg 把两个 arg 按顺序作为 $1/$2 传给 wrapper
  *   - wrapper 用 tmux `new-session -A -s <名字>` 接上已有会话或新建
  *   - 刷新页面：按名字接回（滚动历史保留）
@@ -112,10 +111,7 @@ export default function Terminal({ active }) {
 
   const refreshAlive = useCallback(async () => {
     try {
-      const token = getToken();
-      const r = await fetch('/api/admin/term/sessions', {
-        headers: token ? { Authorization: 'Bearer ' + token } : {}
-      });
+      const r = await fetch('/api/admin/term/sessions');
       if (!r.ok) return;
       const d = await r.json();
       setAlive(new Set((d.sessions || []).map((s) => s.name)));
@@ -143,7 +139,7 @@ export default function Terminal({ active }) {
       try {
         const payload = new Blob([JSON.stringify({ names })], { type: 'application/json' });
         navigator.sendBeacon(
-          '/api/admin/term/sessions/close?token=' + encodeURIComponent(getToken() || ''),
+          '/api/admin/term/sessions/close',
           payload
         );
       } catch (e) {
@@ -163,7 +159,7 @@ export default function Terminal({ active }) {
     const names = tabsRef.current.map((t) => t.id);
     if (!names.length) return;
     try {
-      await fetch('/api/admin/term/sessions/close?token=' + encodeURIComponent(getToken() || ''), {
+      await fetch('/api/admin/term/sessions/close', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ names })
@@ -179,12 +175,10 @@ export default function Terminal({ active }) {
     setBusy(true);
     setErr('');
     try {
-      const token = getToken();
       const r = await fetch('/api/admin/term/unlock', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: 'Bearer ' + token } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ password: pw })
       });
@@ -226,10 +220,8 @@ export default function Terminal({ active }) {
     setTabs(rest);
     if (current === id) setCurrent(rest.length ? rest[rest.length - 1].id : null);
     try {
-      const token = getToken();
       await fetch('/api/admin/term/sessions/' + encodeURIComponent(id), {
-        method: 'DELETE',
-        headers: token ? { Authorization: 'Bearer ' + token } : {}
+        method: 'DELETE'
       });
     } catch (e) {
       /* 忽略 */
@@ -263,8 +255,6 @@ export default function Terminal({ active }) {
       </div>
     );
   }
-
-  const token = getToken() || '';
 
   return (
     <div className="term">
@@ -323,9 +313,7 @@ export default function Terminal({ active }) {
             style={{ display: t.id === current ? 'block' : 'none' }}
             title={t.title}
             src={
-              '/term/?token=' +
-              encodeURIComponent(token) +
-              '&arg=' +
+              '/term/?arg=' +
               encodeURIComponent(t.id) +
               '&arg=' +
               encodeURIComponent(ticket)

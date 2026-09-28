@@ -66,7 +66,7 @@ export default function Main() {
     setShowReset(false);
   }
 
-  // 退出登录：清除本地 token 并跳回认证中心
+  // 退出登录：交给网关清站点会话
   function handleLogout() {
     logout();
   }
