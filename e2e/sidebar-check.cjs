@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 
 const BASE = 'http://localhost:5173/';
-const LABELS = ['系统', '版本', '博客', '管理', '终端', '文件'];
+const LABELS = ['系统', '版本', '博客', '管理', '终端', '文件', '通知', '通知管理', '调试', 'Hermes'];
 
 // 后端不在场：把 /api/** 全部桩成 200，避免 401 触发 SSO 跳转（只测导航外观）
 const STUB = {
@@ -31,6 +31,19 @@ async function stubApi(ctx) {
   );
 }
 
+// 新架构：前端不再有 token，身份由 Auth Gateway 的站点会话 cookie 证明。
+// 本自测把所有 /api/** 桩成 200，注入 cookie 只作语义对齐（不依赖它绕过鉴权）；
+// cookie 名与线上一致：__Host-<app>_session（admin 站为 __Host-admin_session）。
+const SITE_SESSION_COOKIE = {
+  name: '__Host-admin_session',
+  value: 'e2e-fake-session',
+  domain: 'localhost',
+  path: '/',
+  secure: true,
+  httpOnly: true,
+  sameSite: 'Lax'
+};
+
 function assert(cond, msg) {
   if (!cond) throw new Error('FAIL: ' + msg);
   console.log('  ok - ' + msg);
@@ -42,7 +55,7 @@ function assert(cond, msg) {
 
   // ---------- 桌面 ----------
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-  await ctx.addInitScript(() => localStorage.setItem('auth_token', 'e2e-fake-token'));
+  await ctx.addCookies([SITE_SESSION_COOKIE]);
   await stubApi(ctx);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -88,7 +101,7 @@ function assert(cond, msg) {
     return panes.map((p) => p.hasAttribute('hidden'));
   });
   assert(
-    JSON.stringify(paneState) === JSON.stringify([true, true, false, true, true, true]),
+    JSON.stringify(paneState) === JSON.stringify([true, true, false, true, true, true, true, true, true, true]),
     '仅博客 pane 可见，其余 hidden（挂载语义未变）: ' + paneState.join(',')
   );
   const saved = await page.evaluate(() => sessionStorage.getItem('admin_tab'));
@@ -121,13 +134,13 @@ function assert(cond, msg) {
   // ---------- 窄屏 ----------
   console.log('== 窄屏 800x800 ==');
   await page.setViewportSize({ width: 800, height: 800 });
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(350); // 等抽屉归位动画结束
   const toggleVisible = await page.locator('.nav-toggle').isVisible();
   assert(toggleVisible, '窄屏菜单按钮可见（导航不被隐藏）');
   const navBoxNarrow = await page.locator('.sidenav').boundingBox();
   assert(
-    navBoxNarrow && navBoxNarrow.x >= 800 - 1,
-    '窄屏侧栏默认收在右侧屏外 (x=' + (navBoxNarrow && navBoxNarrow.x) + ')'
+    navBoxNarrow && navBoxNarrow.x + navBoxNarrow.width <= 1,
+    '窄屏侧栏默认收在左侧屏外 (x=' + (navBoxNarrow && navBoxNarrow.x) + ', w=' + (navBoxNarrow && navBoxNarrow.width) + ')'
   );
   const noH = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth
@@ -136,29 +149,29 @@ function assert(cond, msg) {
 
   // 打开抽屉
   await page.locator('.nav-toggle').click();
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(350);
   const openBox = await page.locator('.sidenav').boundingBox();
-  assert(openBox && openBox.x < 800, '点菜单按钮后抽屉滑入 (x=' + (openBox && openBox.x) + ')');
+  assert(openBox && openBox.x >= 0 && openBox.x < 800, '点菜单按钮后抽屉滑入 (x=' + (openBox && openBox.x) + ')');
   assert(await page.locator('.sidenav-backdrop').isVisible(), '抽屉带遮罩');
   await page.screenshot({ path: '/tmp/sidebar-narrow-open.png' });
 
   // 点条目 → 关闭抽屉
-  await page.locator('.sidenav-item', { hasText: '管理' }).click();
-  await page.waitForTimeout(300);
+  await page.locator('.sidenav-item', { hasText: /^管理$/ }).click();
+  await page.waitForTimeout(350);
   assert(
     (await page.locator('.sidenav-item.active').innerText()) === '管理',
     '抽屉内点「管理」切换生效'
   );
   const closedBox = await page.locator('.sidenav').boundingBox();
-  assert(closedBox && closedBox.x >= 800 - 1, '选中条目后抽屉关闭');
+  assert(closedBox && closedBox.x + closedBox.width <= 1, '选中条目后抽屉关闭');
 
-  // 再开 → 点遮罩关闭
+  // 再开 → 点遮罩关闭（抽屉在左，点右侧空白处）
   await page.locator('.nav-toggle').click();
-  await page.waitForTimeout(300);
-  await page.locator('.sidenav-backdrop').click({ position: { x: 20, y: 20 } });
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(350);
+  await page.locator('.sidenav-backdrop').click({ position: { x: 780, y: 400 } });
+  await page.waitForTimeout(350);
   const maskClosed = await page.locator('.sidenav').boundingBox();
-  assert(maskClosed && maskClosed.x >= 800 - 1, '点遮罩后抽屉关闭');
+  assert(maskClosed && maskClosed.x + maskClosed.width <= 1, '点遮罩后抽屉关闭');
 
   await page.screenshot({ path: '/tmp/sidebar-narrow.png' });
   await ctx.close();
@@ -166,8 +179,8 @@ function assert(cond, msg) {
   // ---------- 白名单回退 ----------
   console.log('== sessionStorage 非法值回退 ==');
   const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await ctx2.addCookies([SITE_SESSION_COOKIE]);
   await ctx2.addInitScript(() => {
-    localStorage.setItem('auth_token', 'e2e-fake-token');
     sessionStorage.setItem('admin_tab', 'browse'); // 旧版残留
   });
   await stubApi(ctx2);
