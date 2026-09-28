@@ -7,18 +7,18 @@
 - 历史浏览：`/api/admin/history` 只读查看历史会话记录（标题/时间/消息数 + markdown/图片/文件渲染），**无发送、无 WebSocket**
 - 系统监控：CPU/内存/磁盘/网络实时与历史趋势、服务状态、软件版本
 - 博客管理：文章/合集增删改查
-- 统一 SSO 登录（不再使用本地 TOTP 登录页）
+- 统一登录：登录 / OAuth2 / 会话全部由 Auth Gateway 负责，前端不再有自己的登录页
 
-## SSO 接入架构（Nginx 探针 + auth_token）
+## 鉴权接入架构（Auth Gateway）
 
-> 认证中心地址由构建时环境变量 `VITE_AUTH_CENTER_URL` 注入（模板见 `.env.example`，真实 `.env` 不入库）。
-> 未配置时回退占位符 `https://auth.example.com/auth`。
+> 身份由 Auth Gateway 的站点会话 cookie 证明；前端**零** OAuth / token / 登录态代码。
 >
 > 侧栏「Hermes」页的 iframe 地址由构建时环境变量 `VITE_HERMES_DASHBOARD_URL` 注入，
 > 未配置时回退占位符 `https://hermes.example.com`。真实域名只写在本地 `.env`，仓库只留占位项。
 
-1. 未登录访问任意受保护页 → `Login` 组件自动跳转 `<认证中心>/auth?redirect=<当前地址>`；
-2. 认证中心登录成功回跳 `redirect#token=<token>`（fragment，不进服务器日志）；
-3. `App.jsx` 解析 fragment（或 query）中的 token → **直接存入 `localStorage.auth_token`** → 立即清掉 URL；
-4. 所有 REST 请求（`api.js`）携带 `Authorization: Bearer <token>` 头，由 Nginx 探针验证；
-5. 任意接口 401 → 清 token → 跳回认证中心。
+1. 启动时调用 `GET /_auth/me`：
+   - 200 → 直接进入应用（用户身份取响应字段），**不再显示自己的登录页**；
+   - 401 → 整页跳 `/_auth/login?next=<当前地址>`。
+2. 所有 REST 请求（`api.js`）不再读写 `localStorage` token，由网关 cookie 证明身份（同源自动携带）。
+3. 任意接口 401 → 统一全局拦截，整页跳 `/_auth/login?next=<当前地址>`（不做重试循环）。
+4. 退出登录 → 跳 `/_auth/logout`。

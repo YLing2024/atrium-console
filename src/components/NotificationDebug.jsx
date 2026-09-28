@@ -281,7 +281,7 @@ export default function NotificationDebug() {
           </tbody>
         </table>
         <p className="muted ndbg-note">
-          鉴权：SSO 会话（浏览器内自动带）或可写 API Token（见「管理」页）。
+          鉴权：网关登录会话（浏览器内自动带 cookie）或可写 API Token（见「管理」页）。
         </p>
         <pre className="ndbg-curl" ref={curlRef}>{curl}</pre>
       </section>

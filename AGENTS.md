@@ -33,12 +33,12 @@
 
 ```
 src/
-├── App.jsx / main.jsx      # 登录态判断 + 路由
-├── api.js                  # REST 封装、token 存取、401 跳 SSO（唯一鉴权入口）
+├── App.jsx / main.jsx      # 启动调 /_auth/me + 路由
+├── api.js                  # REST 封装、/_auth/me、全局 401 跳网关（唯一鉴权入口）
 ├── theme.js                # 深浅色，localStorage('admin_theme')
 ├── styles.css              # 设计令牌 + 全站样式
 └── components/
-    ├── Main.jsx / Login.jsx / CommandPalette.jsx
+    ├── Main.jsx / CommandPalette.jsx
     ├── System.jsx / Manage.jsx / VersionPanel.jsx
     ├── BlogAdmin.jsx / MarkdownEditor.jsx / ResetTotp.jsx
     ├── Terminal.jsx        # 终端 Tab（ttyd iframe、多标签、口令门）
@@ -61,26 +61,23 @@ npm run preview
 ## 部署
 
 - 站点：独立子域 vhost（服务器 `/etc/nginx/conf.d/admin.conf`，`root /var/www/admin`，Vite `base='/'`）。主域旧 `/admin` 与 `/admin/` 保留 **301** 到新子域。
-- 反代：`/api/admin/*` → `127.0.0.1:3100`（`login|sso/verify|totp/setup|totp/reset` 免鉴权）；`/api/blog/admin/*` → `127.0.0.1:4000`；`/s/<token>` 公开临时链接（**不加探针**）；`/term/` → ttyd `127.0.0.1:7681 --base-path /term`（`ttyd-webterm.service`）。
-- 鉴权链路：浏览器带 `Authorization: Bearer <token>` → nginx `auth_request /auth-check` → 认证中心 `127.0.0.1:3200/api/verify` → 注入 `X-Auth-User` 给后端。
+- 反代：`/api/admin/*` → Auth Gateway（`127.0.0.1:18920`）鉴权后反代 `127.0.0.1:3100`；`/api/blog/admin/*` → `127.0.0.1:4000`；`/s/<token>` 公开临时链接（**不加鉴权**，收件人未登录也要能取）；`/term/` → ttyd `127.0.0.1:7681 --base-path /term`（`ttyd-webterm.service`）。`/_auth/` 是网关专用前缀，必须排在其它 location 之前。
+- 鉴权链路：网关站点会话 cookie → nginx 把 `/api/*` 交给 Auth Gateway → 网关鉴权后注入 `X-Auth-User` 给后端。nginx 里**不再有** `auth_request` / `/auth-check` / `?token=`。
 - 主域暂时仍保留一份 `/api/admin/*` 与 `/s/`（供 home-admin App 等旧客户端过渡），待 App 切到新域后可撤。
 - 分享链接由后端按请求 Host 拼（`shareBaseUrl()` 读 `x-forwarded-host`），因此新域名下发的链接自动是新域。
 
-## SSO 约定（强约束）
+## 鉴权约定（强约束）
 
-- 认证中心地址**只能**来自构建时环境变量：
-  ```js
-  (import.meta.env.VITE_AUTH_CENTER_URL || '').trim() || 'https://auth.example.com/auth'
-  ```
-  见 `src/api.js`。仓库只提交 `.env.example`，真实 `.env` 被 `.gitignore` 忽略。
+- 登录、OAuth2、state/PKCE、会话全部由 **Auth Gateway**（`127.0.0.1:18920`）负责；本仓库**零** OAuth / token / 登录态代码。
+- 启动时 `App.jsx` 调 `GET /_auth/me`：200 → 直接进入应用（身份取响应字段），**不再显示自己的登录页**；401 → 整页跳 `/_auth/login?next=<当前地址>`。
+- 任意接口 401 → 统一走 `api.js` 的全局拦截整页跳 `/_auth/login?next=`。**不要在组件里另写一套鉴权逻辑**。不再读写 `localStorage` token；请求可继续带 `Authorization` 头（网关会忽略），但**不得**因为缺少本地 token 就拒绝发请求。
 - 侧栏「Hermes」页的 iframe 地址**只能**来自构建时环境变量：
   ```js
   (import.meta.env.VITE_HERMES_DASHBOARD_URL || '').trim() || 'https://hermes.example.com'
   ```
   见 `src/components/Hermes.jsx`。真实域名只写本地 `.env`，仓库只提交 `.env.example` 的占位项；
   源码里 `grep hermes.zhangyunling` 应为 0。
-- 登录回跳格式：`<认证中心>/auth?redirect=<当前地址>` → 回跳 `#token=<token>`（fragment，不进服务器日志）→ 存 `localStorage.auth_token` → 清 URL。
-- 任意接口 401 → 清 token → 跳认证中心。**不要在组件里另写一套鉴权逻辑**，统一走 `api.js`。
+- 退出登录：跳 `/_auth/logout`（网关清站点会话）。
 - 推送前自检：源码里 `grep zhangyunling\|hermes\.\|auth\.\|127\.0\.0\.1\|公网 IP` 应为 0（终端 Tab 用同源相对路径 `/term/`，无硬编码；Hermes 地址走 `VITE_HERMES_DASHBOARD_URL`）。
 
 ## 设计系统（硬性，与 homepage / quotahub / v2link 同一套）
@@ -97,7 +94,7 @@ npm run preview
 
 - **`Terminal.jsx` 的细节不能想当然**：
   - ttyd 参数是 `--url-arg`：第 1 个 arg = 会话名（`term-*` 白名单 `^term-[a-z0-9][a-z0-9-]{0,31}$`），第 2 个 arg = 口令票据。
-  - 关窗必须断连：`pagehide/beforeunload` 用 `navigator.sendBeacon`（**token 必须挂 query**，sendBeacon 不能带自定义头，否则被 nginx SSO 探针拦 401），并用 `performance.getEntriesByType('navigation')[0].type === 'reload'` 区分 F5（刷新要保留会话）。
+  - 关窗必须断连：`pagehide/beforeunload` 用 `navigator.sendBeacon`（同源请求自带网关 cookie，不再在 query 里挂 token；sendBeacon 不能带自定义头），并用 `performance.getEntriesByType('navigation')[0].type === 'reload'` 区分 F5（刷新要保留会话）。
   - 存活点轮询 6s，iframe `onLoad` 后 0.8s 校正一次，别再把间隔调大（曾 20s 被用户投诉「变绿太慢」）。
 - **「浏览」Tab 已删除**（2026-09-14，用户不用历史会话浏览）：连同 `Browse.jsx`、`fileRefs.js`、`imageRefs.js`、`mediaTags.js` 一并移除。若将来要恢复历史浏览，从 git 历史取回即可；后端 `/api/admin/history` 接口**保留未删**。
 - **默认 Tab 是「系统」**：`sessionStorage.admin_tab` 读出的值必须在 `TABS` 白名单内，否则回退 `system`——直接写 `|| 'browse'` 那种回退会白屏。
