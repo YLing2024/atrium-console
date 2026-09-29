@@ -1,11 +1,57 @@
 /**
- * REST API 封装：身份由 Auth Gateway 的站点会话 cookie 证明（同源自动携带），
- * 不再读写 localStorage token。全局 401 → 整页跳网关登录页。
+ * REST API 封装：身份由同源会话 cookie 证明（请求自带 cookie），不读写 localStorage token。
+ * 认证模式由后端 `GET /api/admin/auth-mode` 探测并缓存：
+ *   builtin（默认）—— 自带账号：本地登录页 + 会话 cookie；401 回登录页
+ *   sso           —— 关掉自带口令：身份来自前置认证层；401 整页跳 /_auth/login
+ * 探测失败（网络错误 / 非 JSON / 404 旧后端）一律按 sso 处理，绝不回退 builtin。
  */
 
-let redirecting = false;
+const MODE_BUILTIN = 'builtin';
 
-// 401 → 整页跳网关登录页，next 带回当前地址（pathname + search）
+let redirecting = false;
+let authModeCache = null; // 'builtin' | 'sso' | null（未探测）
+let authModePromise = null;
+let unauthorizedHandler = null; // builtin 模式会话失效时由 App 注册（切回登录页）
+
+// 探测认证模式：成功按响应取值；任何失败一律 sso（保持现状行为）
+export function getAuthMode() {
+  if (authModeCache) return Promise.resolve(authModeCache);
+  if (!authModePromise) {
+    authModePromise = fetch('/api/admin/auth-mode', { credentials: 'same-origin' })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data) => (data && data.authMode === MODE_BUILTIN ? MODE_BUILTIN : 'sso'))
+      .catch(() => 'sso')
+      .then((mode) => {
+        authModeCache = mode;
+        return mode;
+      });
+  }
+  return authModePromise;
+}
+
+// 已探测到的模式（未探测为 null）。请求路径一律先 await getAuthMode()
+export function currentAuthMode() {
+  return authModeCache;
+}
+
+// 注册 builtin 模式会话失效回调（App 用来切回本地登录页）；传 null 注销
+export function setUnauthorizedHandler(fn) {
+  unauthorizedHandler = fn || null;
+}
+
+// 会话失效（401）统一出口：builtin → 回本地登录页；sso → 整页跳网关登录页
+function handleUnauthorized() {
+  if (authModeCache === MODE_BUILTIN) {
+    if (unauthorizedHandler) unauthorizedHandler();
+    return;
+  }
+  redirectToLogin();
+}
+
+// 401 → 整页跳网关登录页，next 带回当前地址（pathname + search）；仅 sso 模式使用
 export function redirectToLogin() {
   if (redirecting) return;
   redirecting = true;
@@ -13,15 +59,31 @@ export function redirectToLogin() {
   location.href = `/_auth/login?next=${next}`;
 }
 
-// 退出登录：交给网关清站点会话
-export function logout() {
-  location.href = '/_auth/logout';
+// 退出登录：builtin → 调本地登出接口后回登录页；sso → 跳网关登出
+export async function logout() {
+  const mode = await getAuthMode();
+  if (mode !== MODE_BUILTIN) {
+    location.href = '/_auth/logout';
+    return;
+  }
+  try {
+    await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch (e) {
+    // 网络失败也照常回到登录页
+  }
+  if (unauthorizedHandler) unauthorizedHandler();
 }
 
-// 启动时问网关「当前是谁」：200 → 用户字段；401 → 跳登录并返回 null
+// 启动时问「当前是谁」：
+//   builtin → GET /api/admin/me；401 返回 null（不跳转，由 UI 显示本地登录页）
+//   sso     → GET /_auth/me；401 整页跳网关登录页
 export async function getMe() {
-  const res = await fetch('/_auth/me', { credentials: 'same-origin' });
+  const mode = await getAuthMode();
+  const res = await fetch(mode === MODE_BUILTIN ? '/api/admin/me' : '/_auth/me', {
+    credentials: 'same-origin'
+  });
   if (res.status === 401) {
+    if (mode === MODE_BUILTIN) return null;
     redirectToLogin();
     return null;
   }
@@ -29,10 +91,31 @@ export async function getMe() {
   return res.json().catch(() => ({}));
 }
 
+// 本地登录（仅 builtin）：POST {code}（TOTP 动态码）；成功后后端下发 HttpOnly 会话 cookie。
+// 失败错误附 code（totp_setup_required / rate_limited）与 retryAfter（秒），供登录页分支处理。
+export async function login(code) {
+  const res = await fetch('/api/admin/login', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.code = data.code;
+    err.status = res.status;
+    err.retryAfter = data.retryAfter;
+    throw err;
+  }
+  return data;
+}
+
 async function request(path, options = {}) {
+  await getAuthMode();
   const headers = { ...(options.headers || {}) };
 
-  const opts = { ...options, headers };
+  const opts = { ...options, headers, credentials: 'same-origin' };
   // 非 FormData 的 body 统一 JSON 序列化
   if (opts.body && !(opts.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json';
@@ -41,9 +124,9 @@ async function request(path, options = {}) {
 
   const res = await fetch(path, opts);
   const data = await res.json().catch(() => ({}));
-  // 任意接口 401：凭证失效 → 整页跳网关登录页（不做重试循环）
+  // 任意接口 401：凭证失效 → 按模式处理（不做重试循环）
   if (res.status === 401) {
-    redirectToLogin();
+    handleUnauthorized();
     throw new Error('未登录或登录已过期');
   }
   if (!res.ok) {
@@ -268,7 +351,7 @@ export function deleteEntry(path) {
   return request(`/api/admin/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
 }
 
-// 下载地址：<a>/window.open 无法带自定义头。身份由网关会话 cookie 证明，
+// 下载地址：<a>/window.open 无法带自定义头。身份由同源会话 cookie 证明，
 // 路径里不再拼 token（网关会剥掉客户端伪造的凭证头，cookie 已在同源请求里）。
 export function fileDownloadUrl(path) {
   return `/api/admin/files/download?path=${encodeURIComponent(path)}`;
@@ -279,6 +362,7 @@ export function fileDownloadUrl(path) {
 export function uploadFileTo(path, file, { onProgress, onDone, onError } = {}) {
   const xhr = new XMLHttpRequest();
   xhr.open('POST', `/api/admin/files/upload?path=${encodeURIComponent(path)}`);
+  xhr.withCredentials = true; // 同源会话 cookie
 
   xhr.upload.onprogress = (e) => {
     if (onProgress && e.lengthComputable) {
@@ -297,7 +381,7 @@ export function uploadFileTo(path, file, { onProgress, onDone, onError } = {}) {
       data = {};
     }
     if (xhr.status === 401) {
-      redirectToLogin(); // 凭证失效
+      handleUnauthorized(); // 凭证失效：按模式回登录页 / 跳网关
       return;
     }
     if (xhr.status >= 200 && xhr.status < 300) {
