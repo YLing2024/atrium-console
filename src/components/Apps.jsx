@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApps } from '../api.js';
+import AppIcon from './AppIcon.jsx';
 
 // 状态词（接口 status → 展示文案，白名单内）
 const STATUS_LABEL = {
@@ -7,6 +8,7 @@ const STATUS_LABEL = {
   auth: '需登录',
   degraded: '响应慢',
   down: '异常',
+  idle: '休眠',
   unknown: '未知'
 };
 
@@ -20,15 +22,12 @@ function statusOf(app) {
 function AppCard({ app }) {
   const status = statusOf(app);
   const label = STATUS_LABEL[status];
-  const icon = app.icon || (app.name ? String(app.name).slice(0, 1) : '');
   const hasPort = app.port != null && app.port !== '';
   const hasLatency = app.latencyMs != null && Number.isFinite(Number(app.latencyMs));
 
   const body = (
     <>
-      <span className="apps-icon" aria-hidden="true">
-        {icon}
-      </span>
+      <AppIcon name={app.icon} fallback={app.name} />
       <span className="apps-name">{app.name}</span>
       {app.desc ? <span className="apps-desc">{app.desc}</span> : null}
       <span className="apps-meta">

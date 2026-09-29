@@ -4855,6 +4855,14 @@ a.apps-card:hover {
   background: var(--danger);
 }
 
+/* 休眠：按需唤醒应用当前未运行 —— 短横线，区别于实心/空心圆点 */
+.apps-dot--idle {
+  width: 6px;
+  height: 1.5px;
+  border-radius: 1px;
+  background: var(--muted);
+}
+
 .apps-dot--unknown {
   border: 1px solid var(--muted);
 }
