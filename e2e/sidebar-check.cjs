@@ -31,6 +31,19 @@ async function stubApi(ctx) {
   );
 }
 
+// 网关身份探测：e2e 环境没有网关，/_auth/me 会落到 vite 静态兜底返回 HTML，
+// 而 api.js 只认「带身份字段的 JSON」才渲染应用（否则一直 loading）。
+// 这里把 /_auth/me 显式桩成 JSON，避免与认证逻辑耦合（本自测只测导航外观）。
+async function stubAuthMe(ctx) {
+  await ctx.route('**/_auth/me', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ sub: 'e2e', name: 'e2e', app: 'admin' })
+    })
+  );
+}
+
 // 新架构：前端不再有 token，身份由 Auth Gateway 的站点会话 cookie 证明。
 // 本自测把所有 /api/** 桩成 200，注入 cookie 只作语义对齐（不依赖它绕过鉴权）；
 // cookie 名与线上一致：__Host-<app>_session（admin 站为 __Host-admin_session）。
@@ -57,6 +70,7 @@ function assert(cond, msg) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   await ctx.addCookies([SITE_SESSION_COOKIE]);
   await stubApi(ctx);
+  await stubAuthMe(ctx);
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
   page.on('console', (m) => {
@@ -184,6 +198,7 @@ function assert(cond, msg) {
     sessionStorage.setItem('admin_tab', 'browse'); // 旧版残留
   });
   await stubApi(ctx2);
+  await stubAuthMe(ctx2);
   const page2 = await ctx2.newPage();
   await page2.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page2.waitForSelector('.sidenav');
