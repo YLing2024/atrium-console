@@ -9,7 +9,7 @@
 | Tab | 组件 | 说明 |
 |---|---|---|
 | 系统 | `System.jsx` | CPU / 内存 / 磁盘 / 网络实时与历史趋势 |
-| 应用 | `Apps.jsx` | 服务器应用面板：按分类的卡片网格、状态点（正常/需登录/响应慢/异常/未知）、30s 自动刷新（只读，接口 `/api/admin/apps`） |
+| 应用 | `Apps.jsx` | 服务器应用面板：按分类的卡片网格、SVG 图标（`AppIcon.jsx`，缺省回退首字）、状态点（正常/需登录/响应慢/异常/休眠/未知）、30s 自动刷新（只读，接口 `/api/admin/apps`） |
 | 版本 | `VersionPanel.jsx` | 软件版本 |
 | 博客 | `BlogAdmin.jsx` | 文章 / 合集管理（接口走 `/api/blog/admin/*`） |
 | 管理 | `Manage.jsx` | 服务状态、API Token、TOTP 重置 |
@@ -42,6 +42,7 @@ src/
     ├── Main.jsx / CommandPalette.jsx
     ├── System.jsx / Manage.jsx / VersionPanel.jsx
     ├── BlogAdmin.jsx / MarkdownEditor.jsx / ResetTotp.jsx
+    ├── Apps.jsx / AppIcon.jsx  # 应用 Tab（卡片网格 + 内联 SVG 图标集）
     ├── LoginPage.jsx       # 自带账号登录页（builtin 模式，TOTP 动态码）
     ├── Terminal.jsx        # 终端 Tab（ttyd iframe、多标签、口令门）
     └── Files.jsx           # 文件 Tab（资源管理器：目录导航/拖拽上传/进度条/增删改）
@@ -99,6 +100,11 @@ npm run preview
 - 文章表单里有独立的「副标题」输入（状态字段 `subtitle`，紧邻「标题」下方），随表单一起提交；留空即空串，前台不显示。
 - `subtitle` 与 `excerpt`（摘要）**语义不同**：不要复用、不要自动带出、不要互相赋值。
 - 列表不展示副标题（保持简洁）。
+
+## 应用图标与「休眠」状态（强约束）
+
+- 卡片图标走 `src/components/AppIcon.jsx`：内联 31 个 24×24 单色描边 SVG（key = 登记表 `icon`），`name` 未命中（含历史中文单字、`undefined`）回退成单个文字。颜色一律 `currentColor`（深浅主题通用），**不新增依赖、不引图标库、不用 emoji**；图标表是模块内静态常量，改动须整体照抄、不得"优化"路径与坐标。
+- 接口 `status: "idle"`（按需唤醒应用当前未运行、探活不通属正常）文案「休眠」，点样式 `.apps-dot--idle`（短横线、`--muted`）；`idle` **不计入**异常。状态点 class 沿用 `apps-dot apps-dot--${status}`，不为 idle 单开分支。
 
 ## 设计系统（硬性，与 homepage / quotahub / v2link 同一套）
 
