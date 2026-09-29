@@ -4,7 +4,7 @@
 
 ## 这个项目是什么
 
-个人网站的管理后台前端（React + Vite SPA），部署在独立子域（域名与 nginx 配置见服务器 `/etc/nginx/conf.d/admin.conf`；主域旧 `/admin` 路径保留 301 兼容）。2026-09-17 从主域路径迁出。包含五个功能面：
+个人网站的管理后台前端（React + Vite SPA），部署在独立子域（域名与反代见你自己的部署）。包含以下功能面：
 
 | Tab | 组件 | 说明 |
 |---|---|---|
@@ -15,7 +15,7 @@
 | 终端 | `Terminal.jsx` | 浏览器内连服务器终端（ttyd + tmux，多标签、口令二次验证） |
 | 文件 | `Files.jsx` | 资源管理器式文件区：目录导航 / 拖拽上传（进度条）/ 新建 / 重命名 / 删除 / 下载 |
 
-后端是 `../admin-server`（`:3100`），博客数据在 `../blog/server`（`:4000`）。
+后端是 `../admin-server`，博客数据在 `../blog/server`。
 
 ## 技术栈
 
@@ -33,14 +33,15 @@
 
 ```
 src/
-├── App.jsx / main.jsx      # 启动调 /_auth/me + 路由
-├── api.js                  # REST 封装、/_auth/me、全局 401 跳网关（唯一鉴权入口）
+├── App.jsx / main.jsx      # 启动探测认证模式 + 身份 + 路由
+├── api.js                  # REST 封装、认证模式探测、全局 401（唯一鉴权入口）
 ├── theme.js                # 深浅色，localStorage('admin_theme')
 ├── styles.css              # 设计令牌 + 全站样式
 └── components/
     ├── Main.jsx / CommandPalette.jsx
     ├── System.jsx / Manage.jsx / VersionPanel.jsx
     ├── BlogAdmin.jsx / MarkdownEditor.jsx / ResetTotp.jsx
+    ├── LoginPage.jsx       # 自带账号登录页（builtin 模式，TOTP 动态码）
     ├── Terminal.jsx        # 终端 Tab（ttyd iframe、多标签、口令门）
     └── Files.jsx           # 文件 Tab（资源管理器：目录导航/拖拽上传/进度条/增删改）
 e2e/                        # Playwright 端到端（独立 package.json）
@@ -51,34 +52,39 @@ test/                       # 单测
 
 ```bash
 npm install
-npm run dev      # Vite，base=/，/api 代理到 127.0.0.1:3100
-npm run build    # 输出到 /var/www/admin（vite.config.js 写死 outDir + emptyOutDir）
+npm run dev      # Vite 开发服务器（接口代理见 vite.config.js）
+npm run build    # 构建（outDir 见 vite.config.js）
 npm run preview
 ```
 
-> **构建即部署**：`outDir = /var/www/admin`，构建会清空该目录。构建完刷新浏览器即可，无进程需重启。
+> **构建即部署**：`vite.config.js` 里写死了 `outDir` + `emptyOutDir`，构建会清空该目录。构建完刷新浏览器即可，无进程需重启。
+>
+> **验证构建用独立输出目录**，别用 `npm run build`（会覆盖生产目录）：
+> `npx vite build --outDir /tmp/admin-web-verify --emptyOutDir`
 
 ## 部署
 
-- 站点：独立子域 vhost（服务器 `/etc/nginx/conf.d/admin.conf`，`root /var/www/admin`，Vite `base='/'`）。主域旧 `/admin` 与 `/admin/` 保留 **301** 到新子域。
-- 反代：`/api/admin/*` → Auth Gateway（`127.0.0.1:18920`）鉴权后反代 `127.0.0.1:3100`；`/api/blog/admin/*` → `127.0.0.1:4000`；`/s/<token>` 公开临时链接（**不加鉴权**，收件人未登录也要能取）；`/term/` → ttyd `127.0.0.1:7681 --base-path /term`（`ttyd-webterm.service`）。`/_auth/` 是网关专用前缀，必须排在其它 location 之前。
-- 鉴权链路：网关站点会话 cookie → nginx 把 `/api/*` 交给 Auth Gateway → 网关鉴权后注入 `X-Auth-User` 给后端。nginx 里**不再有** `auth_request` / `/auth-check` / `?token=`。
-- 主域暂时仍保留一份 `/api/admin/*` 与 `/s/`（供 home-admin App 等旧客户端过渡），待 App 切到新域后可撤。
-- 分享链接由后端按请求 Host 拼（`shareBaseUrl()` 读 `x-forwarded-host`），因此新域名下发的链接自动是新域。
+- 构建产物是静态文件，交给自己的 Web 服务器托管；接口路径 `/api/*`、临时链接 `/s/<token>`（公开，不加鉴权）、终端 `/term/`（ttyd）按自己的部署反代到对应后端。
+- 具体域名、反代与认证接线属于使用者自己的部署，不在本仓库展开。
 
 ## 鉴权约定（强约束）
 
-- 登录、OAuth2、state/PKCE、会话全部由 **Auth Gateway**（`127.0.0.1:18920`）负责；本仓库**零** OAuth / token / 登录态代码。
-- 启动时 `App.jsx` 调 `GET /_auth/me`：200 → 直接进入应用（身份取响应字段），**不再显示自己的登录页**；401 → 整页跳 `/_auth/login?next=<当前地址>`。
-- 任意接口 401 → 统一走 `api.js` 的全局拦截整页跳 `/_auth/login?next=`。**不要在组件里另写一套鉴权逻辑**。不再读写 `localStorage` token；请求可继续带 `Authorization` 头（网关会忽略），但**不得**因为缺少本地 token 就拒绝发请求。
+- 特性：默认自带账号口令，开箱即用；也可以关掉自带口令。
+- 模式（服务端环境变量 `AUTH_MODE`）：
+
+  | 模式 | 说明 |
+  |---|---|
+  | `builtin`（默认） | 自带账号口令：本服务自己的登录页 + 会话 cookie |
+  | `sso` | 关掉自带口令，管理端身份由 `X-Auth-User` 决定——自家项目接 SSO 时走这一档 |
+
+- 关掉后的登录跳转与 401 由你前面的认证层决定，本服务不再展开。
+- 具体实现：`src/api.js` 启动探测后端 `auth-mode` 并按模式分发，`App.jsx` 未登录时渲染 `LoginPage.jsx`（仅 `builtin`）；401 统一走 `api.js` 全局出口，**不要在组件里另写一套鉴权逻辑**。契约细节见 `api.js` 头注释与 `PROJECT_MEMORY.md`。
 - 侧栏「Hermes」页的 iframe 地址**只能**来自构建时环境变量：
   ```js
   (import.meta.env.VITE_HERMES_DASHBOARD_URL || '').trim() || 'https://hermes.example.com'
   ```
-  见 `src/components/Hermes.jsx`。真实域名只写本地 `.env`，仓库只提交 `.env.example` 的占位项；
-  源码里 `grep hermes.zhangyunling` 应为 0。
-- 退出登录：跳 `/_auth/logout`（网关清站点会话）。
-- 推送前自检：源码里 `grep zhangyunling\|hermes\.\|auth\.\|127\.0\.0\.1\|公网 IP` 应为 0（终端 Tab 用同源相对路径 `/term/`，无硬编码；Hermes 地址走 `VITE_HERMES_DASHBOARD_URL`）。
+  见 `src/components/Hermes.jsx`。真实域名只写本地 `.env`，仓库只提交 `.env.example` 的占位项。
+- 推送前自检：源码里不得出现真实域名 / 私有 IP / 私有路径（示例一律 `example.com`）；终端 Tab 用同源相对路径 `/term/`，Hermes 地址走 `VITE_HERMES_DASHBOARD_URL`。
 
 ## 公共站点链接（强约束）
 
@@ -107,7 +113,7 @@ npm run preview
 
 - **`Terminal.jsx` 的细节不能想当然**：
   - ttyd 参数是 `--url-arg`：第 1 个 arg = 会话名（`term-*` 白名单 `^term-[a-z0-9][a-z0-9-]{0,31}$`），第 2 个 arg = 口令票据。
-  - 关窗必须断连：`pagehide/beforeunload` 用 `navigator.sendBeacon`（同源请求自带网关 cookie，不再在 query 里挂 token；sendBeacon 不能带自定义头），并用 `performance.getEntriesByType('navigation')[0].type === 'reload'` 区分 F5（刷新要保留会话）。
+  - 关窗必须断连：`pagehide/beforeunload` 用 `navigator.sendBeacon`（同源请求自带会话 cookie，不再在 query 里挂 token；sendBeacon 不能带自定义头），并用 `performance.getEntriesByType('navigation')[0].type === 'reload'` 区分 F5（刷新要保留会话）。
   - 存活点轮询 6s，iframe `onLoad` 后 0.8s 校正一次，别再把间隔调大（曾 20s 被用户投诉「变绿太慢」）。
 - **「浏览」Tab 已删除**（2026-09-14，用户不用历史会话浏览）：连同 `Browse.jsx`、`fileRefs.js`、`imageRefs.js`、`mediaTags.js` 一并移除。若将来要恢复历史浏览，从 git 历史取回即可；后端 `/api/admin/history` 接口**保留未删**。
 - **默认 Tab 是「系统」**：`sessionStorage.admin_tab` 读出的值必须在 `TABS` 白名单内，否则回退 `system`——直接写 `|| 'browse'` 那种回退会白屏。
