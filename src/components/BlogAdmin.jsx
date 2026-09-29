@@ -13,6 +13,7 @@ import {
   updateBlogCollection,
   deleteBlogCollection
 } from '../api.js';
+import { siteUrl } from '../siteUrl.js';
 import MarkdownEditor from './MarkdownEditor.jsx';
 
 const EMPTY_FORM = {
@@ -309,7 +310,7 @@ export default function BlogAdmin() {
   async function openPost(post) {
     const key = post.public_id || post.slug;
     if (post.published) {
-      window.open(`/blog/${key}`, '_blank', 'noopener');
+      window.open(siteUrl(`/blog/${key}`), '_blank', 'noopener');
       return;
     }
     const win = window.open('', '_blank');
@@ -461,7 +462,7 @@ export default function BlogAdmin() {
             {form.public_id && (
               <a
                 className="btn-ghost"
-                href={`/blog/${form.public_id}`}
+                href={siteUrl(`/blog/${form.public_id}`)}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -817,7 +818,7 @@ export default function BlogAdmin() {
                     <td className="blog-title">
                       <a
                         className="blog-title-link"
-                        href={`/blog/${p.public_id || p.slug}`}
+                        href={siteUrl(`/blog/${p.public_id || p.slug}`)}
                         title={p.published ? '打开文章页' : '打开文章页（草稿预览，链接 30 分钟内有效）'}
                         onClick={(e) => {
                           e.preventDefault();
@@ -878,7 +879,7 @@ export default function BlogAdmin() {
                   <td className="blog-title">
                     <a
                       className="blog-title-link"
-                      href={`/blog/collections/${c.public_id || c.slug}`}
+                      href={siteUrl(`/blog/collections/${c.public_id || c.slug}`)}
                       target="_blank"
                       rel="noreferrer"
                       title="打开合集页"
