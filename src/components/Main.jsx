@@ -66,7 +66,7 @@ export default function Main() {
     setShowReset(false);
   }
 
-  // 退出登录：交给网关清站点会话
+  // 退出登录：按认证模式处理（builtin 调本地登出接口，sso 跳网关登出）
   function handleLogout() {
     logout();
   }
