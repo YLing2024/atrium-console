@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 
 const BASE = 'http://localhost:5173/';
-const LABELS = ['系统', '版本', '博客', '管理', '终端', '文件', '通知', '通知管理', '调试', 'Hermes'];
+const LABELS = ['系统', '应用', '版本', '博客', '管理', '终端', '文件', '通知', '通知管理', '调试', 'Hermes'];
 
 // 后端不在场：把 /api/** 全部桩成 200，避免 401 触发 SSO 跳转（只测导航外观）
 const STUB = {
@@ -115,7 +115,7 @@ function assert(cond, msg) {
     return panes.map((p) => p.hasAttribute('hidden'));
   });
   assert(
-    JSON.stringify(paneState) === JSON.stringify([true, true, false, true, true, true, true, true, true, true]),
+    JSON.stringify(paneState) === JSON.stringify([true, true, true, false, true, true, true, true, true, true, true]),
     '仅博客 pane 可见，其余 hidden（挂载语义未变）: ' + paneState.join(',')
   );
   const saved = await page.evaluate(() => sessionStorage.getItem('admin_tab'));
