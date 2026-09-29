@@ -18,6 +18,7 @@ import MarkdownEditor from './MarkdownEditor.jsx';
 
 const EMPTY_FORM = {
   title: '',
+  subtitle: '',
   slug: '',
   public_id: '',
   tags: '',
@@ -111,6 +112,7 @@ export default function BlogAdmin() {
   function startEdit(post) {
     setForm({
       title: post.title,
+      subtitle: post.subtitle || '',
       slug: post.slug,
       public_id: post.public_id || '',
       tags: (post.tags || []).join(', '),
