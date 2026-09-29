@@ -53,6 +53,8 @@ function handleUnauthorized() {
 
 // 401 → 整页跳网关登录页，next 带回当前地址（pathname + search）；仅 sso 模式使用
 export function redirectToLogin() {
+  // 已经在认证层的页面上就不再跳（否则 next 会被逐层嵌套，形成无限跳转）
+  if (location.pathname.startsWith('/_auth/')) return;
   if (redirecting) return;
   redirecting = true;
   const next = encodeURIComponent(location.pathname + location.search);
@@ -88,7 +90,14 @@ export async function getMe() {
     return null;
   }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json().catch(() => ({}));
+  // 必须是「带身份字段的 JSON」才算登录成功：网关 /_auth/me 返回 {sub,name,app}。
+  // 若 /_auth/ 没被正确转给认证层（例如漏配 location、被静态文件兜底成 index.html），
+  // 响应会是 200 + HTML —— 那种情况绝不能当作已登录，否则会在未鉴权的情况下渲染管理界面。
+  const data = await res.json().catch(() => null);
+  if (!data || typeof data !== 'object' || !String(data.sub || data.name || '').trim()) {
+    throw new Error('身份响应无效');
+  }
+  return data;
 }
 
 // 本地登录（仅 builtin）：POST {code}（TOTP 动态码）；成功后后端下发 HttpOnly 会话 cookie。
