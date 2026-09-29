@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { logout } from '../api.js';
 import { getTheme, effectiveTheme, toggleTheme } from '../theme.js';
 import System from './System.jsx';
+import Apps from './Apps.jsx';
 import BlogAdmin from './BlogAdmin.jsx';
 import VersionPanel from './VersionPanel.jsx';
 import ResetTotp from './ResetTotp.jsx';
@@ -17,6 +18,7 @@ import Hermes from './Hermes.jsx';
 // 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat'）一律回退到首个 Tab
 const TABS = [
   'system',
+  'apps',
   'version',
   'blog',
   'manage',
@@ -30,6 +32,7 @@ const TABS = [
 // 标签文字与顺序：原有六项相对顺序不变，其后依次追加「通知 / 通知管理 / 调试 / Hermes」
 const TAB_LABELS = {
   system: '系统',
+  apps: '应用',
   version: '版本',
   blog: '博客',
   manage: '管理',
@@ -206,6 +209,9 @@ export default function Main() {
           {/* 面板常驻挂载，仅切换显隐：避免切 tab 时浏览状态/内容丢失 */}
           <div className="pane" hidden={tab !== 'system'}>
             <System active={tab === 'system'} />
+          </div>
+          <div className="pane" hidden={tab !== 'apps'}>
+            <Apps active={tab === 'apps'} />
           </div>
           <div className="pane" hidden={tab !== 'version'}>
             <VersionPanel active={tab === 'version'} />

@@ -186,6 +186,12 @@ export function getServices() {
   return request('/api/admin/services');
 }
 
+// 应用面板（只读）：返回 { apps, categories, discovered, generatedAt, cached, notice, ... }
+// refresh=true 时带 refresh=1 绕过后端 10s 缓存；卡片 url 直接用返回值，前端不拼域名。
+export function getApps({ refresh = false } = {}) {
+  return request(`/api/admin/apps${refresh ? '?refresh=1' : ''}`);
+}
+
 // 软件版本监控（仅本地当前版本，秒回）
 export function getVersions() {
   return request('/api/admin/versions');
