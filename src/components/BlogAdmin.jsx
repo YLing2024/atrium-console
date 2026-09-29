@@ -271,6 +271,7 @@ export default function BlogAdmin() {
     setSaveError('');
     const payload = {
       title: form.title.trim(),
+      subtitle: form.subtitle.trim(),
       slug: form.slug.trim(),
       tags: form.tags
         .split(/[,，]/)
