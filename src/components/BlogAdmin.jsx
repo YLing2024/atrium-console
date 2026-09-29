@@ -491,6 +491,16 @@ export default function BlogAdmin() {
           </label>
 
           <label className="blog-field">
+            <span className="blog-label">副标题</span>
+            <input
+              className="input"
+              value={form.subtitle || ''}
+              onChange={(e) => setField('subtitle', e.target.value)}
+              placeholder="副标题"
+            />
+          </label>
+
+          <label className="blog-field">
             <span className="blog-label">文章 ID</span>
             <input
               className="input"
