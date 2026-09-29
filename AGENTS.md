@@ -9,6 +9,7 @@
 | Tab | 组件 | 说明 |
 |---|---|---|
 | 系统 | `System.jsx` | CPU / 内存 / 磁盘 / 网络实时与历史趋势 |
+| 应用 | `Apps.jsx` | 服务器应用面板：按分类的卡片网格、状态点（正常/需登录/响应慢/异常/未知）、30s 自动刷新（只读，接口 `/api/admin/apps`） |
 | 版本 | `VersionPanel.jsx` | 软件版本 |
 | 博客 | `BlogAdmin.jsx` | 文章 / 合集管理（接口走 `/api/blog/admin/*`） |
 | 管理 | `Manage.jsx` | 服务状态、API Token、TOTP 重置 |
