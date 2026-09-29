@@ -80,6 +80,13 @@ npm run preview
 - 退出登录：跳 `/_auth/logout`（网关清站点会话）。
 - 推送前自检：源码里 `grep zhangyunling\|hermes\.\|auth\.\|127\.0\.0\.1\|公网 IP` 应为 0（终端 Tab 用同源相对路径 `/term/`，无硬编码；Hermes 地址走 `VITE_HERMES_DASHBOARD_URL`）。
 
+## 公共站点链接（强约束）
+
+- 后台在独立子域，**跳转公共站点（博客前台）的链接/窗口一律走 `siteUrl()`**（`src/siteUrl.js`，全仓唯一拼接入口）：不得写相对路径（如 `/blog/<id>`，在后台子域上会解析到后台自己），也不得写死域名。
+- 公共站点基址来自构建期环境变量 `VITE_SITE_URL`（含协议，末尾不带斜杠）；仓库只提交 `.env.example` 占位值 `https://site.example.com`，真实值只写本地 `.env`。
+- 例外：图片/接口等**同源**请求仍用相对路径（`/api/...`），不走 `siteUrl()`。
+- 后端返回的链接（如草稿 `preview-link` 的 `url`）已由后端拼成绝对地址，前端**直接使用，不得再拼一次**。
+
 ## 设计系统（硬性，与 homepage / quotahub / v2link 同一套）
 
 ```
