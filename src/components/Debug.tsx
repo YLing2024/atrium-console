@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import NotificationDebug from './NotificationDebug.jsx';
+import NotificationDebug from './NotificationDebug';
 
 /**
  * 调试页：工具容器。左侧工具列表 + 右侧工具面板。

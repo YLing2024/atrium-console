@@ -1,7 +1,7 @@
 // 应用图标集（24×24 网格 / 单色描边 / currentColor / 无填充）。
 // key = 登记表 apps.json 里的 `icon` 图标名；value = <svg> 的子元素字符串数组。
 // 数值已按 24×24 网格定稿并渲染实测（18px 小尺寸可辨认），不要改路径、坐标、顺序。
-const APP_ICONS = {
+const APP_ICONS: Record<string, string[]> = {
   "home": [
     "<path d=\"M4 11.2 12 4.3l8 6.9\"/>",
     "<path d=\"M6.6 9.9V19.4h10.8V9.9\"/>",
@@ -150,7 +150,15 @@ const APP_ICONS = {
 
 // name 命中图标表 → 渲染内联 <svg>（单色描边，跟随 currentColor）；
 // 未命中（含中文单字、undefined）→ 回退成单个文字，保持原首字标记外观。
-export default function AppIcon({ name, fallback, size = 20 }) {
+export default function AppIcon({
+  name,
+  fallback,
+  size = 20
+}: {
+  name?: string | null;
+  fallback?: string | null;
+  size?: number;
+}) {
   const children = name != null ? APP_ICONS[name] : undefined;
   if (children) {
     return (

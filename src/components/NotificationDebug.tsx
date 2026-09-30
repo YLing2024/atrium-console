@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { createNotification, getNotifications } from '../api.js';
-import { usePushWait } from '../notificationPush.js';
-import { useNotificationStream, notificationStreamLabel } from '../notificationStream.js';
-import PushWaitResult from './PushWaitResult.jsx';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { createNotification, getNotifications } from '../api';
+import type { ApiError } from '../api';
+import { usePushWait } from '../notificationPush';
+import { useNotificationStream, notificationStreamLabel } from '../notificationStream';
+import PushWaitResult from './PushWaitResult';
 
 /**
  * 通知调试（调试页的第一个工具）：
@@ -17,7 +18,7 @@ import PushWaitResult from './PushWaitResult.jsx';
 
 const TRUNCATE = 600;
 
-function relativeTime(ts, now) {
+function relativeTime(ts: number | null | undefined, now: number): string {
   if (!ts) return '—';
   const diff = Math.max(0, Math.floor((now - ts) / 1000));
   if (diff < 5) return '刚刚';
@@ -27,7 +28,7 @@ function relativeTime(ts, now) {
   return `${Math.floor(diff / 86400)} 天前`;
 }
 
-function truncate(text) {
+function truncate(text: unknown): string {
   const s = String(text == null ? '' : text);
   return s.length > TRUNCATE ? s.slice(0, TRUNCATE) + '…' : s;
 }
@@ -40,7 +41,12 @@ export default function NotificationDebug() {
   const [title, setTitle] = useState('测试通知');
   const [body, setBody] = useState('来自 Admin 的调试消息');
   const [sending, setSending] = useState(false);
-  const [callResult, setCallResult] = useState(null); // { ok, status, body, at }
+  const [callResult, setCallResult] = useState<{
+    ok: boolean;
+    status: number;
+    body: string;
+    at: number;
+  } | null>(null); // { ok, status, body, at }
   const [copied, setCopied] = useState(false);
   const [repulled, setRepulled] = useState(false);
   const { pushState, beginPushWait, markWaiting, resetPushWait } = usePushWait();
@@ -85,7 +91,7 @@ export default function NotificationDebug() {
 
   // 发测试通知：默认 source=admin-debug；记录 HTTP 状态与响应体。
   // 铁律：不本地刷新未读、不插入——只等服务器 SSE 推回（到达/超时由 PushWaitResult 呈现）
-  async function handleSendTest(e) {
+  async function handleSendTest(e: FormEvent) {
     e.preventDefault();
     const t = title.trim();
     if (!t) {
@@ -105,8 +111,8 @@ export default function NotificationDebug() {
       resetPushWait();
       setCallResult({
         ok: false,
-        status: err.status || 0,
-        body: err.message || '发送失败',
+        status: (err as ApiError).status || 0,
+        body: (err as Error).message || '发送失败',
         at: Date.now()
       });
     } finally {
@@ -132,7 +138,7 @@ export default function NotificationDebug() {
         if (el) {
           const range = document.createRange();
           range.selectNodeContents(el);
-          const sel = window.getSelection();
+          const sel = window.getSelection()!;
           sel.removeAllRanges();
           sel.addRange(range);
         }

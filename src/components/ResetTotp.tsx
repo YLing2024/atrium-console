@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import QRCode from 'qrcode';
-import { totpReset, totpResetConfirm } from '../api.js';
+import { totpReset, totpResetConfirm } from '../api';
 
 // 标准 TOTP 重置流程（两阶段）：
 //  弹窗1 二次确认 → 调 reset 生成 pending → 弹窗2 显示 otpauth URI + 输入新验证码 → confirm 转正。
 //  reset 后不 confirm 的 pending 5 分钟自动过期，不影响当前登录态。
-export default function ResetTotp({ onClose }) {
+export default function ResetTotp({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState('confirm'); // 'confirm' → 'uri'
   const [loading, setLoading] = useState(false);
   const [uri, setUri] = useState('');
@@ -32,7 +32,7 @@ export default function ResetTotp({ onClose }) {
       setUri(data.otpauthUri || '');
       setStep('uri');
     } catch (err) {
-      setError(err.message || '重置失败');
+      setError((err as Error).message || '重置失败');
     } finally {
       setLoading(false);
     }
@@ -48,7 +48,7 @@ export default function ResetTotp({ onClose }) {
     }
   }
 
-  async function submit(e) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     if (loading) return;
     const value = code.replace(/\s+/g, '');

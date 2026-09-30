@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getApps } from '../api.js';
-import AppIcon from './AppIcon.jsx';
+import { getApps } from '../api';
+import type { AppCategory, AppInfo, AppsResponse } from '../api';
+import AppIcon from './AppIcon';
 
 // 状态词（接口 status → 展示文案，白名单内）
-const STATUS_LABEL = {
+const STATUS_LABEL: Record<string, string> = {
   up: '正常',
   auth: '需登录',
   degraded: '响应慢',
@@ -14,12 +15,12 @@ const STATUS_LABEL = {
 
 const REFRESH_MS = 30000; // 自动刷新间隔
 
-function statusOf(app) {
+function statusOf(app: AppInfo): string {
   return STATUS_LABEL[app.status] ? app.status : 'unknown';
 }
 
 // 单张卡片：有 url 才可点、新窗口打开；url 一律用接口返回值，前端不拼域名
-function AppCard({ app }) {
+function AppCard({ app }: { app: AppInfo }) {
   const status = statusOf(app);
   const label = STATUS_LABEL[status];
   const hasPort = app.port != null && app.port !== '';
@@ -75,13 +76,13 @@ function AppCard({ app }) {
 
 // 应用面板：只读。首次进入本 Tab 拉一次，之后 30s 自动刷新；
 // 页面隐藏时暂停，恢复可见立即刷新；切走/卸载清定时器。
-export default function Apps({ active }) {
-  const [data, setData] = useState(null);
+export default function Apps({ active }: { active: boolean }) {
+  const [data, setData] = useState<AppsResponse | null>(null);
   const [failed, setFailed] = useState(false);
   const [loading, setLoading] = useState(false);
   const aliveRef = useRef(true);
 
-  const load = useCallback(async (refresh) => {
+  const load = useCallback(async (refresh: boolean) => {
     setLoading(true);
     try {
       const res = await getApps({ refresh });
@@ -124,7 +125,7 @@ export default function Apps({ active }) {
   const discovered = Array.isArray(data?.discovered) ? data.discovered : [];
 
   // 按 categories 顺序分组；组内保持登记表顺序；空组（0 条）不渲染
-  const knownIds = new Set(categories.map((c) => c.id));
+  const knownIds = new Set<string | undefined>(categories.map((c) => c.id));
   const groups = categories
     .map((cat) => ({ cat, items: apps.filter((a) => a.category === cat.id) }))
     .filter((g) => g.items.length > 0);

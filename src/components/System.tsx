@@ -1,7 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
-import { getSystemMetrics } from '../api.js';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { getSystemMetrics } from '../api';
+import type { CoreUsage, DiskInfo, HistoryPoint, PsiInfo, ServiceInfo, SystemData } from '../api';
 
-function fmtBytes(n) {
+/** 系统 SSE snapshot 帧结构 */
+interface SystemSnapshot {
+  system?: SystemData;
+  history?: HistoryPoint[];
+  services?: {
+    services?: ServiceInfo[];
+    processes?: ProcessInfo[];
+    total_cpu?: number;
+  };
+}
+
+/** 进程排行项 */
+interface ProcessInfo {
+  pid: number;
+  name: string;
+  mem_mb?: number;
+  cpu?: number;
+}
+
+/** 趋势图序列定义 */
+interface ChartSeries {
+  key: string;
+  label: string;
+  color: string;
+  format?: (v: number | null | undefined) => string;
+}
+
+function fmtBytes(n: number | null | undefined): string {
   if (n == null || !Number.isFinite(Number(n))) return '—';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   let v = Number(n);
@@ -13,18 +42,18 @@ function fmtBytes(n) {
   return v.toFixed(1) + ' ' + units[i];
 }
 
-function fmtMB(mb) {
+function fmtMB(mb: number | null | undefined): string {
   if (mb == null || !Number.isFinite(Number(mb))) return '—';
   const v = Number(mb);
   return (Number.isInteger(v) ? v : v.toFixed(1)) + ' MB';
 }
 
-function fmtRate(bps) {
+function fmtRate(bps: number | null | undefined): string {
   if (bps == null || !isFinite(bps)) return '—';
   return fmtBytes(bps) + '/s';
 }
 
-function fmtDuration(s) {
+function fmtDuration(s: number | string | null | undefined): string {
   if (s == null || !Number.isFinite(Number(s))) return '—';
   s = Math.floor(Number(s));
   const d = Math.floor(s / 86400);
@@ -37,7 +66,7 @@ function fmtDuration(s) {
   return parts.join(' ') || '刚刚';
 }
 
-function fmtTime(ts) {
+function fmtTime(ts: number): string {
   const t = new Date(ts);
   const hh = String(t.getHours()).padStart(2, '0');
   const mm = String(t.getMinutes()).padStart(2, '0');
@@ -46,13 +75,13 @@ function fmtTime(ts) {
 }
 
 // 占用率 → 颜色分级：>80% 红、60-80% 橙、<60% 绿（Bar 与每核小条共用）
-function toneFor(percent) {
+function toneFor(percent: number | null | undefined): string {
   const p = Math.max(0, Math.min(100, Number(percent) || 0));
   return p > 80 ? 'hi' : p >= 60 ? 'mid' : 'low';
 }
 
 // 进度条（CPU / 内存 / 磁盘共用）。动态变色规则见 toneFor
-function Bar({ percent }) {
+function Bar({ percent }: { percent?: number | null }) {
   const p = Math.max(0, Math.min(100, percent || 0));
   return (
     <div className="bar">
@@ -62,7 +91,7 @@ function Bar({ percent }) {
 }
 
 // 每核占用区块：cpu.per_core 缺失或为空时整块不渲染（兼容旧后端）
-function CoreGrid({ cores }) {
+function CoreGrid({ cores }: { cores?: CoreUsage[] }) {
   if (!Array.isArray(cores) || cores.length === 0) return null;
   return (
     <div className="cores">
@@ -87,7 +116,7 @@ function CoreGrid({ cores }) {
 }
 
 // 单块磁盘卡片：多盘列表与旧单盘回退共用同一结构
-function DiskCard({ title, disk }) {
+function DiskCard({ title, disk }: { title: string; disk: DiskInfo }) {
   return (
     <Card title={title}>
       <div className="disk">
@@ -104,7 +133,7 @@ function DiskCard({ title, disk }) {
   );
 }
 
-function Card({ title, children }) {
+function Card({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="card">
       <h3>{title}</h3>
@@ -113,7 +142,7 @@ function Card({ title, children }) {
   );
 }
 
-function Row({ k, v }) {
+function Row({ k, v }: { k: ReactNode; v: ReactNode }) {
   return (
     <div className="row">
       <span className="row-k">{k}</span>
@@ -123,14 +152,14 @@ function Row({ k, v }) {
 }
 
 // 百分比小数的展示：有限数保留一位小数，null/非法显示 —
-function fmtPct(v) {
+function fmtPct(v: number | string | null | undefined): string {
   const n = Number(v);
   return Number.isFinite(n) ? n.toFixed(1) : '—';
 }
 
 // PSI 行：k=资源名，o=/proc/pressure 解析结果（{ some:{avg10,..}, full:{..} } 或 null）。
 // 显示 some/full 的 avg10；无 PSI 时显示 —。压力越大颜色越警示（some≥50 红、≥30 橙）
-function PsiRow({ k, o }) {
+function PsiRow({ k, o }: { k: string; o?: PsiInfo | null }) {
   if (!o || !o.some) return <Row k={k} v="—" />;
   const s = Number(o.some.avg10);
   const color = s >= 50 ? 'var(--danger)' : s >= 30 ? 'var(--warn)' : undefined;
@@ -144,7 +173,7 @@ function PsiRow({ k, o }) {
 }
 
 // 向上取整到友好刻度（1/2/5×10^n），用于速率类 Y 轴
-function niceMax(v) {
+function niceMax(v: number): number {
   if (v <= 0) return 1;
   const pow = Math.pow(10, Math.floor(Math.log10(v)));
   const n = v / pow;
@@ -161,16 +190,16 @@ const WINDOW = 30;
 const WINDOW_WIDE = 60;
 
 // 各档位 / 各图表的平移位置记忆（内存即可）：切走再切回时恢复上次位置，不回弹
-const chartViewMemory = new Map();
+const chartViewMemory = new Map<string, { offset: number; follow: boolean }>();
 
-function clampOffset(o, len, win) {
+function clampOffset(o: number, len: number, win: number): number {
   return Math.min(Math.max(0, o), Math.max(0, len - win));
 }
 
 // X 轴时间刻度格式化：分钟 HH:mm、小时 MM-DD HH:00、天 MM-DD、秒 HH:mm:ss（秒档不变）
-function formatTick(ts, granularity) {
+function formatTick(ts: number, granularity: string): string {
   const t = new Date(ts);
-  const p = (n) => String(n).padStart(2, '0');
+  const p = (n: number) => String(n).padStart(2, '0');
   if (granularity === 'hour') return `${p(t.getMonth() + 1)}-${p(t.getDate())} ${p(t.getHours())}:00`;
   if (granularity === 'day') return `${p(t.getMonth() + 1)}-${p(t.getDate())}`;
   if (granularity === 'min') return `${p(t.getHours())}:${p(t.getMinutes())}`;
@@ -182,7 +211,23 @@ function formatTick(ts, granularity) {
 // - 秒档（granularity='sec'）行为保持原样：窗口 30 点、跟随最新、可拖拽/滚轮、回最新按钮。
 // - 分钟/小时/天档（sparse=true）：窗口 60 点；0 点占位、1 点也画出（点 + 水平虚线参考线）；
 //   拖动平移，到边即停并给反馈，松手不回弹，位置按档位记忆在内存。
-function LineChart({ data, series, yMax, yLabel, granularity, chartId, recordedMinutes }) {
+function LineChart({
+  data,
+  series,
+  yMax,
+  yLabel,
+  granularity,
+  chartId,
+  recordedMinutes
+}: {
+  data: HistoryPoint[];
+  series: ChartSeries[];
+  yMax?: number;
+  yLabel?: string;
+  granularity: string;
+  chartId: string;
+  recordedMinutes?: number | null;
+}) {
   const iw = CHART_W - PAD.l - PAD.r;
   const ih = CHART_H - PAD.t - PAD.b;
 
@@ -193,13 +238,13 @@ function LineChart({ data, series, yMax, yLabel, granularity, chartId, recordedM
   const remembered = memoryKey ? chartViewMemory.get(memoryKey) : null;
   const [offset, setOffset] = useState(remembered ? remembered.offset : 0);
   const [dragging, setDragging] = useState(false);
-  const [edge, setEdge] = useState(null);
-  const wrapRef = useRef(null);
-  const dragRef = useRef(null);
+  const [edge, setEdge] = useState<'start' | 'end' | null>(null);
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
   const followRef = useRef(remembered ? remembered.follow : true);
 
   // 记住当前平移位置（仅非秒档；秒档 memoryKey=null，行为不变）
-  function remember(nextOffset, following) {
+  function remember(nextOffset: number, following: boolean) {
     followRef.current = following;
     if (memoryKey) chartViewMemory.set(memoryKey, { offset: nextOffset, follow: following });
   }
@@ -235,7 +280,7 @@ function LineChart({ data, series, yMax, yLabel, granularity, chartId, recordedM
   useEffect(() => {
     const el = wrapRef.current;
     if (!el || !data || data.length < 2) return;
-    const onWheel = (e) => {
+    const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
       if (!Number.isFinite(delta) || Math.abs(delta) < 1) return;
@@ -279,9 +324,9 @@ function LineChart({ data, series, yMax, yLabel, granularity, chartId, recordedM
   const axisMax = yMax || niceMax(maxVal);
 
   // 单点时落在绘图区水平中央，其它情况按点均匀铺开
-  const x = (i) => (single ? PAD.l + iw / 2 : PAD.l + (i / Math.max(1, W - 1)) * iw);
-  const y = (v) => PAD.t + (1 - (Number(v) || 0) / axisMax) * ih;
-  const pathFor = (key) =>
+  const x = (i: number): number => (single ? PAD.l + iw / 2 : PAD.l + (i / Math.max(1, W - 1)) * iw);
+  const y = (v: number | null | undefined): number => PAD.t + (1 - (Number(v) || 0) / axisMax) * ih;
+  const pathFor = (key: string): string =>
     windowData
       .map((d, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`)
       .join(' ');
@@ -294,16 +339,17 @@ function LineChart({ data, series, yMax, yLabel, granularity, chartId, recordedM
     ...new Set([0, Math.floor((W - 1) / 3), Math.floor((2 * (W - 1)) / 3), W - 1])
   ].filter((i) => i >= 0 && i < W);
 
-  const onPointerDown = (e) => {
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     // 点在「回最新」按钮上时不接管指针，保证按钮可正常点击
-    if (e.target && e.target.closest && e.target.closest('button')) return;
+    const target = e.target as Element | null;
+    if (target && target.closest && target.closest('button')) return;
     if (e.preventDefault) e.preventDefault();
     dragRef.current = { startX: e.clientX, startOffset: offset };
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragging(true);
   };
-  const onPointerMove = (e) => {
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current) return;
     if (e.preventDefault) e.preventDefault();
     const dx = dragRef.current.startX - e.clientX;
@@ -314,7 +360,7 @@ function LineChart({ data, series, yMax, yLabel, granularity, chartId, recordedM
     if (sparse) setEdge(raw < 0 ? 'start' : raw > maxOffset ? 'end' : null);
     setOffset(next);
   };
-  const endDrag = (e) => {
+  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
     dragRef.current = null;
     setDragging(false);
     setEdge(null);
@@ -404,7 +450,7 @@ function LineChart({ data, series, yMax, yLabel, granularity, chartId, recordedM
 }
 
 // 图例：色块 + 名称 + 最新值
-function Legend({ series, data }) {
+function Legend({ series, data }: { series: ChartSeries[]; data: HistoryPoint[] }) {
   const last = data && data.length ? data[data.length - 1] : null;
   return (
     <div className="chart-legend">
@@ -422,21 +468,21 @@ function Legend({ series, data }) {
 }
 
 // 趋势序列定义：单点缀色（琥珀）+ 中性灰，走 CSS 变量自动适配明暗
-const MEM_SERIES = [
+const MEM_SERIES: ChartSeries[] = [
   { key: 'cpu', label: 'CPU', color: 'var(--muted)' },
   { key: 'mem_percent', label: '物理内存', color: 'var(--accent)' },
   { key: 'swap_percent', label: 'Swap', color: 'var(--ok)' }
 ];
-const PSI_SERIES = [
+const PSI_SERIES: ChartSeries[] = [
   { key: 'psi_mem_avg10', label: '内存', color: 'var(--danger)', format: fmtPct },
   { key: 'psi_cpu_avg10', label: 'CPU', color: 'var(--accent)', format: fmtPct },
   { key: 'psi_io_avg10', label: 'I/O', color: 'var(--muted)', format: fmtPct }
 ];
-const NET_SERIES = [
+const NET_SERIES: ChartSeries[] = [
   { key: 'net_rx_rate', label: '↓ 下载', color: 'var(--accent)', format: fmtRate },
   { key: 'net_tx_rate', label: '↑ 上传', color: 'var(--muted)', format: fmtRate }
 ];
-const IO_SERIES = [
+const IO_SERIES: ChartSeries[] = [
   { key: 'disk_io_read', label: '读', color: 'var(--accent)', format: fmtRate },
   { key: 'disk_io_write', label: '写', color: 'var(--muted)', format: fmtRate }
 ];
@@ -452,38 +498,38 @@ const GRANULARITY_OPTIONS = [
 ];
 const GRANULARITY_IDS = GRANULARITY_OPTIONS.map((g) => g.id);
 // 非秒档位的 range/step 与刷新频率（与需求表一致）
-const GRANULARITY_QUERY = {
+const GRANULARITY_QUERY: Record<string, { range: string; step: string; refreshMs: number }> = {
   min: { range: '1d', step: '1m', refreshMs: 30000 },
   hour: { range: '7d', step: '1h', refreshMs: 300000 },
   day: { range: '30d', step: '1d', refreshMs: 1800000 }
 };
 
 // 读取上次选择：非法值（含旧版本残留）一律回退「秒」
-function readGranularity() {
+function readGranularity(): string {
   try {
     const v = sessionStorage.getItem(GRANULARITY_KEY);
-    if (GRANULARITY_IDS.includes(v)) return v;
+    if (v && GRANULARITY_IDS.includes(v)) return v;
   } catch (e) {
     // sessionStorage 不可用：走默认
   }
   return 'sec';
 }
 
-export default function System({ active }) {
-  const [data, setData] = useState(null);
-  const [history, setHistory] = useState([]);
-  const [services, setServices] = useState([]);
-  const [processes, setProcesses] = useState([]);
-  const [totalCpu, setTotalCpu] = useState(null);
+export default function System({ active }: { active: boolean }) {
+  const [data, setData] = useState<SystemData | null>(null);
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [services, setServices] = useState<ServiceInfo[]>([]);
+  const [processes, setProcesses] = useState<ProcessInfo[]>([]);
+  const [totalCpu, setTotalCpu] = useState<number | null>(null);
   const [procSort, setProcSort] = useState('mem');
   const [error, setError] = useState('');
-  const [updated, setUpdated] = useState(null);
+  const [updated, setUpdated] = useState<Date | null>(null);
   const [granularity, setGranularity] = useState(readGranularity);
-  const [trendPoints, setTrendPoints] = useState([]);
+  const [trendPoints, setTrendPoints] = useState<HistoryPoint[]>([]);
   // 非秒档最近一次成功响应里的 meta（用于「数据积累中（已记录 X 分钟）」占位）
-  const [trendRecordedMinutes, setTrendRecordedMinutes] = useState(null);
-  const trendCacheRef = useRef({}); // 各档位上次成功的数据，切回时立即命中，避免闪空
-  const trendMetaCacheRef = useRef({}); // 各档位上次成功的 meta
+  const [trendRecordedMinutes, setTrendRecordedMinutes] = useState<number | null>(null);
+  const trendCacheRef = useRef<Record<string, HistoryPoint[]>>({}); // 各档位上次成功的数据，切回时立即命中，避免闪空
+  const trendMetaCacheRef = useRef<Record<string, { recordedSeconds?: number }>>({}); // 各档位上次成功的 meta
 
   // SSE 实时推送：仅 active（系统 Tab 激活）时建连，切走立即断开，无任何轮询。
   // 用 fetch + ReadableStream 自管流（非 EventSource）：需要在客户端做连接状态与重连观测；
@@ -491,21 +537,21 @@ export default function System({ active }) {
     if (!active) return;
 
     let disposed = false;
-    let retryTimer = null;
-    let ctrl = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let ctrl: AbortController | null = null;
 
     // 解析单条 SSE 帧（event: / data: 行），data 为 JSON { system, services, history }
-    function parseFrame(frame) {
-      let event = null;
-      let data = null;
+    function parseFrame(frame: string) {
+      let event: string | null = null;
+      let data: string | null = null;
       for (const line of frame.split('\n')) {
         if (line.startsWith('event:')) event = line.slice(6).trim();
         else if (line.startsWith('data:')) data = line.slice(5).trim();
       }
       if (event !== 'snapshot' || data == null) return;
-      let d;
+      let d: SystemSnapshot;
       try {
-        d = JSON.parse(data);
+        d = JSON.parse(data) as SystemSnapshot;
       } catch (e) {
         return;
       }
@@ -603,7 +649,7 @@ export default function System({ active }) {
   }, [granularity, active]);
 
   // 切换粒度并记忆到 sessionStorage
-  function selectGranularity(id) {
+  function selectGranularity(id: string) {
     setGranularity(id);
     try {
       sessionStorage.setItem(GRANULARITY_KEY, id);

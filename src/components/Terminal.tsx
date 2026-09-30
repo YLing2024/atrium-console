@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 /**
  * 服务器终端（多窗口 / 类似浏览器标签页）+ 二次验证
@@ -21,17 +21,23 @@ const STORE_KEY = 'admin_term_tabs';
 const TICKET_KEY = 'admin_term_ticket';
 const POLL_MS = 6000;
 
-function loadTabs() {
+/** 终端标签（id 即 tmux 会话名） */
+interface TermTab {
+  id: string;
+  title: string;
+}
+
+function loadTabs(): TermTab[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
-    if (Array.isArray(raw)) return raw.filter((t) => t && t.id);
+    const raw: unknown = JSON.parse(localStorage.getItem(STORE_KEY) || '[]');
+    if (Array.isArray(raw)) return raw.filter((t) => t && t.id) as TermTab[];
   } catch (e) {
     /* 忽略损坏的本地记录 */
   }
   return [];
 }
 
-function saveTabs(tabs) {
+function saveTabs(tabs: TermTab[]): void {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(tabs));
   } catch (e) {
@@ -39,7 +45,7 @@ function saveTabs(tabs) {
   }
 }
 
-function getTicket() {
+function getTicket(): string {
   try {
     return sessionStorage.getItem(TICKET_KEY) || '';
   } catch (e) {
@@ -47,7 +53,7 @@ function getTicket() {
   }
 }
 
-function setTicket(t) {
+function setTicket(t: string): void {
   try {
     if (t) sessionStorage.setItem(TICKET_KEY, t);
     else sessionStorage.removeItem(TICKET_KEY);
@@ -56,11 +62,11 @@ function setTicket(t) {
   }
 }
 
-function newId() {
+function newId(): string {
   return 'term-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
-function nextTitle(tabs) {
+function nextTitle(tabs: TermTab[]): string {
   const used = tabs
     .map((t) => {
       const m = /^终端\s*(\d+)$/.exec(t.title || '');
@@ -70,23 +76,25 @@ function nextTitle(tabs) {
   return '终端 ' + ((used.length ? Math.max(...used) : 0) + 1);
 }
 
-function isReload() {
+function isReload(): boolean {
   try {
-    const nav = performance.getEntriesByType('navigation')[0];
+    const nav = performance.getEntriesByType('navigation')[0] as
+      | PerformanceNavigationTiming
+      | undefined;
     return nav ? nav.type === 'reload' : false;
   } catch (e) {
     return false;
   }
 }
 
-export default function Terminal({ active }) {
+export default function Terminal({ active }: { active: boolean }) {
   const [ticket, setTicketState] = useState(() => getTicket());
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [tabs, setTabs] = useState(() => loadTabs());
-  const [current, setCurrent] = useState(() => (loadTabs()[0] || {}).id || null);
-  const [alive, setAlive] = useState(() => new Set());
+  const [tabs, setTabs] = useState<TermTab[]>(() => loadTabs());
+  const [current, setCurrent] = useState<string | null>(() => (loadTabs()[0] || {}).id || null);
+  const [alive, setAlive] = useState<Set<string>>(() => new Set());
   const [nonce, setNonce] = useState(0);
   const inited = useRef(false);
   const tabsRef = useRef(tabs);
@@ -113,7 +121,7 @@ export default function Terminal({ active }) {
     try {
       const r = await fetch('/api/admin/term/sessions');
       if (!r.ok) return;
-      const d = await r.json();
+      const d: { sessions?: { name: string }[] } = await r.json();
       setAlive(new Set((d.sessions || []).map((s) => s.name)));
     } catch (e) {
       /* 网络波动忽略 */
@@ -169,7 +177,7 @@ export default function Terminal({ active }) {
     }
   }, []);
 
-  async function unlock(e) {
+  async function unlock(e: FormEvent) {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
@@ -182,7 +190,9 @@ export default function Terminal({ active }) {
         },
         body: JSON.stringify({ password: pw })
       });
-      const d = await r.json().catch(() => ({}));
+      const d: { ticket?: string; retryAfter?: number; error?: string } = await r
+        .json()
+        .catch(() => ({}));
       if (!r.ok || !d.ticket) {
         setErr(
           r.status === 429
@@ -215,7 +225,7 @@ export default function Terminal({ active }) {
     setCurrent(t.id);
   }
 
-  async function closeTab(id) {
+  async function closeTab(id: string) {
     const rest = tabs.filter((t) => t.id !== id);
     setTabs(rest);
     if (current === id) setCurrent(rest.length ? rest[rest.length - 1].id : null);

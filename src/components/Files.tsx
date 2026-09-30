@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type FormEvent
+} from 'react';
 import {
   listFiles,
   makeDir,
@@ -6,8 +15,9 @@ import {
   deleteEntry,
   fileDownloadUrl,
   uploadFileTo
-} from '../api.js';
-import { ShareCreateModal, ShareManageModal } from './FileShare.jsx';
+} from '../api';
+import type { FileEntry } from '../api';
+import { ShareCreateModal, ShareManageModal } from './FileShare';
 
 /**
  * 文件区：目录浏览 / 拖拽上传（带进度条）/ 新建文件夹 / 重命名 / 删除 / 下载。
@@ -16,7 +26,43 @@ import { ShareCreateModal, ShareManageModal } from './FileShare.jsx';
 
 const ROOT = '';
 
-function fmtSize(n) {
+/** 上传队列项（进度 / 状态 / 速率） */
+interface UploadItem {
+  id: string;
+  name: string;
+  size: number;
+  loaded: number;
+  percent: number;
+  speed: number;
+  eta: number;
+  status: 'waiting' | 'uploading' | 'done' | 'error';
+  error: string;
+}
+
+/** 待上传项：文件 + 相对当前目录的子路径（拖入文件夹时保留结构） */
+interface UploadInput {
+  file: File;
+  dir: string;
+}
+
+/** 上传任务（入队项，pump 串行消费） */
+interface UploadJob {
+  id: string;
+  file: File;
+  size: number;
+  target: string;
+}
+
+/** 新建 / 重命名 / 删除 弹窗状态 */
+interface DialogState {
+  type: 'mkdir' | 'rename' | 'delete';
+  target: string;
+  value: string;
+  title: string;
+  isDir?: boolean;
+}
+
+function fmtSize(n: number | null | undefined): string {
   if (n === null || n === undefined) return '—';
   if (n < 1024) return `${n} B`;
   const units = ['KB', 'MB', 'GB', 'TB'];
@@ -29,14 +75,14 @@ function fmtSize(n) {
   return `${v >= 100 ? v.toFixed(0) : v.toFixed(1)} ${units[i]}`;
 }
 
-function fmtTime(ms) {
+function fmtTime(ms: number | null | undefined): string {
   if (!ms) return '—';
   const d = new Date(ms);
-  const p = (x) => String(x).padStart(2, '0');
+  const p = (x: number) => String(x).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-function fmtDuration(sec) {
+function fmtDuration(sec: number): string {
   if (!isFinite(sec) || sec <= 0) return '';
   if (sec < 60) return `${Math.ceil(sec)} 秒`;
   return `${Math.floor(sec / 60)} 分 ${Math.ceil(sec % 60)} 秒`;
@@ -46,7 +92,7 @@ function fmtDuration(sec) {
 // 注意：XHR 进度只反映「浏览器 → nginx」这一段；字节发完后服务端还要
 // nginx 缓冲落盘 → 转发后端 → 后端写成正式文件（大文件可达数秒）。
 // 那段时间百分比会停在 99% 不动，必须给明确状态，否则看起来像卡死。
-function uploadMeta(u) {
+function uploadMeta(u: UploadItem): string {
   if (u.status === 'error') return u.error;
   if (u.status === 'done') return `${fmtSize(u.size)} · 完成`;
   if (u.percent >= 99) return `${fmtSize(u.size)} · 写入服务器…`;
@@ -56,16 +102,16 @@ function uploadMeta(u) {
   return parts.join(' · ');
 }
 
-function extOf(name) {
+function extOf(name: string): string {
   const i = name.lastIndexOf('.');
   if (i <= 0 || i === name.length - 1) return '';
   return name.slice(i + 1).toUpperCase().slice(0, 5);
 }
 
 // 递归读取拖入的目录条目（DataTransfer 的 webkitGetAsEntry）
-function readAllEntries(reader) {
+function readAllEntries(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
   return new Promise((resolve, reject) => {
-    const out = [];
+    const out: FileSystemEntry[] = [];
     const next = () => {
       reader.readEntries((batch) => {
         if (!batch.length) return resolve(out);
@@ -78,15 +124,17 @@ function readAllEntries(reader) {
 }
 
 // 把目录条目展开成 [{ file, dir }]；dir 为相对被拖入目录的上级路径
-async function walkEntry(entry, dir, acc) {
+async function walkEntry(entry: FileSystemEntry, dir: string, acc: UploadInput[]): Promise<void> {
   if (entry.isFile) {
-    const file = await new Promise((res, rej) => entry.file(res, rej));
+    const file = await new Promise<File>((res, rej) =>
+      (entry as FileSystemFileEntry).file(res, rej)
+    );
     acc.push({ file, dir });
     return;
   }
   if (entry.isDirectory) {
     const sub = dir ? `${dir}/${entry.name}` : entry.name;
-    const children = await readAllEntries(entry.createReader());
+    const children = await readAllEntries((entry as FileSystemDirectoryEntry).createReader());
     for (const c of children) {
       // eslint-disable-next-line no-await-in-loop
       await walkEntry(c, sub, acc);
@@ -111,31 +159,34 @@ function IconFile() {
   );
 }
 
-export default function Files({ active }) {
+export default function Files({ active }: { active: boolean }) {
   const [path, setPath] = useState(ROOT);
-  const [entries, setEntries] = useState([]);
+  const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
   const [notice, setNotice] = useState('');
   const [dragOver, setDragOver] = useState(false);
-  const [sort, setSort] = useState({ key: 'name', dir: 1 });
-  const [uploads, setUploads] = useState([]);
-  const [dialog, setDialog] = useState(null); // { type: 'mkdir'|'rename'|'delete', target, value, title }
+  const [sort, setSort] = useState<{ key: 'name' | 'size' | 'time'; dir: number }>({
+    key: 'name',
+    dir: 1
+  });
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [dialog, setDialog] = useState<DialogState | null>(null); // { type: 'mkdir'|'rename'|'delete', target, value, title }
   const [dialogBusy, setDialogBusy] = useState(false);
   const [dialogErr, setDialogErr] = useState('');
-  const [shareTarget, setShareTarget] = useState(null); // { target, name } 创建临时链接
+  const [shareTarget, setShareTarget] = useState<{ target: string; name: string } | null>(null); // { target, name } 创建临时链接
   const [sharePanel, setSharePanel] = useState(false); // 临时链接管理面板
 
   const dragDepth = useRef(0);
   const loadedOnce = useRef(false);
-  const pendingRef = useRef([]);
+  const pendingRef = useRef<UploadJob[]>([]);
   const runningRef = useRef(false);
   const pathRef = useRef(ROOT);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   pathRef.current = path;
 
-  const load = useCallback(async (p) => {
+  const load = useCallback(async (p: string) => {
     setLoading(true);
     setErr('');
     try {
@@ -143,7 +194,7 @@ export default function Files({ active }) {
       setEntries(data.entries || []);
       setPath(data.path || '');
     } catch (e) {
-      setErr(e.message || '读取失败');
+      setErr((e as Error).message || '读取失败');
       setEntries([]);
     } finally {
       setLoading(false);
@@ -161,7 +212,7 @@ export default function Files({ active }) {
   // 拖拽落在 .files 之外时阻止浏览器默认行为（否则会直接打开/下载被拖入的文件）
   useEffect(() => {
     if (!active) return undefined;
-    const prevent = (e) => e.preventDefault();
+    const prevent = (e: Event) => e.preventDefault();
     window.addEventListener('dragover', prevent);
     window.addEventListener('drop', prevent);
     return () => {
@@ -175,9 +226,9 @@ export default function Files({ active }) {
     if (runningRef.current) return;
     runningRef.current = true;
     while (pendingRef.current.length) {
-      const job = pendingRef.current.shift();
+      const job = pendingRef.current.shift()!;
       // eslint-disable-next-line no-await-in-loop
-      await new Promise((resolve) => {
+      await new Promise<void>((resolve) => {
         const t0 = Date.now();
         uploadFileTo(job.target, job.file, {
           onProgress: ({ loaded, percent }) => {
@@ -219,14 +270,14 @@ export default function Files({ active }) {
 
   // items: [{ file, dir }]，dir 为相对当前目录的子路径（拖入文件夹时保留结构）
   const enqueue = useCallback(
-    (items) => {
+    (items: UploadInput[]) => {
       const list = (items || []).filter((x) => x && x.file);
       if (!list.length) return;
       setNotice('');
       const base = pathRef.current;
       const stamp = Date.now();
-      const recs = [];
-      const jobs = [];
+      const recs: UploadItem[] = [];
+      const jobs: UploadJob[] = [];
       list.forEach((x, i) => {
         const target = x.dir ? (base ? `${base}/${x.dir}` : x.dir) : base;
         const id = `${stamp}-${i}-${x.dir || ''}-${x.file.name}`;
@@ -256,17 +307,17 @@ export default function Files({ active }) {
 
   /* ---------------- 拖拽 ---------------- */
 
-  function onDragEnter(e) {
+  function onDragEnter(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     dragDepth.current += 1;
     setDragOver(true);
   }
 
-  function onDragOver(e) {
+  function onDragOver(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
   }
 
-  function onDragLeave(e) {
+  function onDragLeave(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     dragDepth.current -= 1;
     if (dragDepth.current <= 0) {
@@ -275,7 +326,7 @@ export default function Files({ active }) {
     }
   }
 
-  function onDrop(e) {
+  function onDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     dragDepth.current = 0;
     setDragOver(false);
@@ -283,14 +334,16 @@ export default function Files({ active }) {
     if (!dt) return;
 
     // 拖拽数据只在事件同步阶段有效：先把 entry / 文件列表快照出来，再异步展开
-    const entries = [];
+    const entries: FileSystemEntry[] = [];
     const items = dt.items ? Array.from(dt.items) : [];
     for (const it of items) {
       if (it.kind !== 'file' || !it.webkitGetAsEntry) continue;
       const entry = it.webkitGetAsEntry();
       if (entry) entries.push(entry);
     }
-    const plain = dt.files ? Array.from(dt.files).map((f) => ({ file: f, dir: '' })) : [];
+    const plain: UploadInput[] = dt.files
+      ? Array.from(dt.files).map((f) => ({ file: f, dir: '' }))
+      : [];
 
     if (!entries.length) {
       if (plain.length) enqueue(plain);
@@ -299,7 +352,7 @@ export default function Files({ active }) {
 
     // 递归展开：支持整个文件夹拖入，并在目标端保留相对目录结构
     (async () => {
-      const acc = [];
+      const acc: UploadInput[] = [];
       for (const entry of entries) {
         // eslint-disable-next-line no-await-in-loop
         await walkEntry(entry, '', acc);
@@ -313,13 +366,13 @@ export default function Files({ active }) {
 
   /* ---------------- 目录导航 ---------------- */
 
-  function enter(entry) {
+  function enter(entry: FileEntry) {
     load(path ? `${path}/${entry.name}` : entry.name);
   }
 
   const crumbs = useMemo(() => {
     const parts = path ? path.split('/') : [];
-    const out = [];
+    const out: { name: string; path: string }[] = [];
     let cur = '';
     parts.forEach((p) => {
       cur = cur ? `${cur}/${p}` : p;
@@ -341,13 +394,13 @@ export default function Files({ active }) {
     return list;
   }, [entries, sort]);
 
-  function toggleSort(key) {
+  function toggleSort(key: 'name' | 'size' | 'time') {
     setSort((s) => (s.key === key ? { key, dir: -s.dir } : { key, dir: 1 }));
   }
 
   /* ---------------- 弹窗动作 ---------------- */
 
-  function openDialog(type, entry) {
+  function openDialog(type: 'mkdir' | 'rename' | 'delete', entry?: FileEntry) {
     setDialogErr('');
     if (type === 'mkdir') {
       setDialog({ type, title: '新建文件夹', value: '', target: path });
@@ -355,21 +408,21 @@ export default function Files({ active }) {
       setDialog({
         type,
         title: '重命名',
-        value: entry.name,
-        target: path ? `${path}/${entry.name}` : entry.name
+        value: entry!.name,
+        target: path ? `${path}/${entry!.name}` : entry!.name
       });
     } else if (type === 'delete') {
       setDialog({
         type,
         title: '删除',
-        value: entry.name,
-        target: path ? `${path}/${entry.name}` : entry.name,
-        isDir: entry.type === 'dir'
+        value: entry!.name,
+        target: path ? `${path}/${entry!.name}` : entry!.name,
+        isDir: entry!.type === 'dir'
       });
     }
   }
 
-  async function submitDialog(e) {
+  async function submitDialog(e?: FormEvent) {
     if (e) e.preventDefault();
     if (!dialog) return;
     setDialogBusy(true);
@@ -385,7 +438,7 @@ export default function Files({ active }) {
       setDialog(null);
       await load(pathRef.current);
     } catch (e2) {
-      setDialogErr(e2.message || '操作失败');
+      setDialogErr((e2 as Error).message || '操作失败');
     } finally {
       setDialogBusy(false);
     }

@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { getVersions } from '../api.js';
+import { getVersions } from '../api';
+import type { VersionInfo } from '../api';
 
 // 软件版本面板：进入版本 Tab 时加载一次 getVersions（不做轮询），
 // 避免每次切 Tab 都重复执行 alist version 等重命令堆积
-export default function VersionPanel({ active }) {
-  const [versions, setVersions] = useState([]);
+export default function VersionPanel({ active }: { active: boolean }) {
+  const [versions, setVersions] = useState<VersionInfo[]>([]);
   const [error, setError] = useState('');
   const fetchedRef = useRef(false);
 
@@ -17,7 +18,7 @@ export default function VersionPanel({ active }) {
         if (alive) setVersions(v?.list || []);
       })
       .catch((e) => {
-        if (alive) setError(e.message);
+        if (alive) setError((e as Error).message);
       });
     return () => {
       alive = false;

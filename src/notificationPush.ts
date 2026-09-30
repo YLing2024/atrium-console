@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { NotificationItem } from './api';
 
 /**
  * 通知「服务器推送」总线与等待器。
@@ -16,12 +17,27 @@ import { useEffect, useRef, useState } from 'react';
 export const NOTIFICATION_PUSH_EVENT = 'admin:notification-push';
 export const PUSH_WAIT_MS = 10000;
 
+/** 等待服务器推送的状态机结果 */
+export interface PushState {
+  phase: 'waiting' | 'received' | 'timeout';
+  startedAt: number;
+  elapsedMs?: number;
+}
+
+/** 匹配目标：优先按 POST 返回的 id，无 id 时用 dedupKey / 标题+来源 */
+export interface PushTarget {
+  id?: number | null;
+  dedupKey?: string;
+  title?: string;
+  source?: string;
+}
+
 const HISTORY_TTL_MS = 15000;
 const HISTORY_MAX = 50;
 
-const recentPushes = []; // [{ item, at }] 按 at 递增
+const recentPushes: { item: NotificationItem; at: number }[] = []; // [{ item, at }] 按 at 递增
 
-function prune(now) {
+function prune(now: number): void {
   while (
     recentPushes.length &&
     (now - recentPushes[0].at > HISTORY_TTL_MS || recentPushes.length > HISTORY_MAX)
@@ -31,7 +47,7 @@ function prune(now) {
 }
 
 // SSE 收到推送时调用：缓冲最近推送并广播给等待方
-export function emitNotificationPush(item) {
+export function emitNotificationPush(item: NotificationItem | null | undefined): void {
   if (!item || item.id == null) return;
   const now = Date.now();
   recentPushes.push({ item, at: now });
@@ -44,15 +60,18 @@ export function emitNotificationPush(item) {
   }
 }
 
-export function onNotificationPush(handler) {
+export function onNotificationPush(handler: (item: NotificationItem) => void): () => void {
   if (typeof window === 'undefined') return () => {};
-  const listener = (e) => handler(e.detail);
+  const listener = (e: Event) => handler((e as CustomEvent<NotificationItem>).detail);
   window.addEventListener(NOTIFICATION_PUSH_EVENT, listener);
   return () => window.removeEventListener(NOTIFICATION_PUSH_EVENT, listener);
 }
 
 // sinceTs：只接受该时刻之后到达的推送（过滤同 id 去重更新的历史推送）
-export function findRecentPush(predicate, sinceTs = 0) {
+export function findRecentPush(
+  predicate: (item: NotificationItem) => boolean,
+  sinceTs = 0
+): NotificationItem | null {
   const now = Date.now();
   prune(now);
   for (let i = recentPushes.length - 1; i >= 0; i--) {
@@ -63,7 +82,7 @@ export function findRecentPush(predicate, sinceTs = 0) {
 }
 
 // 优先按 POST 返回的 id 匹配；无 id 时退化为 dedupKey / 标题+来源
-export function pushMatches(item, target) {
+export function pushMatches(item: NotificationItem | null, target: PushTarget | null): boolean {
   if (!item || !target) return false;
   if (target.id != null && item.id != null) return Number(item.id) === Number(target.id);
   if (target.dedupKey && item.dedupKey) return item.dedupKey === target.dedupKey;
@@ -76,12 +95,18 @@ export function pushMatches(item, target) {
  * pushState: null | { phase: 'waiting' | 'received' | 'timeout', startedAt, elapsedMs? }
  * startedAt 传「点击发送」的时刻，以便耗时是端到端的实际等待时间。
  */
-export function usePushWait() {
-  const [pushState, setPushState] = useState(null);
-  const timerRef = useRef(null);
-  const unsubRef = useRef(null);
+export function usePushWait(): {
+  pushState: PushState | null;
+  beginPushWait: (target: PushTarget, startedAt?: number) => void;
+  markWaiting: (startedAt?: number) => number;
+  resetPushWait: () => void;
+  cancelPushWait: () => void;
+} {
+  const [pushState, setPushState] = useState<PushState | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const unsubRef = useRef<(() => void) | null>(null);
 
-  function clear() {
+  function clear(): void {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -93,13 +118,13 @@ export function usePushWait() {
   }
 
   // 提交瞬间调用：保证「等待推送」指示在 POST 往返期间必定渲染（随后 beginPushWait 续接）
-  function markWaiting(startedAt = Date.now()) {
+  function markWaiting(startedAt = Date.now()): number {
     clear();
     setPushState({ phase: 'waiting', startedAt });
     return startedAt;
   }
 
-  function beginPushWait(target, startedAt = Date.now()) {
+  function beginPushWait(target: PushTarget, startedAt = Date.now()): void {
     clear();
     setPushState({ phase: 'waiting', startedAt });
     const t = Number.isFinite(startedAt) ? startedAt : Date.now();
@@ -128,7 +153,7 @@ export function usePushWait() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function resetPushWait() {
+  function resetPushWait(): void {
     clear();
     setPushState(null);
   }

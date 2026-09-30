@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
-import { logout } from '../api.js';
-import { getTheme, effectiveTheme, toggleTheme } from '../theme.js';
-import System from './System.jsx';
-import Apps from './Apps.jsx';
-import BlogAdmin from './BlogAdmin.jsx';
-import VersionPanel from './VersionPanel.jsx';
-import ResetTotp from './ResetTotp.jsx';
-import CommandPalette from './CommandPalette.jsx';
-import Manage from './Manage.jsx';
-import Terminal from './Terminal.jsx';
-import Files from './Files.jsx';
-import NotificationCenter from './NotificationCenter.jsx';
-import NotificationManage from './NotificationManage.jsx';
-import Debug from './Debug.jsx';
-import Hermes from './Hermes.jsx';
+import { logout } from '../api';
+import { getTheme, effectiveTheme, toggleTheme } from '../theme';
+import System from './System';
+import Apps from './Apps';
+import BlogAdmin from './BlogAdmin';
+import VersionPanel from './VersionPanel';
+import ResetTotp from './ResetTotp';
+import CommandPalette from './CommandPalette';
+import Manage from './Manage';
+import Terminal from './Terminal';
+import Files from './Files';
+import NotificationCenter from './NotificationCenter';
+import NotificationManage from './NotificationManage';
+import Debug from './Debug';
+import Hermes from './Hermes';
 
 // 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat'）一律回退到首个 Tab
 const TABS = [
@@ -30,7 +30,7 @@ const TABS = [
   'hermes'
 ];
 // 标签文字与顺序：原有六项相对顺序不变，其后依次追加「通知 / 通知管理 / 调试 / Hermes」
-const TAB_LABELS = {
+const TAB_LABELS: Record<string, string> = {
   system: '系统',
   apps: '应用',
   version: '版本',
@@ -47,7 +47,7 @@ const TAB_LABELS = {
 export default function Main() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem('admin_tab');
-    return TABS.includes(saved) ? saved : 'system';
+    return saved && TABS.includes(saved) ? saved : 'system';
   });
   const [showReset, setShowReset] = useState(false);
   const [toast, setToast] = useState('');
@@ -57,9 +57,9 @@ export default function Main() {
   const [navOpen, setNavOpen] = useState(false); // 窄屏：右侧抽屉是否展开
   const [unread, setUnread] = useState(0); // 通知中心未读数（侧栏徽标）
   const [notifRefreshTick, setNotifRefreshTick] = useState(0); // 管理页操作后触发展示页刷新
-  const menuRef = useRef(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  function switchTab(t) {
+  function switchTab(t: string) {
     setTab(t);
     sessionStorage.setItem('admin_tab', t); // 会话级记忆：同标签页内刷新后停留在上次 Tab
     setNavOpen(false); // 窄屏选中条目后收起抽屉（仅 UI，不触碰面板挂载）
@@ -82,10 +82,10 @@ export default function Main() {
   // 用户菜单：点击外部 / 按 Esc 关闭
   useEffect(() => {
     if (!menuOpen) return;
-    function onDocClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     }
-    function onKey(e) {
+    function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setMenuOpen(false);
     }
     document.addEventListener('mousedown', onDocClick);
@@ -99,7 +99,7 @@ export default function Main() {
   // 窄屏抽屉：按 Esc 关闭
   useEffect(() => {
     if (!navOpen) return;
-    function onKey(e) {
+    function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setNavOpen(false);
     }
     window.addEventListener('keydown', onKey);
@@ -108,7 +108,7 @@ export default function Main() {
 
   // 全局 Ctrl+K 弹出命令面板（含 metaKey 兼容 macOS）
   useEffect(() => {
-    function onKey(e) {
+    function onKey(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setCmdOpen(true);

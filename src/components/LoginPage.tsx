@@ -1,19 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import QRCode from 'qrcode';
-import { login, totpSetup } from '../api.js';
+import { login, totpSetup } from '../api';
+import type { ApiError } from '../api';
 
 // 自带账号（builtin）登录页：唯一输入是 TOTP 动态码（6 位数字）。
 // 仅在未登录且后端 auth-mode 为 builtin 时渲染；sso 模式不会走到这里。
 // 首次使用（后端回 code:'totp_setup_required'）就地引导绑定验证器，
 // 二维码/密钥沿用既有 TOTP 设置样式（.totp-*），不另起一套。
-export default function LoginPage({ onSuccess }) {
+export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [retryLeft, setRetryLeft] = useState(0); // 429 限速剩余秒数（倒计时）
-  const [setup, setSetup] = useState(null); // 首次设置：{ secret, otpauthUri }
+  const [setup, setSetup] = useState<{ secret: string; otpauthUri: string } | null>(null); // 首次设置：{ secret, otpauthUri }
   const [copied, setCopied] = useState(false);
-  const qrRef = useRef(null);
+  const qrRef = useRef<HTMLCanvasElement | null>(null);
 
   // 限速倒计时：每秒递减，归零后可再次提交
   useEffect(() => {
@@ -41,7 +42,7 @@ export default function LoginPage({ onSuccess }) {
       setSetup({ secret: data.secret || '', otpauthUri: data.otpauthUri || '' });
       setCode('');
     } catch (err) {
-      setError(err.message || '获取绑定信息失败');
+      setError((err as Error).message || '获取绑定信息失败');
     } finally {
       setLoading(false);
     }
@@ -58,7 +59,7 @@ export default function LoginPage({ onSuccess }) {
     }
   }
 
-  async function submit(e) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     if (loading || retryLeft > 0) return;
     const value = code.replace(/\s+/g, ''); // 自动 trim 空格
@@ -72,19 +73,20 @@ export default function LoginPage({ onSuccess }) {
       await login(value);
       onSuccess();
     } catch (err) {
-      if (err.code === 'totp_setup_required') {
+      const e = err as ApiError;
+      if (e.code === 'totp_setup_required') {
         // 首次使用：先绑定验证器，再回来输入动态码
         setError('首次使用：请设置 TOTP');
         setLoading(false);
         await startSetup();
         return;
       }
-      if (err.code === 'rate_limited' || err.status === 429) {
-        const n = Math.max(1, Number(err.retryAfter) || 0);
+      if (e.code === 'rate_limited' || e.status === 429) {
+        const n = Math.max(1, Number(e.retryAfter) || 0);
         setRetryLeft(n);
         setError('');
       } else {
-        setError(err.message || '验证码错误');
+        setError(e.message || '验证码错误');
       }
       setLoading(false);
     }

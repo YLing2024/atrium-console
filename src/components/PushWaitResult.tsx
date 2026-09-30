@@ -1,4 +1,5 @@
-import { PUSH_WAIT_MS } from '../notificationPush.js';
+import { PUSH_WAIT_MS } from '../notificationPush';
+import type { PushState } from '../notificationPush';
 
 /**
  * 发通知后的「推送等待结果」行（通知管理页 / 调试页共用）：
@@ -7,7 +8,17 @@ import { PUSH_WAIT_MS } from '../notificationPush.js';
  *   超时 → ✗ 10 秒内未收到推送 —— 实时通道可能断了（附「重新拉取列表」）
  * 结果由父组件状态保留，直到下一次发送才清空。
  */
-export default function PushWaitResult({ state, onRepull, repulled, className = '' }) {
+export default function PushWaitResult({
+  state,
+  onRepull,
+  repulled,
+  className = ''
+}: {
+  state: PushState | null;
+  onRepull: () => void;
+  repulled: boolean;
+  className?: string;
+}) {
   if (!state) return null;
   return (
     <div className={'push-result' + (className ? ' ' + className : '')} data-phase={state.phase}>

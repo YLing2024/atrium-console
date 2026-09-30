@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { emitNotificationPush } from './notificationPush.js';
+import { emitNotificationPush } from './notificationPush';
+import type { NotificationItem } from './api';
 
 /**
  * 通知 SSE 长连接（全站单例，原生 fetch + ReadableStream，无第三方依赖）。
@@ -23,24 +24,44 @@ export const WATCHDOG_MS = 90000; // 90s 无事件判死
 export const BACKOFF_BASE_MS = 1000;
 export const BACKOFF_MAX_MS = 60000;
 
+/** 实时通道状态 */
+export type NotificationStreamStatus = 'connected' | 'reconnecting' | 'disconnected';
+
+/** 对外暴露的连接快照 */
+export interface NotificationStreamState {
+  status: NotificationStreamStatus;
+  attempt: number;
+  nextRetryAt: number;
+  lastSignalAt: number;
+  lastEventAt: number;
+  lastHeartbeatAt: number;
+}
+
+/** 订阅回调（三项均可选） */
+export interface NotificationStreamHandlers {
+  onState?: (s: NotificationStreamState) => void;
+  onNotification?: (item: NotificationItem) => void;
+  onResync?: () => void;
+}
+
 let refCount = 0;
 let running = false;
-let connection = null; // { ctrl, aborted }
-let retryTimer = null;
-let watchdogTimer = null;
+let connection: { ctrl: AbortController; aborted: boolean } | null = null; // { ctrl, aborted }
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
 let attempt = 0;
 let nextRetryAt = 0;
 let openedOnce = false; // 是否已成功握手过（区分首次连接与重连）
 let lastSignalAt = 0; // 握手或任一事件
 let lastEventAt = 0; // notification
 let lastHeartbeatAt = 0; // heartbeat
-let status = 'disconnected';
+let status: NotificationStreamStatus = 'disconnected';
 
-const stateListeners = new Set();
-const notificationListeners = new Set();
-const resyncListeners = new Set();
+const stateListeners = new Set<(s: NotificationStreamState) => void>();
+const notificationListeners = new Set<(item: NotificationItem) => void>();
+const resyncListeners = new Set<() => void>();
 
-function snapshot() {
+function snapshot(): NotificationStreamState {
   return { status, attempt, nextRetryAt, lastSignalAt, lastEventAt, lastHeartbeatAt };
 }
 
@@ -59,7 +80,7 @@ function publish() {
   });
 }
 
-function setStatus(next) {
+function setStatus(next: NotificationStreamStatus): void {
   if (status === next) return;
   status = next;
   publish();
@@ -119,7 +140,7 @@ function onHandshake() {
 }
 
 // 收到事件（notification / heartbeat）：重置看门狗与退避
-function onEvent(kind) {
+function onEvent(kind: 'notification' | 'heartbeat'): void {
   const t = Date.now();
   lastSignalAt = t;
   if (kind === 'notification') lastEventAt = t;
@@ -153,8 +174,8 @@ function onWatchdog() {
   scheduleRetry();
 }
 
-function handleFrame(frame) {
-  let event = null;
+function handleFrame(frame: string): void {
+  let event: string | null = null;
   let data = '';
   for (const line of frame.split('\n')) {
     if (line.startsWith('event:')) event = line.slice(6).trim();
@@ -166,9 +187,9 @@ function handleFrame(frame) {
     return;
   }
   if (event === 'notification') {
-    let item;
+    let item: NotificationItem;
     try {
-      item = JSON.parse(data);
+      item = JSON.parse(data) as NotificationItem;
     } catch (e) {
       return;
     }
@@ -267,7 +288,9 @@ function stop() {
  * 订阅单例连接。handlers: { onState, onNotification, onResync }。
  * 首个订阅者负责建立连接；最后一个退订时断开。
  */
-export function subscribeNotificationStream(handlers = {}) {
+export function subscribeNotificationStream(
+  handlers: NotificationStreamHandlers = {}
+): () => void {
   const { onState, onNotification, onResync } = handlers;
   if (onState) stateListeners.add(onState);
   if (onNotification) notificationListeners.add(onNotification);
@@ -285,7 +308,9 @@ export function subscribeNotificationStream(handlers = {}) {
 }
 
 // React 绑定：组件只读状态，回调经 ref 保持最新
-export function useNotificationStream(handlers = {}) {
+export function useNotificationStream(
+  handlers: NotificationStreamHandlers = {}
+): NotificationStreamState {
   const [state, setState] = useState(getNotificationStreamState);
   const notificationRef = useRef(handlers.onNotification);
   const resyncRef = useRef(handlers.onResync);
@@ -308,7 +333,10 @@ export function useNotificationStream(handlers = {}) {
 }
 
 // 状态文案（调试页 / 通知页共用）。nowMs 由调用方的秒级 tick 传入以显示倒计时。
-export function notificationStreamLabel(s, nowMs = Date.now()) {
+export function notificationStreamLabel(
+  s: NotificationStreamState,
+  nowMs = Date.now()
+): string {
   if (s.status === 'connected') return '已连接';
   if (s.status === 'disconnected') return '已断开';
   if (s.attempt > 0) {

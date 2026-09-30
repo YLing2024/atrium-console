@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  getNotifications,
-  getNotificationTypes,
-  markNotificationRead,
-  deleteNotification
-} from '../api.js';
-import { useNotificationStream } from '../notificationStream.js';
-import MarkdownBody from './MarkdownBody.jsx';
+import { getNotifications, getNotificationTypes, markNotificationRead, deleteNotification } from '../api';
+import type { NotificationItem, NotificationParams, NotificationType } from '../api';
+import { useNotificationStream } from '../notificationStream';
+import type { NotificationStreamStatus } from '../notificationStream';
+import MarkdownBody from './MarkdownBody';
 
 /**
  * 通知（展示/阅读页）：列表 + 筛选 + 单条已读/删除 + 桌面通知开关。
@@ -20,26 +17,26 @@ import MarkdownBody from './MarkdownBody.jsx';
 const PAGE = 50;
 const DESKTOP_PREF_KEY = 'admin_notifications_desktop';
 
-const LEVEL_LABELS = { urgent: '紧急', normal: '常规', digest: '汇总' };
+const LEVEL_LABELS: Record<string, string> = { urgent: '紧急', normal: '常规', digest: '汇总' };
 
 // ts / readAt 为 epoch 秒
 // 列表摘要用短时间（到分）；展开详情用完整时间（到秒，YYYY-MM-DD HH:mm:ss）。
-function fmtTime(ts) {
+function fmtTime(ts: number | null | undefined): string {
   if (!ts) return '';
   const d = new Date(ts * 1000);
-  const p = (n) => String(n).padStart(2, '0');
+  const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-function fmtTimeFull(ts) {
+function fmtTimeFull(ts: number | null | undefined): string {
   if (!ts) return '';
   const d = new Date(ts * 1000);
-  const p = (n) => String(n).padStart(2, '0');
+  const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 // 同源在当前窗口打开，外链新窗口
-function openLink(link) {
+function openLink(link: string): void {
   try {
     const u = new URL(link, window.location.origin);
     if (u.origin === window.location.origin) window.location.href = u.href;
@@ -54,17 +51,25 @@ function readDesktopPref() {
 }
 
 // 顶部状态点的悬停说明（克制：只有文字说明，不弹窗不响铃）
-function streamStatusTitle(status) {
+function streamStatusTitle(status: NotificationStreamStatus): string {
   if (status === 'connected') return '实时通道：已连接';
   if (status === 'disconnected') return '实时通道：已断开';
   return '实时通道：重连中';
 }
 
-export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick = 0 }) {
-  const [items, setItems] = useState([]);
-  const [sources, setSources] = useState([]);
+export default function NotificationCenter({
+  onUnreadChange,
+  onOpen,
+  refreshTick = 0
+}: {
+  onUnreadChange: (n: number) => void;
+  onOpen: () => void;
+  refreshTick?: number;
+}) {
+  const [items, setItems] = useState<NotificationItem[]>([]);
+  const [sources, setSources] = useState<string[]>([]);
   // 通知类别由服务端定义：客户端不内置任何类别字符串，一律从 /notifications/types 拉取。
-  const [types, setTypes] = useState([]);
+  const [types, setTypes] = useState<NotificationType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hasMore, setHasMore] = useState(false);
@@ -72,8 +77,8 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
   const [filterLevel, setFilterLevel] = useState('');
   const [filterSource, setFilterSource] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [expandedId, setExpandedId] = useState(null);
-  const [highlightId, setHighlightId] = useState(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
   const [permission, setPermission] = useState(() =>
     typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'unsupported'
   );
@@ -82,7 +87,12 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
   // 供 SSE 回调读取最新值，避免闭包过期
   const itemsRef = useRef(items);
   itemsRef.current = items;
-  const filtersRef = useRef({});
+  const filtersRef = useRef({
+    filterUnread: false,
+    filterLevel: '',
+    filterSource: '',
+    filterType: ''
+  });
   filtersRef.current = { filterUnread, filterLevel, filterSource, filterType };
   const desktopPrefRef = useRef(desktopPref);
   desktopPrefRef.current = desktopPref;
@@ -91,7 +101,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
   const onOpenRef = useRef(onOpen);
   onOpenRef.current = onOpen;
 
-  function addSources(list) {
+  function addSources(list: NotificationItem[] | null | undefined): void {
     if (!list || !list.length) return;
     setSources((prev) => {
       const set = new Set(prev);
@@ -101,13 +111,13 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
   }
 
   // 类别名一律用服务端 label；取不到（旧数据 / 接口失败 / 已归档）才回退原始 key。
-  function typeLabel(key) {
+  function typeLabel(key: string | null | undefined): string {
     if (!key) return '';
     const t = types.find((x) => x.key === key);
     return t && t.label ? t.label : key;
   }
 
-  function matchesFilter(item) {
+  function matchesFilter(item: NotificationItem): boolean {
     const f = filtersRef.current;
     if (f.filterUnread && item.readAt) return false;
     if (f.filterLevel && item.level !== f.filterLevel) return false;
@@ -126,11 +136,11 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
     }
   }
 
-  async function load(reset) {
+  async function load(reset: boolean) {
     setLoading(true);
     setError('');
     try {
-      const params = { limit: PAGE };
+      const params: NotificationParams = { limit: PAGE };
       if (!reset) {
         const last = itemsRef.current[itemsRef.current.length - 1];
         if (last) params.before = last.id;
@@ -146,7 +156,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
       onUnreadChangeRef.current && onUnreadChangeRef.current(d.unread);
       addSources(list);
     } catch (e) {
-      setError(e.message || '加载失败');
+      setError((e as Error).message || '加载失败');
     } finally {
       setLoading(false);
     }
@@ -158,7 +168,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
     let alive = true;
     getNotificationTypes()
       .then((d) => {
-        if (alive) setTypes(Array.isArray(d && d.types) ? d.types : []);
+        if (alive) setTypes(Array.isArray(d.types) ? d.types : []);
       })
       .catch(() => {
         if (alive) setTypes([]);
@@ -182,7 +192,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
   }, [refreshTick]);
 
   // 桌面通知：SSE 收到新通知时弹出（仅在已授权且开关打开时）
-  function maybeDesktopNotify(item) {
+  function maybeDesktopNotify(item: NotificationItem): void {
     if (!desktopPrefRef.current) return;
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     if (window.Notification.permission !== 'granted') return;
@@ -203,7 +213,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
     }
   }
 
-  function insertItem(item) {
+  function insertItem(item: NotificationItem): void {
     addSources([item]);
     if (!matchesFilter(item)) return;
     setItems((prev) => {
@@ -215,7 +225,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
   // SSE 实时流（全站单例）：收到推送插入列表。
   // 重连成功（再次握手）时重拉一次，补齐断线期间漏掉的通知；
   // 铁律：这里只是「对齐服务器数据」，绝不拿拉取结果做乐观补写。
-  function handleStreamNotification(item) {
+  function handleStreamNotification(item: NotificationItem): void {
     insertItem(item);
     maybeDesktopNotify(item);
     refreshUnread();
@@ -239,7 +249,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
     return () => clearTimeout(t);
   }, [highlightId]);
 
-  async function handleRead(id) {
+  async function handleRead(id: number) {
     try {
       await markNotificationRead(id);
       setItems((prev) =>
@@ -247,18 +257,18 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
       );
       refreshUnread();
     } catch (e) {
-      setError(e.message || '操作失败');
+      setError((e as Error).message || '操作失败');
     }
   }
 
-  async function handleDelete(id) {
+  async function handleDelete(id: number) {
     if (!window.confirm('删除这条通知？')) return;
     try {
       await deleteNotification(id);
       setItems((prev) => prev.filter((it) => it.id !== id));
       refreshUnread();
     } catch (e) {
-      setError(e.message || '删除失败');
+      setError((e as Error).message || '删除失败');
     }
   }
 
@@ -392,7 +402,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
               aria-expanded={expandedId === item.id}
               onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
             >
-              <span className={'notif-level ' + item.level}>{LEVEL_LABELS[item.level] || item.level}</span>
+              <span className={'notif-level ' + item.level}>{LEVEL_LABELS[item.level as string] || item.level}</span>
               <span className="notif-main-text">
                 <span className="notif-item-title">{item.title}</span>
                 {item.body && <span className="notif-item-summary">{item.body}</span>}
@@ -415,7 +425,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
                   </span>
                   <span className="notif-meta-item">
                     <span className="notif-meta-key">级别</span>
-                    {LEVEL_LABELS[item.level] || item.level || '—'}
+                    {LEVEL_LABELS[item.level as string] || item.level || '—'}
                   </span>
                   <span className="notif-meta-item">
                     <span className="notif-meta-key">来源</span>
@@ -428,7 +438,7 @@ export default function NotificationCenter({ onUnreadChange, onOpen, refreshTick
                 </div>
                 <div className="notif-ops">
                   {item.link && (
-                    <button className="link-btn" onClick={() => openLink(item.link)}>
+                    <button className="link-btn" onClick={() => openLink(item.link as string)}>
                       打开链接
                     </button>
                   )}

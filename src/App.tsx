@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getMe, getAuthMode, setUnauthorizedHandler } from './api.js';
-import Main from './components/Main.jsx';
-import LoginPage from './components/LoginPage.jsx';
+import { getMe, getAuthMode, setUnauthorizedHandler } from './api';
+import Main from './components/Main';
+import LoginPage from './components/LoginPage';
 
 // 按认证模式分流：
 //   sso     —— getMe 走网关 /_auth/me；401 由 api.js 整页跳 /_auth/login，本组件只等结果。

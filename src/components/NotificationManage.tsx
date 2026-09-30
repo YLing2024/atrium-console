@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  createNotification,
-  bulkDeleteNotifications,
-  getNotificationStats
-} from '../api.js';
-import { usePushWait, onNotificationPush } from '../notificationPush.js';
-import PushWaitResult from './PushWaitResult.jsx';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { createNotification, bulkDeleteNotifications, getNotificationStats } from '../api';
+import type { BulkDeleteFilters } from '../api';
+import { usePushWait, onNotificationPush } from '../notificationPush';
+import PushWaitResult from './PushWaitResult';
 
 /**
  * 通知管理（管理面）：发通知（compose + 推送）、批量删除 / 清空已读、统计、去重键说明。
@@ -15,10 +12,23 @@ import PushWaitResult from './PushWaitResult.jsx';
  * - 批量删除 / 清空已读属于本地用户动作，仍就地刷新。
  */
 
-const LEVEL_LABELS = { urgent: '紧急', normal: '常规', digest: '汇总' };
+const LEVEL_LABELS: Record<string, string> = { urgent: '紧急', normal: '常规', digest: '汇总' };
 
-export default function NotificationManage({ onChanged, active = false }) {
-  const [stats, setStats] = useState({ total: 0, unread: 0, sources: [] });
+/** 通知统计（来源明细用于悬停弹层） */
+interface NotifStats {
+  total: number;
+  unread: number;
+  sources: { source: string; count: number }[];
+}
+
+export default function NotificationManage({
+  onChanged,
+  active = false
+}: {
+  onChanged?: () => void;
+  active?: boolean;
+}) {
+  const [stats, setStats] = useState<NotifStats>({ total: 0, unread: 0, sources: [] });
   const [showSources, setShowSources] = useState(false);
   const [compose, setCompose] = useState({
     level: 'normal',
@@ -40,7 +50,7 @@ export default function NotificationManage({ onChanged, active = false }) {
   const [mLevel, setMLevel] = useState('');
   const [mSource, setMSource] = useState('');
 
-  const onChangedRef = useRef(onChanged);
+  const onChangedRef = useRef<(() => void) | undefined>(onChanged);
   onChangedRef.current = onChanged;
 
   async function refreshStats() {
@@ -74,7 +84,7 @@ export default function NotificationManage({ onChanged, active = false }) {
   }, []);
 
   // 发通知：POST 成功后清空表单、只显示「已提交、等待推送」；不插入、不重拉、不刷统计
-  async function handleSend(e) {
+  async function handleSend(e: FormEvent) {
     e.preventDefault();
     const title = compose.title.trim();
     if (!title) {
@@ -103,7 +113,7 @@ export default function NotificationManage({ onChanged, active = false }) {
       beginPushWait({ id: data && data.id, title, source: payload.source }, startedAt);
     } catch (err) {
       resetPushWait();
-      setError(err.message || '发送失败');
+      setError((err as Error).message || '发送失败');
     } finally {
       setSending(false);
     }
@@ -117,15 +127,15 @@ export default function NotificationManage({ onChanged, active = false }) {
   }
 
   // 当前筛选条件 → 批量删除 body（无筛选即全部删除）
-  function currentFilters() {
-    const f = {};
+  function currentFilters(): BulkDeleteFilters {
+    const f: BulkDeleteFilters = {};
     if (mLevel) f.level = mLevel;
     if (mSource) f.source = mSource;
     if (mUnread) f.unreadOnly = true;
     return f;
   }
 
-  function describeFilters(f) {
+  function describeFilters(f: BulkDeleteFilters): string {
     const parts = [];
     if (f.level) parts.push('级别 ' + (LEVEL_LABELS[f.level] || f.level));
     if (f.source) parts.push('来源 ' + f.source);
@@ -143,7 +153,7 @@ export default function NotificationManage({ onChanged, active = false }) {
       const d = await bulkDeleteNotifications({ ...f, dryRun: true });
       count = Number(d.count) || 0;
     } catch (e) {
-      setError(e.message || '操作失败');
+      setError((e as Error).message || '操作失败');
       return;
     }
     if (count === 0) {
@@ -160,7 +170,7 @@ export default function NotificationManage({ onChanged, active = false }) {
       refreshStats();
       onChangedRef.current && onChangedRef.current();
     } catch (e) {
-      setError(e.message || '批量删除失败');
+      setError((e as Error).message || '批量删除失败');
     }
   }
 
@@ -173,7 +183,7 @@ export default function NotificationManage({ onChanged, active = false }) {
       const d = await bulkDeleteNotifications({ readOnly: true, dryRun: true });
       count = Number(d.count) || 0;
     } catch (e) {
-      setError(e.message || '操作失败');
+      setError((e as Error).message || '操作失败');
       return;
     }
     if (count === 0) {
@@ -187,7 +197,7 @@ export default function NotificationManage({ onChanged, active = false }) {
       refreshStats();
       onChangedRef.current && onChangedRef.current();
     } catch (e) {
-      setError(e.message || '清空已读失败');
+      setError((e as Error).message || '清空已读失败');
     }
   }
 

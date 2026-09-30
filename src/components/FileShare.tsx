@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  createFileShare,
-  listFileShares,
-  updateFileShare,
-  deleteFileShare
-} from '../api.js';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { createFileShare, listFileShares, updateFileShare, deleteFileShare } from '../api';
+import type { FileShare, FileShareCreateBody, FileSharePatch } from '../api';
 
 /**
  * 文件区「临时链接」：创建限时下载链接 + 管理面板。
@@ -27,12 +23,12 @@ const PRESETS = [
 
 const STATUS_TEXT = { active: '有效', expired: '已过期', revoked: '已撤销' };
 
-function pad2(n) {
+function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
 
 // ms → datetime-local 值（本地时间，分钟精度）
-function toDateTimeLocal(ms) {
+function toDateTimeLocal(ms: number): string {
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(
     d.getHours()
@@ -40,13 +36,13 @@ function toDateTimeLocal(ms) {
 }
 
 // datetime-local 值 → ms（按本地时间解析；空 / 非法返回 null）
-function toEpochMs(s) {
+function toEpochMs(s: string): number | null {
   if (!s) return null;
   const t = new Date(s).getTime();
   return Number.isNaN(t) ? null : t;
 }
 
-function fmtTime(ms) {
+function fmtTime(ms: number): string {
   if (!ms) return '—';
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(
@@ -55,7 +51,7 @@ function fmtTime(ms) {
 }
 
 // 毫秒时长 → 「x 天 x 小时 / x 小时 x 分 / x 分」
-function humanDuration(ms) {
+function humanDuration(ms: number): string {
   const min = Math.floor(ms / 60000);
   const days = Math.floor(min / 1440);
   const hours = Math.floor((min % 1440) / 60);
@@ -66,7 +62,7 @@ function humanDuration(ms) {
 }
 
 // 列表里的有效期文案：永久 / 剩余 x / 已过期 / 已撤销
-function expiryText(s) {
+function expiryText(s: FileShare): string {
   if (s.status === 'revoked') return '已撤销';
   if (s.expiresAt === 0) return '永久';
   if (s.remainingMs > 0) return `剩余 ${humanDuration(s.remainingMs)}`;
@@ -74,7 +70,7 @@ function expiryText(s) {
 }
 
 // 剪贴板不可用时回退 window.prompt（与 v2link CopyModal 一致）
-async function copyText(text) {
+async function copyText(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text);
     return true;
@@ -86,16 +82,24 @@ async function copyText(text) {
 
 /* ---------------- 创建：预设有效期 + 自定义时刻 ---------------- */
 
-export function ShareCreateModal({ target, name, onClose }) {
+export function ShareCreateModal({
+  target,
+  name,
+  onClose
+}: {
+  target: string;
+  name: string;
+  onClose: () => void;
+}) {
   const [preset, setPreset] = useState('24h');
   const [customAt, setCustomAt] = useState(() => toDateTimeLocal(Date.now() + 24 * HOUR));
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<FileShare | null>(null);
   const [copied, setCopied] = useState(false);
 
-  function buildBody() {
+  function buildBody(): FileShareCreateBody {
     if (preset === 'forever') return { expiresAt: 0 };
     if (preset === 'custom') {
       const ms = toEpochMs(customAt);
@@ -104,18 +108,19 @@ export function ShareCreateModal({ target, name, onClose }) {
       return { expiresAt: ms };
     }
     const p = PRESETS.find((x) => x.key === preset) || PRESETS[1];
-    return { ttlHours: p.hours };
+    // 走到这里 preset 必为固定档位（forever / custom 已在上方返回），hours 一定是数字
+    return { ttlHours: p.hours as number };
   }
 
-  async function submit(e) {
+  async function submit(e: FormEvent) {
     if (e) e.preventDefault();
     if (result) return; // 已出结果：回车不再重复创建
     setErr('');
-    let body;
+    let body: FileShareCreateBody;
     try {
       body = buildBody();
     } catch (e2) {
-      setErr(e2.message);
+      setErr((e2 as Error).message);
       return;
     }
     setBusy(true);
@@ -131,14 +136,14 @@ export function ShareCreateModal({ target, name, onClose }) {
         setResult(rec);
       }
     } catch (e2) {
-      setErr(e2.message || '创建失败');
+      setErr((e2 as Error).message || '创建失败');
     } finally {
       setBusy(false);
     }
   }
 
   async function copy() {
-    const ok = await copyText(result.url);
+    const ok = await copyText(result!.url);
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
@@ -244,7 +249,15 @@ export function ShareCreateModal({ target, name, onClose }) {
 
 /* ---------------- 改期：改过期时刻本身（转永久 = expiresAt 0） ---------------- */
 
-function ShareScheduleModal({ share, onClose, onDone }) {
+function ShareScheduleModal({
+  share,
+  onClose,
+  onDone
+}: {
+  share: FileShare;
+  onClose: () => void;
+  onDone: (s: FileShare) => void;
+}) {
   const permanent = share.expiresAt === 0;
   const [mode, setMode] = useState('finite');
   const [absInput, setAbsInput] = useState(permanent ? '' : toDateTimeLocal(share.expiresAt));
@@ -267,7 +280,7 @@ function ShareScheduleModal({ share, onClose, onDone }) {
       : tip;
   }, [absInput, mode, permanent, share.expiresAt]);
 
-  async function submit(e) {
+  async function submit(e: FormEvent) {
     if (e) e.preventDefault();
     setErr('');
     if (mode === 'permanent') {
@@ -291,14 +304,14 @@ function ShareScheduleModal({ share, onClose, onDone }) {
     await doSubmit({ expiresAt: ms });
   }
 
-  async function doSubmit(body) {
+  async function doSubmit(body: FileSharePatch) {
     setBusy(true);
     try {
       const data = await updateFileShare(share.id, body);
       onDone(data && data.share ? data.share : data);
       onClose();
     } catch (e2) {
-      setErr(e2.message || '操作失败');
+      setErr((e2 as Error).message || '操作失败');
       setBusy(false);
     }
   }
@@ -369,12 +382,12 @@ function ShareScheduleModal({ share, onClose, onDone }) {
 
 /* ---------------- 管理面板：列表 / 复制 / 改期 / 撤销 / 删除 ---------------- */
 
-export function ShareManageModal({ onClose }) {
-  const [shares, setShares] = useState([]);
+export function ShareManageModal({ onClose }: { onClose: () => void }) {
+  const [shares, setShares] = useState<FileShare[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState('');
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState<FileShare | null>(null);
   const [copiedId, setCopiedId] = useState('');
 
   const load = useCallback(async () => {
@@ -382,10 +395,10 @@ export function ShareManageModal({ onClose }) {
     setErr('');
     try {
       const data = await listFileShares();
-      const list = data && data.shares ? data.shares : Array.isArray(data) ? data : [];
+      const list: FileShare[] = data && data.shares ? data.shares : Array.isArray(data) ? data : [];
       setShares(list);
     } catch (e) {
-      setErr(e.message || '读取失败');
+      setErr((e as Error).message || '读取失败');
       setShares([]);
     } finally {
       setLoading(false);
@@ -396,12 +409,12 @@ export function ShareManageModal({ onClose }) {
     load();
   }, [load]);
 
-  function applyUpdate(updated) {
+  function applyUpdate(updated: FileShare): void {
     if (!updated || !updated.id) return;
     setShares((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
   }
 
-  async function copy(s) {
+  async function copy(s: FileShare) {
     const ok = await copyText(s.url);
     if (ok) {
       setCopiedId(s.id);
@@ -409,27 +422,27 @@ export function ShareManageModal({ onClose }) {
     }
   }
 
-  async function revoke(s) {
+  async function revoke(s: FileShare) {
     if (!window.confirm(`撤销「${s.relPath}」的链接？撤销后不可恢复。`)) return;
     setBusyId(s.id);
     try {
       const data = await updateFileShare(s.id, { revoked: true });
       applyUpdate(data && data.share ? data.share : data);
     } catch (e) {
-      window.alert(e.message || '撤销失败');
+      window.alert((e as Error).message || '撤销失败');
     } finally {
       setBusyId('');
     }
   }
 
-  async function remove(s) {
+  async function remove(s: FileShare) {
     if (!window.confirm(`删除「${s.relPath}」的链接记录？磁盘文件不受影响。`)) return;
     setBusyId(s.id);
     try {
       await deleteFileShare(s.id);
       setShares((prev) => prev.filter((x) => x.id !== s.id));
     } catch (e) {
-      window.alert(e.message || '删除失败');
+      window.alert((e as Error).message || '删除失败');
     } finally {
       setBusyId('');
     }

@@ -4,9 +4,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
  * Ctrl+K 命令面板：全局命令列表。
  * ↑↓ 选择 / Enter 执行 / Esc 关闭，样式与现有 modal 一致。
  */
-export default function CommandPalette({ onClose, onSwitchTab, onShowReset, onLogout }) {
+export default function CommandPalette({
+  onClose,
+  onSwitchTab,
+  onShowReset,
+  onLogout
+}: {
+  onClose: () => void;
+  onSwitchTab: (tab: string) => void;
+  onShowReset: () => void;
+  onLogout: () => void;
+}) {
   const [index, setIndex] = useState(0);
-  const listRef = useRef(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
 
   // 通过 ref 读取最新 props，命令列表可稳定 useMemo，避免 keydown 监听反复重建
   const propsRef = useRef({ onClose, onSwitchTab, onShowReset, onLogout });
@@ -35,7 +45,7 @@ export default function CommandPalette({ onClose, onSwitchTab, onShowReset, onLo
     []
   );
 
-  function run(i) {
+  function run(i: number): void {
     const item = items[i];
     if (!item) return;
     propsRef.current.onClose();
@@ -45,7 +55,7 @@ export default function CommandPalette({ onClose, onSwitchTab, onShowReset, onLo
   // 打开时重置选中项，并接管键盘：↑↓ 选择 / Enter 执行 / Esc 关闭
   useEffect(() => {
     setIndex(0);
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         propsRef.current.onClose();

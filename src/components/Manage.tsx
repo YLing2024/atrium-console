@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import {
   getSessions,
   renameSession,
@@ -8,30 +8,31 @@ import {
   updateApiToken,
   deleteApiToken,
   logout
-} from '../api.js';
+} from '../api';
+import type { ApiToken, SessionInfo, UpdateApiTokenInput } from '../api';
 
-function pad(n) {
+function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-function formatTime(ms) {
+function formatTime(ms: number | null | undefined): string {
   if (!ms) return '—';
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function formatDate(ms) {
+function formatDate(ms: number | null | undefined): string {
   if (!ms) return '—';
   const d = new Date(ms);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-function remainingDays(expiresAt) {
+function remainingDays(expiresAt: number): number {
   if (!expiresAt) return 0;
   return Math.max(0, Math.floor((expiresAt - Date.now()) / 86400000));
 }
 
-function relativeTime(ms) {
+function relativeTime(ms: number | null | undefined): string {
   if (!ms) return '—';
   const diff = Date.now() - ms;
   if (diff < 60 * 1000) return '刚刚';
@@ -41,19 +42,19 @@ function relativeTime(ms) {
 }
 
 export default function Manage() {
-  const [sessions, setSessions] = useState([]);
+  const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState('');
   const renameInFlight = useRef(false);
-  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState<SessionInfo | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // ===== 接口令牌状态 =====
-  const [apiTokens, setApiTokens] = useState([]);
+  const [apiTokens, setApiTokens] = useState<ApiToken[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
   const [apiError, setApiError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
@@ -64,16 +65,16 @@ export default function Manage() {
   const [createCanWrite, setCreateCanWrite] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
-  const [createdToken, setCreatedToken] = useState(null);
+  const [createdToken, setCreatedToken] = useState<{ token: string; curl: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [editTarget, setEditTarget] = useState(null);
+  const [editTarget, setEditTarget] = useState<ApiToken | null>(null);
   const [editName, setEditName] = useState('');
   const [editNote, setEditNote] = useState('');
   const [editDays, setEditDays] = useState('');
   const [editCanWrite, setEditCanWrite] = useState(false);
   const [apiEditSaving, setApiEditSaving] = useState(false);
   const [apiEditError, setApiEditError] = useState('');
-  const [revokeTarget, setRevokeTarget] = useState(null);
+  const [revokeTarget, setRevokeTarget] = useState<ApiToken | null>(null);
   const [revoking, setRevoking] = useState(false);
 
   const load = useCallback(async () => {
@@ -83,7 +84,7 @@ export default function Manage() {
       const data = await getSessions();
       setSessions(data.sessions || []);
     } catch (e) {
-      setError(e.message);
+      setError((e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -96,7 +97,7 @@ export default function Manage() {
       const data = await getApiTokens();
       setApiTokens(data.tokens || []);
     } catch (e) {
-      setApiError(e.message);
+      setApiError((e as Error).message);
     } finally {
       setApiLoading(false);
     }
@@ -107,7 +108,7 @@ export default function Manage() {
     loadTokens();
   }, [load, loadTokens]);
 
-  function startRename(s) {
+  function startRename(s: SessionInfo) {
     setEditingId(s.id);
     setEditValue(s.deviceName || '');
     setEditError('');
@@ -119,7 +120,7 @@ export default function Manage() {
     setEditError('');
   }
 
-  async function saveRename(s) {
+  async function saveRename(s: SessionInfo) {
     const name = editValue.trim();
     if (!name) {
       setEditError('设备名称不能为空');
@@ -138,21 +139,21 @@ export default function Manage() {
       setSessions((list) => list.map((x) => (x.id === s.id ? { ...x, deviceName: name } : x)));
       cancelRename();
     } catch (e) {
-      setEditError(e.message);
+      setEditError((e as Error).message);
     } finally {
       renameInFlight.current = false;
       setEditSaving(false);
     }
   }
 
-  function onEditKeyDown(s) {
-    return (e) => {
+  function onEditKeyDown(s: SessionInfo) {
+    return (e: KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Enter') saveRename(s);
       else if (e.key === 'Escape') e.currentTarget.blur(); // 失焦触发自动保存，等价保存、避免丢输入
     };
   }
 
-  function askDelete(s) {
+  function askDelete(s: SessionInfo) {
     setDeleteTarget(s);
   }
 
@@ -169,7 +170,7 @@ export default function Manage() {
       setSessions((list) => list.filter((x) => x.id !== deleteTarget.id));
       setDeleteTarget(null);
     } catch (e) {
-      setError(e.message);
+      setError((e as Error).message);
       setDeleteTarget(null);
     } finally {
       setDeleting(false);
@@ -220,13 +221,13 @@ export default function Manage() {
       setShowCreate(false);
       await loadTokens();
     } catch (e) {
-      setCreateError(e.message);
+      setCreateError((e as Error).message);
     } finally {
       setCreating(false);
     }
   }
 
-  async function copyToken(text) {
+  async function copyToken(text: string) {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -236,7 +237,7 @@ export default function Manage() {
     }
   }
 
-  function openEdit(t) {
+  function openEdit(t: ApiToken) {
     setEditTarget(t);
     setEditName(t.name || '');
     setEditNote(t.note || '');
@@ -252,7 +253,7 @@ export default function Manage() {
       setApiEditError('令牌名称不能为空');
       return;
     }
-    const patch = {};
+    const patch: UpdateApiTokenInput = {};
     if (name !== (editTarget.name || '')) patch.name = name;
     if (editNote.trim() !== (editTarget.note || '')) patch.note = editNote.trim();
     if (editCanWrite !== (editTarget.canWrite === true)) patch.canWrite = editCanWrite;
@@ -275,13 +276,13 @@ export default function Manage() {
       setEditTarget(null);
       await loadTokens();
     } catch (e) {
-      setApiEditError(e.message);
+      setApiEditError((e as Error).message);
     } finally {
       setApiEditSaving(false);
     }
   }
 
-  function askRevoke(t) {
+  function askRevoke(t: ApiToken) {
     setRevokeTarget(t);
   }
 
@@ -293,7 +294,7 @@ export default function Manage() {
       setApiTokens((list) => list.filter((x) => x.id !== revokeTarget.id));
       setRevokeTarget(null);
     } catch (e) {
-      setApiError(e.message);
+      setApiError((e as Error).message);
       setRevokeTarget(null);
     } finally {
       setRevoking(false);

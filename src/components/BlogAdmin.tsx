@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent
+} from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import {
@@ -12,11 +19,35 @@ import {
   createBlogCollection,
   updateBlogCollection,
   deleteBlogCollection
-} from '../api.js';
-import { siteUrl } from '../siteUrl.js';
-import MarkdownEditor from './MarkdownEditor.jsx';
+} from '../api';
+import type { BlogCollection, BlogCollectionInput, BlogPost, BlogPostInput } from '../api';
+import { siteUrl } from '../siteUrl';
+import MarkdownEditor from './MarkdownEditor';
+import type { MarkdownEditorApi } from './MarkdownEditor';
 
-const EMPTY_FORM = {
+/** 文章表单（tags 用逗号串编辑，提交时拆分） */
+interface BlogForm {
+  title: string;
+  subtitle: string;
+  slug: string;
+  public_id: string;
+  tags: string;
+  excerpt: string;
+  content: string;
+  published: boolean;
+  /** 下拉选项值由 React 转成字符串，编辑时可能拿到数字 id */
+  collection_id: number | string;
+}
+
+/** 合集表单 */
+interface CollectionForm {
+  name: string;
+  slug: string;
+  public_id: string;
+  description: string;
+}
+
+const EMPTY_FORM: BlogForm = {
   title: '',
   subtitle: '',
   slug: '',
@@ -27,19 +58,24 @@ const EMPTY_FORM = {
   published: false,
   collection_id: ''
 };
-const EMPTY_COLLECTION_FORM = { name: '', slug: '', public_id: '', description: '' };
+const EMPTY_COLLECTION_FORM: CollectionForm = {
+  name: '',
+  slug: '',
+  public_id: '',
+  description: ''
+};
 
 export default function BlogAdmin() {
-  const [posts, setPosts] = useState([]);
-  const editorApiRef = useRef(null); // MarkdownEditor 命令式 API（插图光标插入用）
-  const imgInputRef = useRef(null); // 插图文件选择
-  const previewRef = useRef(null); // 预览滚动容器（滚动同步用）
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const editorApiRef = useRef<MarkdownEditorApi | null>(null); // MarkdownEditor 命令式 API（插图光标插入用）
+  const imgInputRef = useRef<HTMLInputElement | null>(null); // 插图文件选择
+  const previewRef = useRef<HTMLDivElement | null>(null); // 预览滚动容器（滚动同步用）
   const [draftNotice, setDraftNotice] = useState(''); // 草稿恢复提示
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // editing === null 列表视图；'new' 新建；数字 = 编辑对应文章 id
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [editing, setEditing] = useState<number | 'new' | null>(null);
+  const [form, setForm] = useState<BlogForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   // 列表视图：'posts' 文章 / 'collections' 合集
@@ -49,9 +85,9 @@ export default function BlogAdmin() {
   // 编辑器全屏/专注模式
   const [fullscreen, setFullscreen] = useState(false);
   // 合集管理：列表 / 表单（'new' 或合集 id）
-  const [collections, setCollections] = useState([]);
-  const [editingCollection, setEditingCollection] = useState(null);
-  const [collectionForm, setCollectionForm] = useState(EMPTY_COLLECTION_FORM);
+  const [collections, setCollections] = useState<BlogCollection[]>([]);
+  const [editingCollection, setEditingCollection] = useState<number | 'new' | null>(null);
+  const [collectionForm, setCollectionForm] = useState<CollectionForm>(EMPTY_COLLECTION_FORM);
   const [savingCollection, setSavingCollection] = useState(false);
   const [collectionError, setCollectionError] = useState('');
 
@@ -62,7 +98,7 @@ export default function BlogAdmin() {
       const data = await getBlogAdminPosts();
       setPosts(data.list || []);
     } catch (e) {
-      setError(e.message);
+      setError((e as Error).message);
     } finally {
       setLoading(false);
     }
@@ -84,7 +120,7 @@ export default function BlogAdmin() {
 
   // 预览 HTML：marked 渲染 + DOMPurify 消毒（与博客详情一致，Swiss 排版由 CSS 控制）
   const previewHtml = useMemo(
-    () => DOMPurify.sanitize(marked.parse(form.content || '')),
+    () => DOMPurify.sanitize(marked.parse(form.content || '') as string),
     [form.content]
   );
 
@@ -109,7 +145,7 @@ export default function BlogAdmin() {
     setEditing('new');
   }
 
-  function startEdit(post) {
+  function startEdit(post: BlogPost) {
     setForm({
       title: post.title,
       subtitle: post.subtitle || '',
@@ -132,12 +168,12 @@ export default function BlogAdmin() {
     setViewMode('split');
   }
 
-  function setField(k, v) {
+  function setField<K extends keyof BlogForm>(k: K, v: BlogForm[K]) {
     setForm((f) => ({ ...f, [k]: v }));
   }
 
   // 选择图片上传 → 在编辑器光标处插入![](relative url)（相对路径，换域名也正确）
-  async function onPickImage(e) {
+  async function onPickImage(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
@@ -145,7 +181,7 @@ export default function BlogAdmin() {
   }
 
   // 粘贴/拖拽/文件选择共用的图片上传插入
-  async function handleUploadImage(file) {
+  async function handleUploadImage(file: File) {
     if (!file) return;
     try {
       const { url } = await uploadBlogImage(file);
@@ -162,7 +198,7 @@ export default function BlogAdmin() {
       setDraftNotice('图片已插入');
       setTimeout(() => setDraftNotice(''), 2500);
     } catch (err) {
-      setSaveError('图片上传失败: ' + err.message);
+      setSaveError('图片上传失败: ' + (err as Error).message);
     }
   }
 
@@ -205,7 +241,10 @@ export default function BlogAdmin() {
     if (!api || !preview || !api.scrollDOM) return undefined;
     const editorDOM = api.scrollDOM;
     // 记录程序写入的 scrollTop，对应源下一次自身触发的滚动事件视为程序回声，跳过防止回环
-    const expected = { editor: null, preview: null };
+    const expected: { editor: number | null; preview: number | null } = {
+      editor: null,
+      preview: null
+    };
     const onEditorScroll = () => {
       if (expected.editor != null && Math.abs(editorDOM.scrollTop - expected.editor) < 2) {
         expected.editor = null;
@@ -243,7 +282,7 @@ export default function BlogAdmin() {
   // 全屏模式下 Esc 退出
   useEffect(() => {
     if (!fullscreen) return undefined;
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setFullscreen(false);
     };
     window.addEventListener('keydown', onKey);
@@ -251,7 +290,7 @@ export default function BlogAdmin() {
   }, [fullscreen]);
 
   // 工具栏按钮执行：仅预览模式先切回分栏，保证编辑器可见
-  function runTool(fn) {
+  function runTool(fn: (api: MarkdownEditorApi) => void) {
     return () => {
       if (viewMode === 'preview') setViewMode('split');
       const api = editorApiRef.current;
@@ -261,7 +300,7 @@ export default function BlogAdmin() {
 
   const modKey = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+';
 
-  async function submit(published) {
+  async function submit(published: boolean) {
     if (saving) return;
     if (!form.title.trim()) {
       setSaveError('标题不能为空');
@@ -269,7 +308,7 @@ export default function BlogAdmin() {
     }
     setSaving(true);
     setSaveError('');
-    const payload = {
+    const payload: BlogPostInput = {
       title: form.title.trim(),
       subtitle: form.subtitle.trim(),
       slug: form.slug.trim(),
@@ -286,31 +325,31 @@ export default function BlogAdmin() {
       if (editing === 'new') {
         await createBlogPost(payload);
       } else {
-        await updateBlogPost(editing, payload);
+        await updateBlogPost(editing as number, payload);
       }
       clearDraft();
       await load();
       setEditing(null);
     } catch (e) {
-      setSaveError(e.message);
+      setSaveError((e as Error).message);
     } finally {
       setSaving(false);
     }
   }
 
-  async function remove(post) {
+  async function remove(post: BlogPost) {
     if (!window.confirm(`确定删除「${post.title}」？此操作不可恢复。`)) return;
     try {
       await deleteBlogPost(post.id);
       await load();
     } catch (e) {
-      setError(e.message);
+      setError((e as Error).message);
     }
   }
 
   // 打开文章页（新标签）：已发布走公开地址，草稿先取带短时效预览令牌的地址。
   // 草稿要先请求令牌，故先同步开一个空标签再改地址 —— 避免 await 之后被浏览器当弹窗拦截。
-  async function openPost(post) {
+  async function openPost(post: BlogPost) {
     const key = post.public_id || post.slug;
     if (post.published) {
       window.open(siteUrl(`/blog/${key}`), '_blank', 'noopener');
@@ -323,7 +362,7 @@ export default function BlogAdmin() {
       else window.open(url, '_blank', 'noopener');
     } catch (e) {
       if (win) win.close();
-      setError(`生成草稿预览链接失败：${e.message}`);
+      setError(`生成草稿预览链接失败：${(e as Error).message}`);
     }
   }
 
@@ -334,7 +373,7 @@ export default function BlogAdmin() {
     setEditingCollection('new');
   }
 
-  function startEditCollection(c) {
+  function startEditCollection(c: BlogCollection) {
     setCollectionForm({
       name: c.name,
       slug: c.slug,
@@ -350,7 +389,7 @@ export default function BlogAdmin() {
     setCollectionError('');
   }
 
-  function setCollectionField(k, v) {
+  function setCollectionField<K extends keyof CollectionForm>(k: K, v: CollectionForm[K]) {
     setCollectionForm((f) => ({ ...f, [k]: v }));
   }
 
@@ -363,7 +402,7 @@ export default function BlogAdmin() {
     }
     setSavingCollection(true);
     setCollectionError('');
-    const payload = {
+    const payload: BlogCollectionInput = {
       name: collectionForm.name.trim(),
       slug: collectionForm.slug.trim(),
       description: collectionForm.description.trim()
@@ -372,19 +411,19 @@ export default function BlogAdmin() {
       if (editingCollection === 'new') {
         await createBlogCollection(payload);
       } else {
-        await updateBlogCollection(editingCollection, payload);
+        await updateBlogCollection(editingCollection as number, payload);
       }
       await loadCollections();
       setEditingCollection(null);
     } catch (e) {
-      setCollectionError(e.message);
+      setCollectionError((e as Error).message);
     } finally {
       setSavingCollection(false);
     }
   }
 
   // 删除合集：二次确认（解除关联不可恢复），完成后同时刷新文章列表（合集列变化）
-  async function removeCollection(c) {
+  async function removeCollection(c: BlogCollection) {
     if (!window.confirm(`确定删除合集「${c.name}」？`)) return;
     if (!window.confirm(`再次确认：删除合集「${c.name}」将解除该合集下所有文章的关联，此操作不可恢复。`)) return;
     try {
@@ -392,7 +431,7 @@ export default function BlogAdmin() {
       await loadCollections();
       await load();
     } catch (e) {
-      setError(e.message);
+      setError((e as Error).message);
     }
   }
 

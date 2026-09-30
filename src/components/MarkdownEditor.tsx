@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { EditorState } from '@codemirror/state';
+import { useEffect, useRef, type MutableRefObject } from 'react';
+import { EditorState, type Range, type SelectionRange } from '@codemirror/state';
 import {
   Decoration,
   EditorView,
@@ -12,7 +12,10 @@ import {
   lineNumbers,
   placeholder,
   rectangularSelection,
-  crosshairCursor
+  crosshairCursor,
+  type DecorationSet,
+  type KeyBinding,
+  type ViewUpdate
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { HighlightStyle, indentUnit, syntaxHighlighting, syntaxTree } from '@codemirror/language';
@@ -82,8 +85,8 @@ const editorTheme = EditorView.theme({
 // 代码块整段加底色：按语法树找到 FencedCode/CodeBlock，给每个所属行挂 line 装饰
 const mdCodeLine = Decoration.line({ class: 'cm-md-code-line' });
 
-function buildCodeBlockDecorations(state) {
-  const ranges = [];
+function buildCodeBlockDecorations(state: EditorState): DecorationSet {
+  const ranges: Range<Decoration>[] = [];
   syntaxTree(state).iterate({
     from: 0,
     to: state.doc.length,
@@ -104,10 +107,11 @@ function buildCodeBlockDecorations(state) {
 
 const mdCodeBlockHighlight = ViewPlugin.fromClass(
   class {
-    constructor(view) {
+    declare decorations: DecorationSet;
+    constructor(view: EditorView) {
       this.decorations = buildCodeBlockDecorations(view.state);
     }
-    update(update) {
+    update(update: ViewUpdate) {
       if (update.docChanged || update.viewportChanged) {
         this.decorations = buildCodeBlockDecorations(update.state);
       }
@@ -116,14 +120,14 @@ const mdCodeBlockHighlight = ViewPlugin.fromClass(
   { decorations: (v) => v.decorations }
 );
 
-function lineRange(state, sel) {
+function lineRange(state: EditorState, sel: SelectionRange): number[] {
   return [
     state.doc.lineAt(sel.from).number,
     state.doc.lineAt(sel.to).number
   ];
 }
 
-function replaceSelectionWith(view, text) {
+function replaceSelectionWith(view: EditorView, text: string) {
   const { from, to } = view.state.selection.main;
   view.dispatch({
     changes: { from, to, insert: text },
@@ -133,7 +137,7 @@ function replaceSelectionWith(view, text) {
   view.focus();
 }
 
-function cmdWrap(view, before, after, placeholderText) {
+function cmdWrap(view: EditorView, before: string, after: string, placeholderText: string) {
   const state = view.state;
   const { from, to } = state.selection.main;
   const selected = state.sliceDoc(from, to);
@@ -153,11 +157,11 @@ function cmdWrap(view, before, after, placeholderText) {
   view.focus();
 }
 
-function cmdHeading(view, level) {
+function cmdHeading(view: EditorView, level: number) {
   const state = view.state;
   const { from, to } = state.selection.main;
   const [first, last] = [state.doc.lineAt(from).number, state.doc.lineAt(to).number];
-  const changes = [];
+  const changes: { from: number; to: number; insert: string }[] = [];
   for (let n = first; n <= last; n++) {
     const line = state.doc.line(n);
     const m = line.text.match(/^#{1,6}(\s+|$)/);
@@ -176,7 +180,7 @@ function cmdHeading(view, level) {
   view.focus();
 }
 
-function cmdLinePrefix(view, prefix) {
+function cmdLinePrefix(view: EditorView, prefix: string) {
   const state = view.state;
   const { from, to } = state.selection.main;
   const [first, last] = [state.doc.lineAt(from).number, state.doc.lineAt(to).number];
@@ -187,7 +191,7 @@ function cmdLinePrefix(view, prefix) {
       break;
     }
   }
-  const changes = [];
+  const changes: { from: number; to: number; insert: string }[] = [];
   for (let n = first; n <= last; n++) {
     const line = state.doc.line(n);
     if (allHave) {
@@ -200,7 +204,7 @@ function cmdLinePrefix(view, prefix) {
   view.focus();
 }
 
-function cmdOrderedList(view) {
+function cmdOrderedList(view: EditorView) {
   const state = view.state;
   const { from, to } = state.selection.main;
   const [first, last] = [state.doc.lineAt(from).number, state.doc.lineAt(to).number];
@@ -212,7 +216,7 @@ function cmdOrderedList(view) {
       break;
     }
   }
-  const changes = [];
+  const changes: { from: number; to: number; insert: string }[] = [];
   let idx = 1;
   for (let n = first; n <= last; n++) {
     const line = state.doc.line(n);
@@ -227,7 +231,7 @@ function cmdOrderedList(view) {
   view.focus();
 }
 
-function cmdLink(view) {
+function cmdLink(view: EditorView) {
   const state = view.state;
   const { from, to } = state.selection.main;
   const text = state.sliceDoc(from, to);
@@ -247,7 +251,7 @@ function cmdLink(view) {
   view.focus();
 }
 
-function cmdInsertBlock(view, text) {
+function cmdInsertBlock(view: EditorView, text: string) {
   const state = view.state;
   const { from, to } = state.selection.main;
   const line = state.doc.lineAt(from);
@@ -260,7 +264,7 @@ function cmdInsertBlock(view, text) {
   view.focus();
 }
 
-const editorKeyBindings = [
+const editorKeyBindings: KeyBinding[] = [
   { key: 'Mod-b', run: (v) => (cmdWrap(v, '**', '**', '粗体'), true) },
   { key: 'Mod-i', run: (v) => (cmdWrap(v, '*', '*', '斜体'), true) },
   { key: 'Mod-e', run: (v) => (cmdWrap(v, '`', '`', '代码'), true) },
@@ -273,7 +277,22 @@ const editorKeyBindings = [
   { key: 'Mod-Shift-#', run: (v) => (cmdHeading(v, 3), true) }
 ];
 
-function buildApi(view) {
+/** 供父组件命令式调用的编辑器 API（工具栏 / 插图光标插入） */
+export interface MarkdownEditorApi {
+  insert: (text: string) => void;
+  replaceSelection: (text: string) => void;
+  wrap: (before: string, after: string, ph: string) => void;
+  heading: (level: number) => void;
+  linePrefix: (prefix: string) => void;
+  orderedList: () => void;
+  link: () => void;
+  insertBlock: (text: string) => void;
+  getText: () => string;
+  focus: () => void;
+  scrollDOM: HTMLElement;
+}
+
+function buildApi(view: EditorView): MarkdownEditorApi {
   return {
     insert: (text) => replaceSelectionWith(view, text),
     replaceSelection: (text) => replaceSelectionWith(view, text),
@@ -289,10 +308,23 @@ function buildApi(view) {
   };
 }
 
-export default function MarkdownEditor({ value = '', onChange, apiRef, onUploadImage }) {
-  const hostRef = useRef(null);
-  const viewRef = useRef(null);
-  const cbRef = useRef({});
+export default function MarkdownEditor({
+  value = '',
+  onChange,
+  apiRef,
+  onUploadImage
+}: {
+  value?: string;
+  onChange?: (text: string) => void;
+  apiRef?: MutableRefObject<MarkdownEditorApi | null>;
+  onUploadImage?: (file: File) => void;
+}) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const viewRef = useRef<EditorView | null>(null);
+  const cbRef = useRef<{
+    onChange?: (text: string) => void;
+    onUploadImage?: (file: File) => void;
+  }>({});
   cbRef.current = { onChange, onUploadImage };
 
   useEffect(() => {
@@ -320,7 +352,7 @@ export default function MarkdownEditor({ value = '', onChange, apiRef, onUploadI
           editorTheme,
           placeholder('支持 Markdown 语法'),
           keymap.of(editorKeyBindings),
-          keymap.of(indentWithTab),
+          keymap.of([indentWithTab]),
           keymap.of(historyKeymap),
           keymap.of(defaultKeymap),
           EditorView.domEventHandlers({
