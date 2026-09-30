@@ -8,13 +8,13 @@
 
 | Tab | 组件 | 说明 |
 |---|---|---|
-| 系统 | `System.jsx` | CPU / 内存 / 磁盘 / 网络实时与历史趋势 |
-| 应用 | `Apps.jsx` | 服务器应用面板：按分类的卡片网格、SVG 图标（`AppIcon.jsx`，缺省回退首字）、状态点（正常/需登录/响应慢/异常/休眠/未知）、30s 自动刷新（只读，接口 `/api/admin/apps`） |
-| 版本 | `VersionPanel.jsx` | 软件版本 |
-| 博客 | `BlogAdmin.jsx` | 文章 / 合集管理（接口走 `/api/blog/admin/*`） |
-| 管理 | `Manage.jsx` | 服务状态、API Token、TOTP 重置 |
-| 终端 | `Terminal.jsx` | 浏览器内连服务器终端（ttyd + tmux，多标签、口令二次验证） |
-| 文件 | `Files.jsx` | 资源管理器式文件区：目录导航 / 拖拽上传（进度条）/ 新建 / 重命名 / 删除 / 下载 |
+| 系统 | `System.tsx` | CPU / 内存 / 磁盘 / 网络实时与历史趋势 |
+| 应用 | `Apps.tsx` | 服务器应用面板：按分类的卡片网格、SVG 图标（`AppIcon.tsx`，缺省回退首字）、状态点（正常/需登录/响应慢/异常/休眠/未知）、30s 自动刷新（只读，接口 `/api/admin/apps`） |
+| 版本 | `VersionPanel.tsx` | 软件版本 |
+| 博客 | `BlogAdmin.tsx` | 文章 / 合集管理（接口走 `/api/blog/admin/*`） |
+| 管理 | `Manage.tsx` | 服务状态、API Token、TOTP 重置 |
+| 终端 | `Terminal.tsx` | 浏览器内连服务器终端（ttyd + tmux，多标签、口令二次验证） |
+| 文件 | `Files.tsx` | 资源管理器式文件区：目录导航 / 拖拽上传（进度条）/ 新建 / 重命名 / 删除 / 下载 |
 
 后端是 `../admin-server`，博客数据在 `../blog/server`。
 
@@ -22,8 +22,8 @@
 
 | 项 | 值 |
 |---|---|
-| 框架 | React 18 + Vite 5（**JSX，不是 TS**） |
-| 编辑器 | CodeMirror 6（`MarkdownEditor.jsx`，博客正文） |
+| 框架 | React 18 + Vite 5 + TypeScript（`strict`，校验用 `npm run typecheck`） |
+| 编辑器 | CodeMirror 6（`MarkdownEditor.tsx`，博客正文） |
 | Markdown | `marked` + `dompurify` |
 | 其他 | `qrcode`（TOTP 绑定二维码） |
 | 样式 | 手写 CSS（`src/styles.css`） |
@@ -34,18 +34,18 @@
 
 ```
 src/
-├── App.jsx / main.jsx      # 启动探测认证模式 + 身份 + 路由
-├── api.js                  # REST 封装、认证模式探测、全局 401（唯一鉴权入口）
-├── theme.js                # 深浅色，localStorage('admin_theme')
+├── App.tsx / main.tsx      # 启动探测认证模式 + 身份 + 路由
+├── api.ts                  # REST 封装、认证模式探测、全局 401（唯一鉴权入口）
+├── theme.ts                # 深浅色，localStorage('admin_theme')
 ├── styles.css              # 设计令牌 + 全站样式
 └── components/
-    ├── Main.jsx / CommandPalette.jsx
-    ├── System.jsx / Manage.jsx / VersionPanel.jsx
-    ├── BlogAdmin.jsx / MarkdownEditor.jsx / ResetTotp.jsx
-    ├── Apps.jsx / AppIcon.jsx  # 应用 Tab（卡片网格 + 内联 SVG 图标集）
-    ├── LoginPage.jsx       # 自带账号登录页（builtin 模式，TOTP 动态码）
-    ├── Terminal.jsx        # 终端 Tab（ttyd iframe、多标签、口令门）
-    └── Files.jsx           # 文件 Tab（资源管理器：目录导航/拖拽上传/进度条/增删改）
+    ├── Main.tsx / CommandPalette.tsx
+    ├── System.tsx / Manage.tsx / VersionPanel.tsx
+    ├── BlogAdmin.tsx / MarkdownEditor.tsx / ResetTotp.tsx
+    ├── Apps.tsx / AppIcon.tsx  # 应用 Tab（卡片网格 + 内联 SVG 图标集）
+    ├── LoginPage.tsx       # 自带账号登录页（builtin 模式，TOTP 动态码）
+    ├── Terminal.tsx        # 终端 Tab（ttyd iframe、多标签、口令门）
+    └── Files.tsx           # 文件 Tab（资源管理器：目录导航/拖拽上传/进度条/增删改）
 e2e/                        # Playwright 端到端（独立 package.json）
 test/                       # 单测
 ```
@@ -54,12 +54,12 @@ test/                       # 单测
 
 ```bash
 npm install
-npm run dev      # Vite 开发服务器（接口代理见 vite.config.js）
-npm run build    # 构建（outDir 见 vite.config.js）
+npm run dev      # Vite 开发服务器（接口代理见 vite.config.ts）
+npm run build    # 构建（outDir 见 vite.config.ts）
 npm run preview
 ```
 
-> **构建即部署**：`vite.config.js` 里写死了 `outDir` + `emptyOutDir`，构建会清空该目录。构建完刷新浏览器即可，无进程需重启。
+> **构建即部署**：`vite.config.ts` 里写死了 `outDir` + `emptyOutDir`，构建会清空该目录。构建完刷新浏览器即可，无进程需重启。
 >
 > **验证构建用独立输出目录**，别用 `npm run build`（会覆盖生产目录）：
 > `npx vite build --outDir /tmp/admin-web-verify --emptyOutDir`
@@ -80,17 +80,17 @@ npm run preview
   | `sso` | 关掉自带口令，管理端身份由 `X-Auth-User` 决定——自家项目接 SSO 时走这一档 |
 
 - 关掉后的登录跳转与 401 由你前面的认证层决定，本服务不再展开。
-- 具体实现：`src/api.js` 启动探测后端 `auth-mode` 并按模式分发，`App.jsx` 未登录时渲染 `LoginPage.jsx`（仅 `builtin`）；401 统一走 `api.js` 全局出口，**不要在组件里另写一套鉴权逻辑**。契约细节见 `api.js` 头注释与 `PROJECT_MEMORY.md`。
+- 具体实现：`src/api.ts` 启动探测后端 `auth-mode` 并按模式分发，`App.tsx` 未登录时渲染 `LoginPage.tsx`（仅 `builtin`）；401 统一走 `api.ts` 全局出口，**不要在组件里另写一套鉴权逻辑**。契约细节见 `api.ts` 头注释与 `PROJECT_MEMORY.md`。
 - 侧栏「Hermes」页的 iframe 地址**只能**来自构建时环境变量：
   ```js
   (import.meta.env.VITE_HERMES_DASHBOARD_URL || '').trim() || 'https://hermes.example.com'
   ```
-  见 `src/components/Hermes.jsx`。真实域名只写本地 `.env`，仓库只提交 `.env.example` 的占位项。
+  见 `src/components/Hermes.tsx`。真实域名只写本地 `.env`，仓库只提交 `.env.example` 的占位项。
 - 推送前自检：源码里不得出现真实域名 / 私有 IP / 私有路径（示例一律 `example.com`）；终端 Tab 用同源相对路径 `/term/`，Hermes 地址走 `VITE_HERMES_DASHBOARD_URL`。
 
 ## 公共站点链接（强约束）
 
-- 后台在独立子域，**跳转公共站点（博客前台）的链接/窗口一律走 `siteUrl()`**（`src/siteUrl.js`，全仓唯一拼接入口）：不得写相对路径（如 `/blog/<id>`，在后台子域上会解析到后台自己），也不得写死域名。
+- 后台在独立子域，**跳转公共站点（博客前台）的链接/窗口一律走 `siteUrl()`**（`src/siteUrl.ts`，全仓唯一拼接入口）：不得写相对路径（如 `/blog/<id>`，在后台子域上会解析到后台自己），也不得写死域名。
 - 公共站点基址来自构建期环境变量 `VITE_SITE_URL`（含协议，末尾不带斜杠）；仓库只提交 `.env.example` 占位值 `https://site.example.com`，真实值只写本地 `.env`。
 - 例外：图片/接口等**同源**请求仍用相对路径（`/api/...`），不走 `siteUrl()`。
 - 后端返回的链接（如草稿 `preview-link` 的 `url`）已由后端拼成绝对地址，前端**直接使用，不得再拼一次**。
@@ -103,7 +103,7 @@ npm run preview
 
 ## 应用图标与「休眠」状态（强约束）
 
-- 卡片图标走 `src/components/AppIcon.jsx`：内联 31 个 24×24 单色描边 SVG（key = 登记表 `icon`），`name` 未命中（含历史中文单字、`undefined`）回退成单个文字。颜色一律 `currentColor`（深浅主题通用），**不新增依赖、不引图标库、不用 emoji**；图标表是模块内静态常量，改动须整体照抄、不得"优化"路径与坐标。
+- 卡片图标走 `src/components/AppIcon.tsx`：内联 31 个 24×24 单色描边 SVG（key = 登记表 `icon`），`name` 未命中（含历史中文单字、`undefined`）回退成单个文字。颜色一律 `currentColor`（深浅主题通用），**不新增依赖、不引图标库、不用 emoji**；图标表是模块内静态常量，改动须整体照抄、不得"优化"路径与坐标。
 - 接口 `status: "idle"`（按需唤醒应用当前未运行、探活不通属正常）文案「休眠」，点样式 `.apps-dot--idle`（短横线、`--muted`）；`idle` **不计入**异常。状态点 class 沿用 `apps-dot apps-dot--${status}`，不为 idle 单开分支。
 
 ## 设计系统（硬性，与 homepage / quotahub / v2link 同一套）
@@ -118,13 +118,13 @@ npm run preview
 
 ## 已知坑
 
-- **`Terminal.jsx` 的细节不能想当然**：
+- **`Terminal.tsx` 的细节不能想当然**：
   - ttyd 参数是 `--url-arg`：第 1 个 arg = 会话名（`term-*` 白名单 `^term-[a-z0-9][a-z0-9-]{0,31}$`），第 2 个 arg = 口令票据。
   - 关窗必须断连：`pagehide/beforeunload` 用 `navigator.sendBeacon`（同源请求自带会话 cookie，不再在 query 里挂 token；sendBeacon 不能带自定义头），并用 `performance.getEntriesByType('navigation')[0].type === 'reload'` 区分 F5（刷新要保留会话）。
   - 存活点轮询 6s，iframe `onLoad` 后 0.8s 校正一次，别再把间隔调大（曾 20s 被用户投诉「变绿太慢」）。
-- **「浏览」Tab 已删除**（2026-09-14，用户不用历史会话浏览）：连同 `Browse.jsx`、`fileRefs.js`、`imageRefs.js`、`mediaTags.js` 一并移除。若将来要恢复历史浏览，从 git 历史取回即可；后端 `/api/admin/history` 接口**保留未删**。
+- **「浏览」Tab 已删除**（2026-09-14，用户不用历史会话浏览）：连同 `Browse.tsx`、`fileRefs.ts`、`imageRefs.ts`、`mediaTags.ts` 一并移除。若将来要恢复历史浏览，从 git 历史取回即可；后端 `/api/admin/history` 接口**保留未删**。
 - **默认 Tab 是「系统」**：`sessionStorage.admin_tab` 读出的值必须在 `TABS` 白名单内，否则回退 `system`——直接写 `|| 'browse'` 那种回退会白屏。
-- 这是 **JSX 项目**，不要用 `node --check` 做语法校验（会报错），用 `vite build` 或 eslint。
+- 这是 **TypeScript 项目**（`.ts`/`.tsx` + `strict`）：类型/语法校验用 `npm run typecheck`（`tsc --noEmit`）或 `vite build`；不要用 `node --check`（不认 TS 语法）。
 - 博客后台的文章/合集标识已切到**雪花 ID（`public_id`）**：表单不再手填 slug，只读展示「合集 ID」；改动链接逻辑时前后端（`blog-server`）要一起改。
 - `e2e/` 有独立的 `package.json`（Playwright），根目录 `npm install` 不会装它。
 
