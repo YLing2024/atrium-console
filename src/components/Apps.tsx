@@ -1,23 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getApps } from '../api';
 import type { AppCategory, AppInfo, AppsResponse } from '../api';
+import { STATUS_LABEL, statusOf } from '../appStatus';
 import AppIcon from './AppIcon';
 
-// 状态词（接口 status → 展示文案，白名单内）
-const STATUS_LABEL: Record<string, string> = {
-  up: '正常',
-  auth: '需登录',
-  degraded: '响应慢',
-  down: '异常',
-  idle: '休眠',
-  unknown: '未知'
-};
-
 const REFRESH_MS = 30000; // 自动刷新间隔
-
-function statusOf(app: AppInfo): string {
-  return STATUS_LABEL[app.status] ? app.status : 'unknown';
-}
 
 // 单张卡片：有 url 才可点、新窗口打开；url 一律用接口返回值，前端不拼域名
 function AppCard({ app }: { app: AppInfo }) {

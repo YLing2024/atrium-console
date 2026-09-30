@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { getSystemMetrics } from '../api';
 import type { CoreUsage, DiskInfo, HistoryPoint, PsiInfo, ServiceInfo, SystemData } from '../api';
+import { clampOffset, fmtBytes, fmtDuration, fmtMB, fmtPct, fmtRate, niceMax, toneFor } from '../format';
 
 /** 系统 SSE snapshot 帧结构 */
 interface SystemSnapshot {
@@ -30,54 +31,12 @@ interface ChartSeries {
   format?: (v: number | null | undefined) => string;
 }
 
-function fmtBytes(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(Number(n))) return '—';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let v = Number(n);
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return v.toFixed(1) + ' ' + units[i];
-}
-
-function fmtMB(mb: number | null | undefined): string {
-  if (mb == null || !Number.isFinite(Number(mb))) return '—';
-  const v = Number(mb);
-  return (Number.isInteger(v) ? v : v.toFixed(1)) + ' MB';
-}
-
-function fmtRate(bps: number | null | undefined): string {
-  if (bps == null || !isFinite(bps)) return '—';
-  return fmtBytes(bps) + '/s';
-}
-
-function fmtDuration(s: number | string | null | undefined): string {
-  if (s == null || !Number.isFinite(Number(s))) return '—';
-  s = Math.floor(Number(s));
-  const d = Math.floor(s / 86400);
-  const h = Math.floor((s % 86400) / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const parts = [];
-  if (d) parts.push(d + ' 天');
-  if (h) parts.push(h + ' 小时');
-  if (m) parts.push(m + ' 分钟');
-  return parts.join(' ') || '刚刚';
-}
-
 function fmtTime(ts: number): string {
   const t = new Date(ts);
   const hh = String(t.getHours()).padStart(2, '0');
   const mm = String(t.getMinutes()).padStart(2, '0');
   const ss = String(t.getSeconds()).padStart(2, '0');
   return `${hh}:${mm}:${ss}`;
-}
-
-// 占用率 → 颜色分级：>80% 红、60-80% 橙、<60% 绿（Bar 与每核小条共用）
-function toneFor(percent: number | null | undefined): string {
-  const p = Math.max(0, Math.min(100, Number(percent) || 0));
-  return p > 80 ? 'hi' : p >= 60 ? 'mid' : 'low';
 }
 
 // 进度条（CPU / 内存 / 磁盘共用）。动态变色规则见 toneFor
@@ -151,12 +110,6 @@ function Row({ k, v }: { k: ReactNode; v: ReactNode }) {
   );
 }
 
-// 百分比小数的展示：有限数保留一位小数，null/非法显示 —
-function fmtPct(v: number | string | null | undefined): string {
-  const n = Number(v);
-  return Number.isFinite(n) ? n.toFixed(1) : '—';
-}
-
 // PSI 行：k=资源名，o=/proc/pressure 解析结果（{ some:{avg10,..}, full:{..} } 或 null）。
 // 显示 some/full 的 avg10；无 PSI 时显示 —。压力越大颜色越警示（some≥50 红、≥30 橙）
 function PsiRow({ k, o }: { k: string; o?: PsiInfo | null }) {
@@ -172,15 +125,6 @@ function PsiRow({ k, o }: { k: string; o?: PsiInfo | null }) {
   );
 }
 
-// 向上取整到友好刻度（1/2/5×10^n），用于速率类 Y 轴
-function niceMax(v: number): number {
-  if (v <= 0) return 1;
-  const pow = Math.pow(10, Math.floor(Math.log10(v)));
-  const n = v / pow;
-  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10;
-  return nice * pow;
-}
-
 const CHART_W = 640;
 const CHART_H = 200;
 const PAD = { l: 46, r: 12, t: 12, b: 24 };
@@ -191,10 +135,6 @@ const WINDOW_WIDE = 60;
 
 // 各档位 / 各图表的平移位置记忆（内存即可）：切走再切回时恢复上次位置，不回弹
 const chartViewMemory = new Map<string, { offset: number; follow: boolean }>();
-
-function clampOffset(o: number, len: number, win: number): number {
-  return Math.min(Math.max(0, o), Math.max(0, len - win));
-}
 
 // X 轴时间刻度格式化：分钟 HH:mm、小时 MM-DD HH:00、天 MM-DD、秒 HH:mm:ss（秒档不变）
 function formatTick(ts: number, granularity: string): string {

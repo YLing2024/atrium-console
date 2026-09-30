@@ -129,6 +129,7 @@ export default function NotificationCenter({
   async function refreshUnread() {
     try {
       const d = await getNotifications({ limit: 1 });
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
       onUnreadChangeRef.current && onUnreadChangeRef.current(d.unread);
       addSources(d.items);
     } catch (e) {
@@ -153,6 +154,7 @@ export default function NotificationCenter({
       const list = Array.isArray(d.items) ? d.items : [];
       setItems((prev) => (reset ? list : prev.concat(list)));
       setHasMore(list.length === PAGE);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
       onUnreadChangeRef.current && onUnreadChangeRef.current(d.unread);
       addSources(list);
     } catch (e) {
@@ -204,6 +206,7 @@ export default function NotificationCenter({
       n.onclick = () => {
         window.focus();
         if (n.close) n.close();
+        // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
         onOpenRef.current && onOpenRef.current();
         if (item.link) openLink(item.link);
         else setHighlightId(item.id);

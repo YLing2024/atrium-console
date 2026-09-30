@@ -55,9 +55,14 @@ test/                       # 单测
 ```bash
 npm install
 npm run dev      # Vite 开发服务器（接口代理见 vite.config.ts）
-npm run build    # 构建（outDir 见 vite.config.ts）
+npm run build    # 构建（outDir 见 vite.config.ts；默认写生产目录，可用 BUILD_OUT_DIR 覆盖）
 npm run preview
+npm run check    # typecheck + lint + lint:css + check:tokens + test（改完代码先跑这个）
 ```
+
+工程化基线（2026-09-30 落地）：ESLint（typescript-eslint + react-hooks，只正确性规则）、Stylelint（只正确性规则）、
+`node:test` 单测（24 例，纯函数）、设计令牌一致性校验 `scripts/check-tokens.mjs`（6 个核心令牌 × 深浅两套，与 homepage 同一份基准表）。
+纯函数已从组件抽到 `src/{appIcons,appStatus,format}.ts` 以便测试（搬移式，字符串字面量零变化）。
 
 > **构建即部署**：`vite.config.ts` 里写死了 `outDir` + `emptyOutDir`，构建会清空该目录。构建完刷新浏览器即可，无进程需重启。
 >

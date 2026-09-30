@@ -123,6 +123,7 @@ export default function NotificationManage({
   function handleRepull() {
     setRepulled(true);
     refreshStats();
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
     onChangedRef.current && onChangedRef.current();
   }
 
@@ -168,6 +169,7 @@ export default function NotificationManage({
       await bulkDeleteNotifications(f);
       setNotice(`已删除 ${count} 条通知`);
       refreshStats();
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
       onChangedRef.current && onChangedRef.current();
     } catch (e) {
       setError((e as Error).message || '批量删除失败');
@@ -195,6 +197,7 @@ export default function NotificationManage({
       await bulkDeleteNotifications({ readOnly: true });
       setNotice(`已清空 ${count} 条已读通知`);
       refreshStats();
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
       onChangedRef.current && onChangedRef.current();
     } catch (e) {
       setError((e as Error).message || '清空已读失败');

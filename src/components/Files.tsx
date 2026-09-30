@@ -17,6 +17,7 @@ import {
   uploadFileTo
 } from '../api';
 import type { FileEntry } from '../api';
+import { extOf, fmtSize } from '../format';
 import { ShareCreateModal, ShareManageModal } from './FileShare';
 
 /**
@@ -62,19 +63,6 @@ interface DialogState {
   isDir?: boolean;
 }
 
-function fmtSize(n: number | null | undefined): string {
-  if (n === null || n === undefined) return '—';
-  if (n < 1024) return `${n} B`;
-  const units = ['KB', 'MB', 'GB', 'TB'];
-  let v = n / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i += 1;
-  }
-  return `${v >= 100 ? v.toFixed(0) : v.toFixed(1)} ${units[i]}`;
-}
-
 function fmtTime(ms: number | null | undefined): string {
   if (!ms) return '—';
   const d = new Date(ms);
@@ -100,12 +88,6 @@ function uploadMeta(u: UploadItem): string {
   if (u.speed) parts.push(`${fmtSize(u.speed)}/s`);
   if (u.eta) parts.push(`剩余 ${fmtDuration(u.eta)}`);
   return parts.join(' · ');
-}
-
-function extOf(name: string): string {
-  const i = name.lastIndexOf('.');
-  if (i <= 0 || i === name.length - 1) return '';
-  return name.slice(i + 1).toUpperCase().slice(0, 5);
 }
 
 // 递归读取拖入的目录条目（DataTransfer 的 webkitGetAsEntry）

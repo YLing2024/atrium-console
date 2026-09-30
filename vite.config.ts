@@ -14,7 +14,8 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '/var/www/admin',
+    // 默认仍写生产目录（与历史行为一致）；CI 等场景用 BUILD_OUT_DIR 覆盖，避免误写生产
+    outDir: process.env.BUILD_OUT_DIR || '/var/www/admin',
     emptyOutDir: true
   }
 });

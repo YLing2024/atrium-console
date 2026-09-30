@@ -23,8 +23,9 @@
 ```bash
 npm install
 npm run dev      # Vite 开发服务器（/api 代理到 127.0.0.1:3100）
-npm run build    # 构建，产物写入 vite.config.js 的 build.outDir
+npm run build    # 构建，产物写入 vite.config.ts 的 build.outDir（默认生产目录，可用 BUILD_OUT_DIR 覆盖）
 npm run preview
+npm run check    # typecheck + lint + lint:css + check:tokens + test
 ```
 
 `e2e/` 有独立的 `package.json`（Playwright），根目录 `npm install` 不会安装它。
