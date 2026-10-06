@@ -1,3 +1,5 @@
+[简体中文](README.md) ｜ [English](README.en.md)
+
 # atrium-console
 
 个人网站的管理后台前端：在浏览器里查看服务器、管理文件与博客、连接终端。
@@ -44,14 +46,14 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test
 
 ## 部署
 
-- 构建产物是纯静态文件（目录由 `vite.config.js` 的 `build.outDir` 指定，当前为 `/var/www/admin`；`emptyOutDir: true` 会在构建时清空该目录），交给自己的 Web 服务器托管，无 Node 进程常驻。
+- 构建产物是纯静态文件（目录由 `vite.config.ts` 的 `build.outDir` 指定，当前为 `/var/www/admin`；`emptyOutDir: true` 会在构建时清空该目录），交给自己的 Web 服务器托管，无 Node 进程常驻。
 - 同源接口 `/api/*` 反代到后端；终端 `/term/` 反代到 ttyd；文件临时链接是后端返回的公开地址（同源 `/s/` 前缀，不加鉴权），由 Web 服务器直接放行。
 - 环境变量在构建期注入，改动后需重新构建。
 - `vite.config.ts` 的 `build.rollupOptions.input` 是**多入口**：`index.html`（后台）与 `public.html`（公开「应用中心」，入口 `src/publicApps.tsx`，独立子域根用它）。公开页**只请求 `/api/public/apps`**（不碰 `/api/admin/*`、无鉴权逻辑），复用 `src/components/AppCard.tsx`（后台 `Apps.tsx` 同一组件，不得改动其类名与渲染结构）。
 
 ## 认证与安全
 
-前端身份由同源会话 cookie 证明，不读写 localStorage token；`src/api.js` 是唯一鉴权入口，业务组件不另写一套鉴权逻辑。
+前端身份由同源会话 cookie 证明，不读写 localStorage token；`src/api.ts` 是唯一鉴权入口，业务组件不另写一套鉴权逻辑。
 
 启动时探测 `GET /api/admin/auth-mode` 并缓存，按模式分流；探测失败（网络错误 / 非 JSON / 旧后端 404）一律按 `sso`，不回退 `builtin`。
 
