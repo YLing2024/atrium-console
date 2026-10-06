@@ -4718,6 +4718,13 @@ span.notif-desktop {
   text-align: center;
 }
 
+/* 公开「应用中心」顶部的更新时间 */
+.apps-updated {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
 .apps-group {
   margin-bottom: 24px;
 }
