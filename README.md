@@ -8,6 +8,7 @@
 
 - **系统**：CPU / 内存 / 磁盘 / 网络的实时读数与历史趋势；实时走流式采样，趋势可按秒 / 分 / 时 / 天切换粒度
 - **应用**：按分类的只读卡片网格，内联单色 SVG 图标（未命中回退首字）；状态分正常 / 需登录 / 响应慢 / 异常 / 休眠 / 未知，其中「休眠」表示按需唤醒的应用当前未运行，不计入异常；进入后每 30s 自动刷新，页面隐藏时暂停
+- **公开应用中心**：第二个构建入口 `public.html`（`src/publicApps.tsx` → `src/components/PublicApps.tsx`），完全公开、不需要登录：只有标题「应用中心」+ 按分类的卡片网格 + 顶部更新时间，30s 自动刷新；只请求 `/api/public/apps`（同源相对路径），复用 `AppCard` / `AppIcon` / `appStatus`，无登录页 / 侧栏 / 管理入口
 - **版本**：软件版本列表，进入该页时加载一次
 - **博客**：文章与合集管理，走 `/api/blog/admin/*`；正文用 CodeMirror 6 编辑，文章 / 合集以雪花 `public_id` 标识，副标题（`subtitle`）与摘要（`excerpt`）是相互独立的字段
 - **管理**：登录设备会话、接口令牌（明文仅在生成时展示一次）、重置验证器
@@ -46,6 +47,7 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test
 - 构建产物是纯静态文件（目录由 `vite.config.js` 的 `build.outDir` 指定，当前为 `/var/www/admin`；`emptyOutDir: true` 会在构建时清空该目录），交给自己的 Web 服务器托管，无 Node 进程常驻。
 - 同源接口 `/api/*` 反代到后端；终端 `/term/` 反代到 ttyd；文件临时链接是后端返回的公开地址（同源 `/s/` 前缀，不加鉴权），由 Web 服务器直接放行。
 - 环境变量在构建期注入，改动后需重新构建。
+- `vite.config.ts` 的 `build.rollupOptions.input` 是**多入口**：`index.html`（后台）与 `public.html`（公开「应用中心」，入口 `src/publicApps.tsx`，独立子域根用它）。公开页**只请求 `/api/public/apps`**（不碰 `/api/admin/*`、无鉴权逻辑），复用 `src/components/AppCard.tsx`（后台 `Apps.tsx` 同一组件，不得改动其类名与渲染结构）。
 
 ## 认证与安全
 

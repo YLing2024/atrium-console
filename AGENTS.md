@@ -34,7 +34,8 @@
 
 ```
 src/
-├── App.tsx / main.tsx      # 启动探测认证模式 + 身份 + 路由
+├── App.tsx / main.tsx      # 后台入口：启动探测认证模式 + 身份 + 路由
+├── publicApps.tsx          # 公开「应用中心」入口（对应根目录 public.html，多入口之一）
 ├── api.ts                  # REST 封装、认证模式探测、全局 401（唯一鉴权入口）
 ├── theme.ts                # 深浅色，localStorage('admin_theme')
 ├── styles.css              # 设计令牌 + 全站样式
@@ -43,6 +44,7 @@ src/
     ├── System.tsx / Manage.tsx / VersionPanel.tsx
     ├── BlogAdmin.tsx / MarkdownEditor.tsx / ResetTotp.tsx
     ├── Apps.tsx / AppIcon.tsx  # 应用 Tab（卡片网格 + 内联 SVG 图标集）
+    ├── AppCard.tsx / PublicApps.tsx  # 共用应用卡片 / 公开只读「应用中心」页
     ├── LoginPage.tsx       # 自带账号登录页（builtin 模式，TOTP 动态码）
     ├── Terminal.tsx        # 终端 Tab（ttyd iframe、多标签、口令门）
     └── Files.tsx           # 文件 Tab（资源管理器：目录导航/拖拽上传/进度条/增删改）
@@ -110,6 +112,13 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test（改完代
 
 - 卡片图标走 `src/components/AppIcon.tsx`：内联 31 个 24×24 单色描边 SVG（key = 登记表 `icon`），`name` 未命中（含历史中文单字、`undefined`）回退成单个文字。颜色一律 `currentColor`（深浅主题通用），**不新增依赖、不引图标库、不用 emoji**；图标表是模块内静态常量，改动须整体照抄、不得"优化"路径与坐标。
 - 接口 `status: "idle"`（按需唤醒应用当前未运行、探活不通属正常）文案「休眠」，点样式 `.apps-dot--idle`（短横线、`--muted`）；`idle` **不计入**异常。状态点 class 沿用 `apps-dot apps-dot--${status}`，不为 idle 单开分支。
+
+## 公开「应用中心」页（强约束）
+
+- 独立入口 `public.html` → `src/publicApps.tsx` → `src/components/PublicApps.tsx`；Vite 多入口（`build.rollupOptions.input` 同时含 `index.html` 与 `public.html`），后台 `index.html` 入口不变。
+- 页面完全公开、不需要登录：无登录页 / 侧栏 / 其它 Tab / 管理入口；**只请求 `/api/public/apps`**（同源相对路径，不拼域名、不走 `api.ts` 的鉴权探测与 401 跳转）。
+- 卡片复用 `AppCard.tsx`（与后台同一组件，不得改动其类名与渲染结构），按 `categories` 分组、30s 自动刷新；有 `url` 才可点，新窗口 `target="_blank" rel="noopener noreferrer"`。
+- 不引入新依赖、禁 emoji、UI 不写技术说明性文案。
 
 ## 设计系统（硬性，与 homepage / quotahub / v2link 同一套）
 
