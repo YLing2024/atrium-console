@@ -26,7 +26,7 @@
 | 编辑器 | CodeMirror 6（`MarkdownEditor.tsx`，博客正文） |
 | Markdown | `marked` + `dompurify` |
 | 其他 | `qrcode`（TOTP 绑定二维码） |
-| 样式 | 手写 CSS（`src/styles.css`） |
+| 样式 | 手写 CSS（入口 `src/styles.css` 只 `@import`，分区在 `src/styles/`） |
 | 字体 | `src/fonts/` 自托管 Inter / Inter Tight / JetBrains Mono |
 | 运行时 | Node 24 / npm 11 |
 
@@ -38,7 +38,8 @@ src/
 ├── publicApps.tsx          # 公开「应用中心」入口（对应根目录 public.html，多入口之一）
 ├── api.ts                  # REST 封装、认证模式探测、全局 401（唯一鉴权入口）
 ├── theme.ts                # 深浅色，localStorage('admin_theme')
-├── styles.css              # 设计令牌 + 全站样式
+├── styles.css              # 样式唯一入口：仅按顺序 @import ./styles/*.css
+├── styles/                 # 按既有分区注释拆分的 partial（顺序即层叠，勿重排）
 └── components/
     ├── Main.tsx / CommandPalette.tsx
     ├── System.tsx / Manage.tsx / VersionPanel.tsx
