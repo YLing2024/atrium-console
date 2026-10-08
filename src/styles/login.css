@@ -1,0 +1,83 @@
+/* ============ 登录页 ============ */
+.login-wrap {
+  height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.login-logo {
+  font-family: var(--font-sans);
+  font-size: 38px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  padding-top: 16px;
+  border-top: 1px solid var(--ink);
+}
+
+.login-sub {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  margin-top: -8px;
+}
+
+.login-card .input {
+  margin-top: 6px;
+}
+
+.login-hint {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: -4px;
+}
+
+.totp-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.totp-label {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  margin-top: 8px;
+}
+
+.totp-secret,
+.totp-uri {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--fg);
+  font-size: 13px;
+  text-align: left;
+  word-break: break-all;
+  cursor: pointer;
+  transition: border-color 0.14s var(--ease);
+}
+
+.totp-secret {
+  letter-spacing: 0.12em;
+  font-family: var(--font-mono);
+}
+
+.totp-secret:hover,
+.totp-uri:hover {
+  border-color: var(--accent);
+}
+

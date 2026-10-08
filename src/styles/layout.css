@@ -1,0 +1,251 @@
+/* ============ 布局 ============ */
+.app {
+  display: flex;
+  flex-direction: row;
+  height: 100dvh;
+}
+
+/* ---------- 侧栏导航（桌面左侧固定；窄屏右侧抽屉见文末媒体查询） ---------- */
+.sidenav {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 200px;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+  border-right: 1px solid var(--line-soft);
+}
+
+/* 复用既有品牌标记（.brand + .dot），仅调整侧栏内的内边距 */
+.sidenav-brand {
+  flex-shrink: 0;
+  height: 56px;
+  padding: 0 20px;
+  color: var(--fg);
+}
+
+.sidenav-list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+}
+
+.sidenav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 20px 10px 22px;
+  text-align: left;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+}
+
+.sidenav-item-label {
+  flex: 1;
+  text-align: left;
+}
+
+/* 未读数字徽标（未读 0 时不渲染） */
+.sidenav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+}
+
+.sidenav-item:hover {
+  color: var(--fg);
+}
+
+/* 当前项：左侧琥珀短竖线 + 文字转 fg */
+.sidenav-item.active {
+  color: var(--fg);
+}
+
+.sidenav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 16px;
+  background: var(--accent);
+}
+
+/* 主列：顶栏 + 内容区，占满侧栏之外的全部宽度 */
+.main-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+/* 窄屏菜单按钮与遮罩：桌面端隐藏 */
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+
+.nav-toggle svg {
+  display: block;
+}
+
+.nav-toggle svg line {
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.sidenav-backdrop {
+  display: none;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 24px;
+  height: 56px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line-soft);
+  flex-shrink: 0;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  transform: rotate(45deg);
+  flex-shrink: 0;
+}
+
+/* ---------- Tabs: hairline amber rule on active ---------- */
+.tabs {
+  display: flex;
+  gap: 28px;
+  margin-left: 8px;
+}
+
+.topbar .tabs {
+  align-self: stretch;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 2px;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  transition: color 0.14s var(--ease);
+}
+
+.tab:hover {
+  color: var(--fg);
+}
+
+/* 顶栏主 Tab：active 态在容器底缘画 amber 细线 */
+.topbar .tab {
+  position: relative;
+  align-self: stretch;
+}
+
+.topbar .tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: transparent;
+  transition: background-color 0.14s var(--ease);
+}
+
+.topbar .tab.active::after {
+  background: var(--accent);
+}
+
+/* 博客子 Tab：按钮自身底缘细线（紧凑布局） */
+.blog-view-tabs .tab {
+  padding: 0 0 4px;
+  border-bottom: 2px solid transparent;
+}
+
+.blog-view-tabs .tab.active {
+  border-bottom-color: var(--accent);
+}
+
+.tab.active {
+  color: var(--fg);
+}
+
+.logout {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  padding: 6px 8px;
+  transition: color 0.14s var(--ease);
+}
+
+.logout:hover {
+  color: var(--danger);
+}
+
+.link-btn {
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 6px 8px;
+  white-space: nowrap;
+  transition: color 0.14s var(--ease);
+}
+
+.link-btn:hover {
+  color: var(--accent-ink);
+}
+
+.link-btn.danger:hover {
+  color: var(--danger);
+}
+

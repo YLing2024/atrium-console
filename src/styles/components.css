@@ -1,0 +1,454 @@
+/* ============ 顶栏用户菜单 ============ */
+.user-menu {
+  margin-left: auto;
+  position: relative;
+}
+
+.user-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  transition: color 0.14s var(--ease);
+}
+
+.user-menu-btn:hover {
+  color: var(--accent);
+}
+
+.caret {
+  color: var(--faint);
+  font-size: 10px;
+}
+
+.user-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 176px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--line-soft), 0 8px 24px rgba(23, 21, 18, 0.06);
+  border-radius: 0;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+}
+
+.dropdown-item {
+  padding: 9px 14px;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+  transition: color 0.14s var(--ease), background 0.14s var(--ease);
+}
+
+.dropdown-item:hover {
+  background: var(--line-soft);
+  color: var(--fg);
+}
+
+.dropdown-item.danger:hover {
+  color: var(--danger);
+}
+
+/* ============ 修改密码弹窗 ============ */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 21, 18, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+
+.modal {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--line-soft), 0 12px 32px rgba(23, 21, 18, 0.08);
+  border-radius: 0;
+  padding: 28px 26px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.btn-ghost {
+  padding: 9px 16px;
+  border-radius: 0;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  background: transparent;
+  transition: color 0.14s var(--ease), border-color 0.14s var(--ease),
+    background-color 0.14s var(--ease);
+}
+
+.btn-ghost:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--fg);
+  color: var(--bg);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  padding: 9px 16px;
+  border-radius: 0;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============ Ctrl+K 命令面板 ============ */
+.cmd-mask {
+  align-items: flex-start;
+  padding-top: 14vh;
+}
+
+.cmd-palette {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 14px;
+}
+
+.cmd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 12px;
+}
+
+.cmd-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cmd-kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 2px 8px;
+  background: var(--surface-2);
+}
+
+.cmd-list {
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.cmd-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  text-align: left;
+  transition: color 0.14s var(--ease), background 0.14s var(--ease);
+}
+
+.cmd-item:hover {
+  color: var(--fg);
+}
+
+.cmd-item.selected {
+  background: var(--line-soft);
+  color: var(--fg);
+}
+
+.cmd-item.selected .cmd-label {
+  color: var(--accent-ink);
+}
+
+.cmd-hint {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--faint);
+  opacity: 1;
+  flex-shrink: 0;
+}
+
+.cmd-foot {
+  padding: 10px 4px 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+.toast {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ok);
+  padding: 9px 18px;
+  border-radius: 0;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  z-index: 60;
+}
+
+.content {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 常驻挂载的 tab 面板：切 tab 只切换显隐，不卸载组件 */
+.pane {
+  height: 100%;
+}
+
+.pane[hidden] {
+  display: none;
+}
+
+/* ============ 内嵌 Web 终端（ttyd /term/ 反代，多标签） ============ */
+.pane--term {
+  padding: 0;
+  overflow: hidden;
+}
+
+.term {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* 标签条：像浏览器标签页——左到右依次排列、可横向滚动、右侧重连 */
+.term-tabs {
+  display: flex;
+  align-items: stretch;
+  height: 34px;
+  border-bottom: 1px solid var(--line-soft);
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+}
+
+.term-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px 0 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  border-right: 1px solid var(--line-soft);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.term-tab:hover {
+  color: var(--fg);
+}
+
+.term-tab.active {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+
+.term-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+}
+
+.term-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--ok);
+  flex-shrink: 0;
+}
+
+.term-dot.off {
+  background: var(--faint);
+}
+
+.term-x {
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--faint);
+}
+
+.term-x:hover {
+  color: var(--danger);
+}
+
+.term-add,
+.term-lock,
+.term-reconnect {
+  padding: 0 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  border-right: 1px solid var(--line-soft);
+  flex-shrink: 0;
+}
+
+.term-add:hover,
+.term-lock:hover,
+.term-reconnect:hover {
+  color: var(--fg);
+}
+
+.term-reconnect {
+  margin-left: auto;
+  border-right: 0;
+  border-left: 1px solid var(--line-soft);
+}
+
+.term-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.term-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #13110f; /* 终端底色，消除加载瞬间的白闪 */
+}
+
+/* 二次验证门：极简一栏，输入口令后进入终端 */
+.term-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+}
+
+.term-gate-form {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.term-gate-input {
+  width: 200px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 0;
+  outline: none;
+}
+
+.term-gate-input:focus {
+  border-color: var(--accent);
+}
+
+.term-gate-btn {
+  padding: 8px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  border: 1px solid var(--line);
+}
+
+.term-gate-btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.term-gate-btn:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.term-gate-err {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--danger);
+}
+

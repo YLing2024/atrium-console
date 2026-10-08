@@ -1,0 +1,114 @@
+/* ==========================================================================
+   Swiss International Typographic Style · Admin Design System v2
+   — mirrors homepage design system v2 (warm paper / ink / restrained amber)
+   — 8pt grid · translucent hairlines · square corners · no gradients
+   — neutrals ~90% · single amber accent used in the gaps only
+   ========================================================================== */
+
+/* ---------- Design tokens ---------- */
+:root {
+  /* Warm paper / ink neutrals — slightly warmer than before, off-#fff and
+     off-#000 on purpose. Hairlines are translucent. */
+  --bg: #f7f6f3;
+  --surface: #fbfaf8;
+  --surface-2: #efece6;
+  --bg-soft: #efece6;
+  --fg: #171512;
+  --muted: #6f6a63;
+  --faint: #9b958d;
+  --border: rgba(23, 21, 18, 0.16);
+  --line-soft: rgba(23, 21, 18, 0.1);
+  --ink: #171512;
+  --accent: #a05b0c;
+  --accent-ink: #7c4508;
+  --accent-soft: rgba(160, 91, 12, 0.08);
+  --accent-border: rgba(160, 91, 12, 0.35);
+  --danger: #dc2626;
+  --warn: #d97706;
+  --ok: #15803d;
+
+  /* aliases kept for existing class rules */
+  --text: var(--fg);
+  --text-2: var(--muted);
+  --hairline: var(--line-soft);
+  --bg-2: var(--surface-2);
+
+  /* Type: Inter Tight Variable (chrome / display) · Inter (body) ·
+     JetBrains Mono (labels / numerals). Latin subsets self-hosted in
+     /fonts; CJK content falls back to the system stack. */
+  --font-sans: 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont,
+    'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
+    'Helvetica Neue', Arial, sans-serif;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue',
+    Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular,
+    Menlo, Monaco, Consolas, monospace;
+
+  /* Motion — one curve, ≤150ms for hover, longer only for panels/rows. */
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #13110f;
+    --surface: #191715;
+    --surface-2: #211e1b;
+    --bg-soft: #211e1b;
+    --fg: #efeae3;
+    --muted: #a29b92;
+    --faint: #746e66;
+    --border: rgba(239, 234, 227, 0.16);
+    --line-soft: rgba(239, 234, 227, 0.09);
+    --ink: #efeae3;
+    --accent: #c77c1f;
+    --accent-ink: #d98e35;
+    --accent-soft: rgba(199, 124, 31, 0.12);
+    --accent-border: rgba(199, 124, 31, 0.4);
+    --danger: #f87171;
+    --warn: #fbbf24;
+    --ok: #4ade80;
+  }
+}
+
+/* manual override: force light/dark regardless of system preference */
+html[data-theme='light'] {
+  --bg: #f7f6f3;
+  --surface: #fbfaf8;
+  --surface-2: #efece6;
+  --bg-soft: #efece6;
+  --fg: #171512;
+  --muted: #6f6a63;
+  --faint: #9b958d;
+  --border: rgba(23, 21, 18, 0.16);
+  --line-soft: rgba(23, 21, 18, 0.1);
+  --ink: #171512;
+  --accent: #a05b0c;
+  --accent-ink: #7c4508;
+  --accent-soft: rgba(160, 91, 12, 0.08);
+  --accent-border: rgba(160, 91, 12, 0.35);
+  --danger: #dc2626;
+  --warn: #d97706;
+  --ok: #15803d;
+}
+
+html[data-theme='dark'] {
+  --bg: #13110f;
+  --surface: #191715;
+  --surface-2: #211e1b;
+  --bg-soft: #211e1b;
+  --fg: #efeae3;
+  --muted: #a29b92;
+  --faint: #746e66;
+  --border: rgba(239, 234, 227, 0.16);
+  --line-soft: rgba(239, 234, 227, 0.09);
+  --ink: #efeae3;
+  --accent: #c77c1f;
+  --accent-ink: #d98e35;
+  --accent-soft: rgba(199, 124, 31, 0.12);
+  --accent-border: rgba(199, 124, 31, 0.4);
+  --danger: #f87171;
+  --warn: #fbbf24;
+  --ok: #4ade80;
+}
+

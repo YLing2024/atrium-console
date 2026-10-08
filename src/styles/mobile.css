@@ -1,0 +1,132 @@
+/* ============ 移动端 ============ */
+.mobile-bar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  .tabs {
+    margin-left: 0;
+    gap: 16px;
+  }
+
+  .topbar .tab::after {
+    bottom: -1px;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 78vw;
+    max-width: 300px;
+    height: 100%;
+    z-index: 110;
+    border-right: 1px solid var(--border);
+    border-top: none;
+    transform: translateX(-105%);
+    transition: transform 0.24s var(--ease);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-mask {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(23, 21, 18, 0.5);
+    z-index: 105;
+  }
+
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--bg-soft);
+    flex-shrink: 0;
+  }
+
+  .mobile-bar .hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 0;
+    color: var(--fg);
+    font-size: 17px;
+    line-height: 1;
+    background: transparent;
+    border: 1px solid var(--border);
+  }
+
+  .mobile-bar .mobile-title {
+    flex: 1;
+    min-width: 0;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bubble {
+    max-width: 88%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .msg-actions {
+    position: static;
+    order: -1;
+    align-self: flex-end;
+    margin-bottom: 6px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .system {
+    padding: 16px;
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .service-card.down .service-dot {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* 软件版本列表 */
+.version-list { display: flex; flex-direction: column; }
+.version-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 2px; border-bottom: 1px solid var(--border);
+  font-family: var(--font-sans); font-size: 13px;
+}
+.version-row:last-child { border-bottom: none; }
+.version-name { min-width: 90px; font-family: var(--font-sans); font-weight: 500; }
+.version-cat {
+  font-family: var(--font-sans); font-size: 10px; font-weight: 500;
+  padding: 1px 6px; border: 1px solid var(--border);
+  border-radius: 0; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.version-val { margin-left: auto; font-family: var(--font-mono); font-size: 12px; }
+.version-bad { color: var(--danger); }
+

@@ -1,0 +1,324 @@
+/* ============ 设备管理（管理 Tab） ============ */
+.manage-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.dev-table td {
+  vertical-align: top;
+}
+
+.dev-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.dev-name-text {
+  word-break: break-all;
+}
+
+.dev-rename-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+}
+
+.dev-rename-btn:hover {
+  color: var(--accent-ink);
+  background-color: var(--accent-soft);
+}
+
+.dev-rename-btn svg {
+  display: block;
+}
+
+.dev-badge {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: var(--accent-ink);
+  border: 1px solid var(--accent-border);
+}
+
+.dev-ua {
+  font-size: 11px;
+  margin-top: 3px;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-ip {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dev-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 行内重命名编辑 */
+.dev-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dev-edit-input {
+  padding: 7px 10px;
+  font-size: 13px;
+  max-width: 260px;
+}
+
+.dev-edit-error {
+  font-size: 12px;
+  margin: 0;
+}
+
+.modal-body {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--fg);
+}
+
+.modal-body.muted {
+  color: var(--muted);
+}
+
+/* ============ 接口令牌（管理 Tab） ============ */
+.manage-sep {
+  border-top: 1px solid var(--border);
+  margin: 34px 0 22px;
+}
+
+.api-token-table td {
+  vertical-align: top;
+}
+
+.api-token-name {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  color: var(--fg);
+  word-break: break-all;
+}
+
+.usage-code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--accent-ink);
+  word-break: break-all;
+}
+
+.blog-status.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.field-label {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: -6px;
+}
+
+.token-display {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  word-break: break-all;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+
+.token-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.curl-display {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  word-break: break-all;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  user-select: all;
+}
+
+/* ============ Markdown 编辑器（CodeMirror 6） ============ */
+.blog-md-wrap {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.blog-md-wrap.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  border: none;
+  background: var(--bg);
+  padding: 20px clamp(12px, 4vw, 40px) 12px;
+}
+
+.blog-md-toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--line-soft);
+  flex-shrink: 0;
+}
+
+.blog-md-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.blog-md-tools.blog-md-right {
+  margin-left: auto;
+}
+
+.blog-tool-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 8px;
+  line-height: 1.4;
+}
+
+.blog-tool-btn.blog-tool-bold {
+  font-weight: 700;
+}
+
+.blog-tool-btn.blog-tool-italic {
+  font-style: italic;
+}
+
+.blog-tool-btn.active {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.blog-md-toolbar .blog-draft-notice {
+  flex-shrink: 0;
+}
+
+.blog-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 62vh;
+  min-height: 420px;
+}
+
+.blog-split.mode-edit,
+.blog-split.mode-preview {
+  grid-template-columns: 1fr;
+}
+
+.blog-edit-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.blog-cm {
+  flex: 1;
+  min-height: 0;
+}
+
+.blog-preview-pane {
+  min-width: 0;
+  min-height: 0;
+  padding: 14px 20px;
+  overflow-y: auto;
+  border-left: 1px solid var(--line-soft);
+}
+
+.blog-split.mode-edit .blog-preview-pane {
+  display: none;
+}
+
+.blog-split.mode-preview .blog-preview-pane {
+  border-left: none;
+}
+
+.blog-md-wrap.fullscreen .blog-split {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+.blog-md-wrap.fullscreen .blog-edit-pane,
+.blog-md-wrap.fullscreen .blog-preview-pane {
+  min-height: 0;
+}
+
+.blog-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--line-soft);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+@media (max-width: 900px) {
+  .blog-split,
+  .blog-split.mode-edit,
+  .blog-split.mode-preview {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+    min-height: 480px;
+  }
+
+  .blog-preview-pane {
+    border-left: none;
+    border-top: 1px solid var(--line-soft);
+  }
+}
+

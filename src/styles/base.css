@@ -1,0 +1,122 @@
+/* ============ 基础 ============ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* 滚动条 Firefox 侧（WebKit 侧见下方 Scrollbars 段）：细滚动条 + 跟随主题令牌 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-ligatures: none;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+/* ---------- Scrollbars ----------
+   Native OS scrollbars are replaced with a hairline, square thumb so they
+   read as part of the design system instead of foreign chrome. Colours come
+   from the theme tokens, so light / dark / manual override follow for free.
+   Firefox 侧的 scrollbar-width / scrollbar-color 写在文件顶部的基础 `*` 规则里
+   （同一个 `*` 选择器不能出现两次）；这里只管 WebKit 的伪元素。 */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  /* 3px 透明边 + content-box 裁剪 → 视觉上 4px 的细线，与发丝线风格一致；
+     直角不加圆角，跟全站的 border-radius: 0 对齐 */
+  background-color: var(--border);
+  background-clip: content-box;
+  border: 3px solid transparent;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--accent);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: 14px;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color 0.14s var(--ease);
+}
+
+.input::placeholder {
+  color: var(--faint);
+}
+
+.input:focus {
+  border-color: var(--accent);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.success {
+  color: var(--ok);
+  font-size: 13px;
+  margin: 8px 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 60px 0;
+}
+

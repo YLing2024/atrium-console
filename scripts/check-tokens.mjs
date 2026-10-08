@@ -1,16 +1,16 @@
 // 设计令牌一致性校验（零依赖）。
-// 从本仓库 src/styles.css 解析核心令牌（深浅两套），与脚本内的基准值表比对；
+// 从本仓库 src/styles/tokens.css 解析核心令牌（深浅两套），与脚本内的基准值表比对；
 // 任一不一致，或同一色在深浅两套/多个来源之间自相矛盾，即打印差异并非 0 退出。
 // 用途：防止同一组颜色在多个仓库里悄悄漂移。不引入共享包、不上 monorepo。
 //
 // 与 homepage 版差异只有「本地解析配置」一处，基准值表逐字照搬（跨项目防漂移的契约）：
-//   - 令牌文件名：src/index.css → src/styles.css
+//   - 令牌文件名：src/index.css → src/styles/tokens.css
 //   - 高亮发丝线令牌在本仓库叫 --border（homepage 叫 --line），取值相同，见 ALIASES
 //   - 深浅两套在本仓库用 html[data-theme='light'|'dark'] 显式覆盖，暗色另一来源是媒体查询
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-const CSS_PATH = fileURLToPath(new URL('../src/styles.css', import.meta.url))
+const CSS_PATH = fileURLToPath(new URL('../src/styles/tokens.css', import.meta.url))
 
 // 核心令牌 —— 基准值取自 homepage 现行 index.css（改动令牌须同步改这里，否则校验失败）
 const TOKENS = ['--bg', '--surface', '--fg', '--muted', '--line', '--accent']

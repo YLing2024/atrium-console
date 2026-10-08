@@ -1,0 +1,340 @@
+/* ==========================================================================
+   文件区（admin「文件」Tab）—— 资源管理器式：面包屑 + 拖拽上传 + 进度条 + 列表
+   直角 · 发丝线 · 等宽数字 · 单一琥珀点缀（与全站同一套令牌）
+   ========================================================================== */
+
+.files {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 420px;
+}
+
+/* ---- 工具栏 ---- */
+.files-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.files-crumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+}
+
+.crumb-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.crumb {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  padding: 4px 6px;
+  transition: color 0.14s var(--ease);
+}
+
+.crumb:hover {
+  color: var(--accent-ink);
+}
+
+.crumb.current {
+  color: var(--fg);
+}
+
+.crumb-sep {
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.files-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.files-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--fg);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+}
+
+/* ---- 上传队列 ---- */
+.files-uploads {
+  margin-top: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface);
+}
+
+.files-uploads-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.files-uploads-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.files-uploads-list {
+  max-height: 208px;
+  overflow: auto;
+}
+
+.up-item {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.up-item:last-child {
+  border-bottom: none;
+}
+
+.up-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.up-name {
+  font-size: 12.5px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.up-meta {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.up-bar {
+  height: 2px;
+  margin-top: 7px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.up-bar-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.18s linear;
+}
+
+.up-bar.waiting .up-bar-fill {
+  background: var(--faint);
+}
+
+.up-bar.done .up-bar-fill {
+  background: var(--ok);
+}
+
+.up-bar.error .up-bar-fill {
+  background: var(--danger);
+  width: 100% !important;
+}
+
+/* ---- 列表 ---- */
+.files-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 14px;
+  border-top: 1px solid var(--line-soft);
+  overflow: auto;
+}
+
+.files-head,
+.files-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px 146px 200px;
+  align-items: center;
+  gap: 12px;
+}
+
+.files-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line-soft);
+  padding: 8px 0;
+}
+
+.files-col {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+  text-align: left;
+  padding: 0 4px;
+}
+
+.files-head .col-size,
+.files-head .col-time {
+  cursor: pointer;
+}
+
+.files-head .files-col:hover {
+  color: var(--accent-ink);
+}
+
+.files-row {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.files-row:hover {
+  background: var(--surface);
+}
+
+.files-row .col-name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.files-icon {
+  color: var(--faint);
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.files-icon.is-dir {
+  color: var(--accent);
+}
+
+.files-name {
+  font-size: 13px;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.files-name.is-dir {
+  font-weight: 500;
+}
+
+.files-name.is-dir:hover {
+  color: var(--accent-ink);
+}
+
+.files-ext {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  border: 1px solid var(--line-soft);
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.files-row .col-size,
+.files-row .col-time {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.files-row .col-ops {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.files-row .col-ops .link-btn {
+  font-size: 11.5px;
+  padding: 4px 6px;
+}
+
+.files .mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.files-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  padding: 36px 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.files-empty.error {
+  color: var(--danger);
+}
+
+/* ---- 拖拽蒙层 ---- */
+.files.is-drag {
+  outline: 1px dashed var(--accent-border);
+  outline-offset: 4px;
+}
+
+.files-dropzone {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(23, 21, 18, 0.55);
+  color: var(--bg);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  border: 1px dashed var(--accent);
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .files-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .files-head,
+  .files-row {
+    grid-template-columns: minmax(0, 1fr) 88px;
+  }
+
+  .files-head .col-time,
+  .files-row .col-time {
+    display: none;
+  }
+
+  .files-row .col-ops {
+    justify-content: flex-start;
+  }
+}
+

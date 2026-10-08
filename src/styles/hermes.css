@@ -1,0 +1,84 @@
+/* ==========================================================================
+   Hermes 页（admin「Hermes」Tab）—— iframe 铺满，无双层滚动条
+   ========================================================================== */
+
+.pane--hermes {
+  padding: 0;
+  overflow: hidden;
+}
+
+.hermes {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.hermes-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.hermes-bar h2 {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+/* 窄屏才提示：宽屏隐藏 */
+.hermes-hint {
+  display: none;
+  font-size: 12px;
+}
+
+.hermes-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.hermes-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.hermes-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--bg);
+}
+
+@media (max-width: 900px) {
+  .hermes-hint {
+    display: inline;
+  }
+}
+
+@media (max-width: 768px) {
+  .debug {
+    padding: 16px;
+  }
+
+  .debug-body {
+    flex-direction: column;
+  }
+
+  .debug-tools {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .ndbg-send-level {
+    width: 100%;
+  }
+}
+
