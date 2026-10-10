@@ -53,16 +53,17 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test
 
 ## PWA
 
-后台是可安装的 PWA：Chromium / Edge 显示安装入口，iOS Safari 可「添加到主屏幕」，安装后以 `standalone` 无地址栏显示。离线时显示应用外壳 + 明确提示，不提供离线写入。
+后台是可安装的 PWA：Chromium / Edge 显示安装入口，iOS Safari 可「添加到主屏幕」，安装后以 `standalone` 无地址栏显示。离线时显示应用外壳 + 明确提示，不提供离线写入；网络不可达时（fetch 直接失败）启动渲染「当前离线」页，收到 HTTP 4xx/5xx 则维持原有处理。
 
 - **入口文件**：`public/manifest.webmanifest`、`public/sw.js`、`public/offline.html`、`public/icons/*.png`；`index.html` 里挂 `manifest` 与 `apple-touch-icon`。
 - **缓存策略**（在 `sw.js` 内按请求类型判定，不看响应头）：
   - 导航请求 network-first；失败回退同路径缓存，后台入口（`/`、`/index.html`）再回退缓存的 `index.html`；其他路径（含 `public.html`）回退 `offline.html`，公开页不被后台外壳污染。
   - `/assets/*`（Vite 带 hash）cache-first。
-  - `/api/*`、`/term/*`、`/s/*` network-only（不缓存、不拦截）。
+  - `/api/*`、`/_auth/*`、`/term/*`、`/s/*` network-only（不缓存、不拦截；认证相关路径永不缓存）。
   - 其余同源静态资源（字体、图片）stale-while-revalidate。
   - 跨域请求不接管。
   - 安装时只预缓存 `offline.html` + 图标等极小清单，其余按需缓存。
+  - **写缓存前有响应头守卫**：带 `Set-Cookie`，或 `Cache-Control` 含 `no-store` / `private` 的响应一律不写入（导航与静态两个分支共用同一守卫）。
 - **更新机制**：SW 内 `skipWaiting()` + `clients.claim()` 自动接管；注册侧用 `updateViaCache: 'none'` 绕过 HTTP 缓存检查 `sw.js`。新版本接管时页面弹出克制提示「有新版本，刷新即可更新」，由用户点刷新切换（不自动刷新，避免丢弃未保存的编辑）。缓存名带版本常量，`activate` 时删除所有旧版本缓存。
 - **`sw.js` 部署注意**：**不得被长缓存**（不要给 `/sw.js` 设 `Cache-Control: max-age` 很大的头，建议 `no-cache`），否则浏览器发现不了新版本；`/sw.js`、`/manifest.webmanifest`、`/offline.html` 应可被同源直接访问。
 - **重新生成图标**：`python3 scripts/gen-pwa-icons.py`（需 Python PIL / Pillow）。纯几何菱形，配色暖纸白底 / 墨黑 / 琥珀点缀，幂等可重跑，产物在 `public/icons/`。

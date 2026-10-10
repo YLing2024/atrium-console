@@ -81,10 +81,12 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test（改完代
 
 - 静态文件：`public/manifest.webmanifest`、`public/sw.js`、`public/offline.html`、`public/icons/*.png`（由 `scripts/gen-pwa-icons.py` 生成，PIL，幂等）。`sw.js` 手写单文件，**零新增依赖**（不引 `vite-plugin-pwa` / `workbox-*`）。
 - **只注册后台入口**：`src/pwa.ts` 仅在 `import.meta.env.PROD` 注册 `/sw.js`，开发态注销全部 SW 并清空缓存；注册在 `src/main.tsx` 引入。`index.html` 不再有「注销 SW」脚本，也不要再往回加。
-- **缓存策略在 SW 内按请求类型判定**（不看响应头）：导航 network-first（后台入口回退缓存 `index.html`，**`public.html` 等一律回退 `offline.html`**，公开页不得被后台外壳污染）；`/assets/*` cache-first；`/api/*`、`/term/*`、`/s/*` network-only；其余同源静态资源 stale-while-revalidate；跨域不接管。安装只预缓存 `offline.html` + 图标等极小清单。
+- **缓存策略在 SW 内按请求类型判定**（不看响应头）：导航 network-first（后台入口回退缓存 `index.html`，**`public.html` 等一律回退 `offline.html`**，公开页不得被后台外壳污染）；`/assets/*` cache-first；`/api/*`、`/_auth/*`、`/term/*`、`/s/*` network-only（**认证相关路径永不缓存，navigation 形态也一律放行**）；其余同源静态资源 stale-while-revalidate；跨域不接管。安装只预缓存 `offline.html` + 图标等极小清单。
+- **写缓存有响应头守卫**：`cacheResponse()` 统一在 `cache.put` 前判断，响应带 `Set-Cookie` 或 `Cache-Control` 含 `no-store`/`private` 一律不写入（导航与静态分支共用），`put` 失败静默吞掉，不产生未处理拒绝。
+- **网络不可达状态页**：`src/App.tsx` 启动探测若 `fetch` 直接 reject（`isNetworkError`，即 `TypeError`）→ 渲染 `src/components/OfflineNotice.tsx`（「当前离线」+ 刷新按钮，样式为 `components.css` 的 `.offline-*`）；收到 HTTP 4xx/5xx 维持原处理（不渲染应用），加载中状态不变。
 - **更新最高优先级**：SW `skipWaiting()` + `clients.claim()`，注册用 `updateViaCache: 'none'`；缓存名带版本常量，`activate` 删除旧版本缓存；新版本接管时 `src/pwa.ts` 弹克制提示「有新版本，刷新即可更新」，由用户刷新（不自动刷新）。**改 `sw.js` 行为或缓存清单时必须同步提升版本常量**。
 - **部署**：`/sw.js` **不得被长缓存**（建议 `no-cache`），否则发现不了新版本；同源可访问 `/sw.js`、`manifest.webmanifest`、`offline.html`、`icons/*.png`。`public.html` 不加 `manifest` 链接，保持公开页独立。
-- 文案克制、禁 emoji / 技术说明；不新增依赖、不改设计令牌与既有样式分区顺序、不动 `src/api.ts`。
+- 文案克制、禁 emoji / 技术说明；不新增依赖、不改设计令牌与既有样式分区顺序；**不改 `src/api.ts` 的鉴权流程**（仅可追加纯辅助函数，如 `isNetworkError`）。
 
 ## 鉴权约定（强约束）
 
