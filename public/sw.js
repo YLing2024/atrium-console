@@ -10,9 +10,11 @@
  *   - 配合注册侧 updateViaCache: 'none'，绕过 HTTP 缓存检查 sw.js 本身是否有更新。
  *
  * 策略在 SW 内按 URL / 请求类型自行判定，不依赖响应头（响应头由部署环境决定，不可控）。
+ * 但「写缓存前」有响应头守卫：带 Set-Cookie、或 Cache-Control 含 no-store/private 的响应
+ * 一律不写入（认证/敏感响应不进缓存），导航与静态两个分支共用同一守卫。
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `admin-web-${CACHE_VERSION}`;
 
 const OFFLINE_URL = '/offline.html';
@@ -61,14 +63,40 @@ function isAdminEntry(url) {
   return url.pathname === '/' || url.pathname === '/index.html';
 }
 
+// 写缓存前的响应头守卫：认证相关（Set-Cookie）与显式禁止存储（no-store/private）的响应不进缓存。
+// 注：Cache-Control 含 no-cache 只是要求每次校验，不阻止写入；只有 no-store / private 才拒绝。
+function isCacheableResponse(response) {
+  if (!response || !response.ok) return false;
+  const headers = response.headers;
+  if (!headers) return true;
+  try {
+    if (headers.has && headers.has('set-cookie')) return false;
+    const cacheControl = (headers.get && headers.get('cache-control')) || '';
+    if (/\bno-store\b/i.test(cacheControl) || /\bprivate\b/i.test(cacheControl)) return false;
+  } catch {
+    // 某些响应头不可读时保守放行写入，避免因守卫本身抛错影响主流程。
+    return true;
+  }
+  return true;
+}
+
+// 统一写缓存：先过响应头守卫，再 put，并吞掉 put 失败（避免未处理的 Promise 拒绝）。
+function cacheResponse(cache, request, response) {
+  if (!isCacheableResponse(response)) return;
+  try {
+    const copy = response.clone();
+    cache.put(request, copy).catch(() => undefined);
+  } catch {
+    // clone 失败（如 body 已被消费）时忽略，不影响响应返回。
+  }
+}
+
 // 导航请求：network-first。成功即回写缓存，失败才用缓存兜底。
 async function handleNavigate(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const response = await fetch(request);
-    if (response && response.ok) {
-      cache.put(request, response.clone());
-    }
+    cacheResponse(cache, request, response);
     return response;
   } catch {
     // 同路径缓存优先（例如已访问过的 /public.html）。
@@ -95,9 +123,7 @@ async function handleAsset(request) {
   const cached = await cache.match(request);
   if (cached) return cached;
   const response = await fetch(request);
-  if (response && response.ok) {
-    cache.put(request, response.clone());
-  }
+  cacheResponse(cache, request, response);
   return response;
 }
 
@@ -106,9 +132,10 @@ function handleStatic(event) {
   const request = event.request;
   const network = fetch(request)
     .then((response) => {
-      if (response && response.ok) {
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()));
-      }
+      caches
+        .open(CACHE_NAME)
+        .then((cache) => cacheResponse(cache, request, response))
+        .catch(() => undefined);
       return response;
     })
     .catch(() => undefined);
@@ -126,9 +153,11 @@ self.addEventListener('fetch', (event) => {
   // 跨域请求一律不接管，直接放行。
   if (url.origin !== self.location.origin) return;
 
-  // 动态接口与终端 / 临时链接：network-only，绝不缓存、绝不拦截。
+  // 动态接口、认证路径、终端 / 临时链接：network-only，绝不缓存、绝不拦截。
+  // /_auth/ 是网关认证端点（含 set-cookie / 未登录 401），任何形态（含 navigation）都直接放行。
   if (
     url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/_auth/') ||
     url.pathname.startsWith('/term/') ||
     url.pathname.startsWith('/s/')
   ) {
