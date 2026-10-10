@@ -51,6 +51,16 @@ The server-side environment variable `AUTH_MODE` decides the auth mode (see belo
 - Environment variables are injected at build time; rebuild after changing them.
 - `build.rollupOptions.input` in `vite.config.ts` is **multi-entry**: `index.html` (admin) and `public.html` (the public app center, entry `src/publicApps.tsx`, used as the root of an independent subdomain). The public page requests **only `/api/public/apps`** (it never touches `/api/admin/*` and has no auth logic) and reuses `src/components/AppCard.tsx` (the same component as the admin `Apps.tsx`; its class names and render structure must not be changed).
 
+## PWA
+
+The admin console is an installable PWA: Chromium / Edge show an install entry, iOS Safari supports "Add to Home Screen", and it shows as `standalone` with no address bar. Offline, it shows the app shell plus a clear notice; offline writes are not supported.
+
+- **Files**: `public/manifest.webmanifest`, `public/sw.js`, `public/offline.html`, `public/icons/*.png`; `index.html` links the manifest and `apple-touch-icon`.
+- **Cache strategy** (decided inside `sw.js` by request type, not by response headers): navigations are network-first (same-path cache as fallback; the admin entry also falls back to the cached `index.html`, while other paths including `public.html` fall back to `offline.html`); `/assets/*` (Vite hashes) is cache-first; `/api/*`, `/term/*`, `/s/*` are network-only; other same-origin static assets are stale-while-revalidate; cross-origin requests are left alone. Install precaches only `offline.html` + icons.
+- **Updates**: the SW calls `skipWaiting()` + `clients.claim()`, and registration uses `updateViaCache: 'none'`. The cache name carries a version constant and `activate` drops old versions. On takeover the page shows a restrained "new version, refresh to update" prompt and lets the user refresh (no auto-reload). **Bump the version constant whenever `sw.js` behavior or precache list changes.**
+- **Deployment**: `/sw.js` **must not be long-cached** (use `no-cache`); `sw.js`, `manifest.webmanifest`, `offline.html` and `icons/*.png` must be reachable same-origin. `public.html` has no manifest link so the public page stays independent.
+- **Regenerate icons**: `python3 scripts/gen-pwa-icons.py` (requires Python PIL / Pillow).
+
 ## Authentication and security
 
 Frontend identity is proven by a same-origin session cookie; no localStorage token is read or written. `src/api.ts` is the only auth entry point; business components do not implement a second auth path.

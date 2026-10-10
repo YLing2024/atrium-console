@@ -51,6 +51,22 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test
 - 环境变量在构建期注入，改动后需重新构建。
 - `vite.config.ts` 的 `build.rollupOptions.input` 是**多入口**：`index.html`（后台）与 `public.html`（公开「应用中心」，入口 `src/publicApps.tsx`，独立子域根用它）。公开页**只请求 `/api/public/apps`**（不碰 `/api/admin/*`、无鉴权逻辑），复用 `src/components/AppCard.tsx`（后台 `Apps.tsx` 同一组件，不得改动其类名与渲染结构）。
 
+## PWA
+
+后台是可安装的 PWA：Chromium / Edge 显示安装入口，iOS Safari 可「添加到主屏幕」，安装后以 `standalone` 无地址栏显示。离线时显示应用外壳 + 明确提示，不提供离线写入。
+
+- **入口文件**：`public/manifest.webmanifest`、`public/sw.js`、`public/offline.html`、`public/icons/*.png`；`index.html` 里挂 `manifest` 与 `apple-touch-icon`。
+- **缓存策略**（在 `sw.js` 内按请求类型判定，不看响应头）：
+  - 导航请求 network-first；失败回退同路径缓存，后台入口（`/`、`/index.html`）再回退缓存的 `index.html`；其他路径（含 `public.html`）回退 `offline.html`，公开页不被后台外壳污染。
+  - `/assets/*`（Vite 带 hash）cache-first。
+  - `/api/*`、`/term/*`、`/s/*` network-only（不缓存、不拦截）。
+  - 其余同源静态资源（字体、图片）stale-while-revalidate。
+  - 跨域请求不接管。
+  - 安装时只预缓存 `offline.html` + 图标等极小清单，其余按需缓存。
+- **更新机制**：SW 内 `skipWaiting()` + `clients.claim()` 自动接管；注册侧用 `updateViaCache: 'none'` 绕过 HTTP 缓存检查 `sw.js`。新版本接管时页面弹出克制提示「有新版本，刷新即可更新」，由用户点刷新切换（不自动刷新，避免丢弃未保存的编辑）。缓存名带版本常量，`activate` 时删除所有旧版本缓存。
+- **`sw.js` 部署注意**：**不得被长缓存**（不要给 `/sw.js` 设 `Cache-Control: max-age` 很大的头，建议 `no-cache`），否则浏览器发现不了新版本；`/sw.js`、`/manifest.webmanifest`、`/offline.html` 应可被同源直接访问。
+- **重新生成图标**：`python3 scripts/gen-pwa-icons.py`（需 Python PIL / Pillow）。纯几何菱形，配色暖纸白底 / 墨黑 / 琥珀点缀，幂等可重跑，产物在 `public/icons/`。
+
 ## 认证与安全
 
 前端身份由同源会话 cookie 证明，不读写 localStorage token；`src/api.ts` 是唯一鉴权入口，业务组件不另写一套鉴权逻辑。

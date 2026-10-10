@@ -77,6 +77,15 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test（改完代
 - 构建产物是静态文件，交给自己的 Web 服务器托管；接口路径 `/api/*`、临时链接 `/s/<token>`（公开，不加鉴权）、终端 `/term/`（ttyd）按自己的部署反代到对应后端。
 - 具体域名、反代与认证接线属于使用者自己的部署，不在本仓库展开。
 
+## PWA（强约束）
+
+- 静态文件：`public/manifest.webmanifest`、`public/sw.js`、`public/offline.html`、`public/icons/*.png`（由 `scripts/gen-pwa-icons.py` 生成，PIL，幂等）。`sw.js` 手写单文件，**零新增依赖**（不引 `vite-plugin-pwa` / `workbox-*`）。
+- **只注册后台入口**：`src/pwa.ts` 仅在 `import.meta.env.PROD` 注册 `/sw.js`，开发态注销全部 SW 并清空缓存；注册在 `src/main.tsx` 引入。`index.html` 不再有「注销 SW」脚本，也不要再往回加。
+- **缓存策略在 SW 内按请求类型判定**（不看响应头）：导航 network-first（后台入口回退缓存 `index.html`，**`public.html` 等一律回退 `offline.html`**，公开页不得被后台外壳污染）；`/assets/*` cache-first；`/api/*`、`/term/*`、`/s/*` network-only；其余同源静态资源 stale-while-revalidate；跨域不接管。安装只预缓存 `offline.html` + 图标等极小清单。
+- **更新最高优先级**：SW `skipWaiting()` + `clients.claim()`，注册用 `updateViaCache: 'none'`；缓存名带版本常量，`activate` 删除旧版本缓存；新版本接管时 `src/pwa.ts` 弹克制提示「有新版本，刷新即可更新」，由用户刷新（不自动刷新）。**改 `sw.js` 行为或缓存清单时必须同步提升版本常量**。
+- **部署**：`/sw.js` **不得被长缓存**（建议 `no-cache`），否则发现不了新版本；同源可访问 `/sw.js`、`manifest.webmanifest`、`offline.html`、`icons/*.png`。`public.html` 不加 `manifest` 链接，保持公开页独立。
+- 文案克制、禁 emoji / 技术说明；不新增依赖、不改设计令牌与既有样式分区顺序、不动 `src/api.ts`。
+
 ## 鉴权约定（强约束）
 
 - 特性：默认自带账号口令，开箱即用；也可以关掉自带口令。
