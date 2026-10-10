@@ -31,6 +31,11 @@ let authModeCache: AuthMode | null = null; // 'builtin' | 'sso' | null（未探�
 let authModePromise: Promise<AuthMode> | null = null;
 let unauthorizedHandler: (() => void) | null = null; // builtin 模式会话失效时由 App 注册（切回登录页）
 
+/** fetch 因网络不可达而 reject（区别于服务器返回的 HTTP 4xx/5xx 响应）。 */
+export function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError;
+}
+
 // 探测认证模式：成功按响应取值；任何失败一律 sso（保持现状行为）
 export function getAuthMode(): Promise<AuthMode> {
   if (authModeCache) return Promise.resolve(authModeCache);

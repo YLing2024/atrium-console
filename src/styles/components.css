@@ -151,6 +151,49 @@
   cursor: not-allowed;
 }
 
+/* ============ 离线状态页（网络不可达） ============ */
+.offline-wrap {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.offline-card {
+  width: 100%;
+  max-width: 320px;
+  padding: 40px 28px;
+  border: 1px solid var(--line-soft);
+  text-align: center;
+}
+
+.offline-mark {
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 0 auto 20px;
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+
+.offline-title {
+  margin: 0 0 8px;
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--fg);
+}
+
+.offline-text {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 /* ============ Ctrl+K 命令面板 ============ */
 .cmd-mask {
   align-items: flex-start;
