@@ -132,10 +132,18 @@ function handleStatic(event) {
   const request = event.request;
   const network = fetch(request)
     .then((response) => {
-      caches
-        .open(CACHE_NAME)
-        .then((cache) => cacheResponse(cache, request, response))
-        .catch(() => undefined);
+      // 同步 clone 后再交给页面：响应体一旦被页面消费，晚 clone 会抛「body already used」。
+      if (isCacheableResponse(response)) {
+        try {
+          const copy = response.clone();
+          caches
+            .open(CACHE_NAME)
+            .then((cache) => cache.put(request, copy).catch(() => undefined))
+            .catch(() => undefined);
+        } catch {
+          // clone 失败则放弃本次写入，不影响响应返回。
+        }
+      }
       return response;
     })
     .catch(() => undefined);
