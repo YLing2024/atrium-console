@@ -64,7 +64,9 @@ body {
   background-color: var(--accent);
 }
 
-button {
+/* 原生按钮复位：排除一切 antd 组件（类名含 ant-），避免元素级规则盖掉 antd 默认外观
+   （antd v5 组件样式经 :where() 降权，元素选择器会反过来命中它们）。 */
+button:not([class*='ant-']) {
   font-family: inherit;
   cursor: pointer;
   border: none;
@@ -72,7 +74,8 @@ button {
   color: inherit;
 }
 
-:focus-visible {
+/* 键盘焦点圈：antd 组件有自带焦点样式，这里只补原生元素，不覆盖 antd。 */
+:focus-visible:not([class*='ant-']) {
   outline: 1px solid var(--accent);
   outline-offset: 3px;
 }
