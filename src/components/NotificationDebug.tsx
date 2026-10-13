@@ -1,4 +1,18 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Badge,
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  Row,
+  Select,
+  Space,
+  Table,
+  Typography
+} from 'antd';
+import type { TableProps } from 'antd';
 import { createNotification, getNotifications } from '../api';
 import type { ApiError } from '../api';
 import { usePushWait } from '../notificationPush';
@@ -17,6 +31,27 @@ import PushWaitResult from './PushWaitResult';
  */
 
 const TRUNCATE = 600;
+
+const LEVEL_OPTIONS = [
+  { value: 'urgent', label: '紧急' },
+  { value: 'normal', label: '常规' },
+  { value: 'digest', label: '汇总' }
+];
+
+interface FieldRow {
+  field: string;
+  required: string;
+  desc: string;
+}
+
+const FIELD_ROWS: FieldRow[] = [
+  { field: 'level', required: '是', desc: 'urgent / normal / digest' },
+  { field: 'source', required: '是', desc: '来源标识，如 admin / debug' },
+  { field: 'title', required: '是', desc: '标题，≤ 80 字' },
+  { field: 'body', required: '否', desc: '正文，纯文本' },
+  { field: 'link', required: '否', desc: '跳转链接' },
+  { field: 'dedupKey', required: '否', desc: '去重键，10 分钟内相同键只保留一条' }
+];
 
 function relativeTime(ts: number | null | undefined, now: number): string {
   if (!ts) return '—';
@@ -91,8 +126,7 @@ export default function NotificationDebug() {
 
   // 发测试通知：默认 source=admin-debug；记录 HTTP 状态与响应体。
   // 铁律：不本地刷新未读、不插入——只等服务器 SSE 推回（到达/超时由 PushWaitResult 呈现）
-  async function handleSendTest(e: FormEvent) {
-    e.preventDefault();
+  async function handleSendTest() {
     const t = title.trim();
     if (!t) {
       setCallResult({ ok: false, status: 0, body: '标题不能为空', at: Date.now() });
@@ -148,86 +182,68 @@ export default function NotificationDebug() {
     }
   }
 
+  const fieldColumns: TableProps<FieldRow>['columns'] = [
+    {
+      title: '字段',
+      dataIndex: 'field',
+      key: 'field',
+      render: (value: string) => <Typography.Text code>{value}</Typography.Text>
+    },
+    { title: '必填', dataIndex: 'required', key: 'required' },
+    { title: '说明', dataIndex: 'desc', key: 'desc' }
+  ];
+
+  // 状态点映射到 antd Badge 语义色（断线用默认灰）
+  const badgeStatus =
+    stream.status === 'connected' ? 'success' : stream.status === 'reconnecting' ? 'warning' : 'default';
+
   return (
-    <div className="ndbg">
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
       {/* 1) 实时状态 */}
-      <section className="ndbg-block">
-        <h3 className="ndbg-title">实时状态</h3>
-        <div className="ndbg-status" data-conn={stream.status}>
-          <span
-            className={
-              'ndbg-dot' +
-              (stream.status === 'connected'
-                ? ' on'
-                : stream.status === 'reconnecting'
-                  ? ' warn'
-                  : '')
-            }
-          />
-          <span>{notificationStreamLabel(stream, now)}</span>
-          <span className="muted">·</span>
-          <span className="muted">最近事件 {relativeTime(stream.lastEventAt, now)}</span>
-          <span className="muted">·</span>
-          <span className="muted">最近心跳 {relativeTime(stream.lastHeartbeatAt, now)}</span>
-          <span className="muted">·</span>
-          <span>
-            未读 <span className="mono">{unread}</span>
-          </span>
-        </div>
-      </section>
+      <Card size="small" title="实时状态">
+        <Space align="center" wrap size={8}>
+          <Badge status={badgeStatus} />
+          <Typography.Text>{notificationStreamLabel(stream, now)}</Typography.Text>
+          <Typography.Text type="secondary">·</Typography.Text>
+          <Typography.Text type="secondary">
+            最近事件 {relativeTime(stream.lastEventAt, now)}
+          </Typography.Text>
+          <Typography.Text type="secondary">·</Typography.Text>
+          <Typography.Text type="secondary">
+            最近心跳 {relativeTime(stream.lastHeartbeatAt, now)}
+          </Typography.Text>
+          <Typography.Text type="secondary">·</Typography.Text>
+          <Typography.Text>未读 {unread}</Typography.Text>
+        </Space>
+      </Card>
 
       {/* 2) 发一条测试通知 */}
-      <section className="ndbg-block">
-        <h3 className="ndbg-title">发一条测试通知</h3>
-        <form className="ndbg-send" onSubmit={handleSendTest}>
-          <div className="ndbg-send-row">
-            <div className="notif-compose-col ndbg-send-level">
-              <label className="field-label" htmlFor="ndbg-level">
-                级别
-              </label>
-              <select
-                id="ndbg-level"
-                className="input blog-select"
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-              >
-                <option value="urgent">紧急</option>
-                <option value="normal">常规</option>
-                <option value="digest">汇总</option>
-              </select>
-            </div>
-            <div className="notif-compose-col ndbg-send-title">
-              <label className="field-label" htmlFor="ndbg-title">
-                标题
-              </label>
-              <input
-                id="ndbg-title"
-                className="input"
-                maxLength={80}
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="notif-compose-col">
-            <label className="field-label" htmlFor="ndbg-body">
-              正文
-            </label>
-            <textarea
-              id="ndbg-body"
-              className="input notif-compose-text"
-              rows={2}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-            />
-          </div>
-          <div className="ndbg-send-actions">
-            <span className="muted ndbg-src-hint">来源固定为 admin-debug</span>
-            <button type="submit" className="btn-primary" disabled={sending}>
-              {sending ? '发送中…' : '发送测试通知'}
-            </button>
-          </div>
-        </form>
+      <Card size="small" title="发一条测试通知">
+        <Form layout="vertical" onFinish={handleSendTest}>
+          <Row gutter={12}>
+            <Col xs={12} sm={6} md={4}>
+              <Form.Item label="级别">
+                <Select value={level} onChange={setLevel} options={LEVEL_OPTIONS} />
+              </Form.Item>
+            </Col>
+            <Col xs={12} sm={18} md={20}>
+              <Form.Item label="标题">
+                <Input maxLength={80} value={title} onChange={(e) => setTitle(e.target.value)} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Form.Item label="正文">
+            <Input.TextArea rows={2} value={body} onChange={(e) => setBody(e.target.value)} />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Typography.Text type="secondary">来源固定为 admin-debug</Typography.Text>
+              <Button type="primary" htmlType="submit" loading={sending}>
+                {sending ? '发送中…' : '发送测试通知'}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
         {/* 发测试通知后的推送等待/结果（结果留到下次发送） */}
         <PushWaitResult
           state={pushState}
@@ -235,77 +251,46 @@ export default function NotificationDebug() {
           repulled={repulled}
           className="ndbg-push"
         />
-      </section>
+      </Card>
 
       {/* 3) 接口说明 */}
-      <section className="ndbg-block">
-        <div className="ndbg-block-head">
-          <h3 className="ndbg-title">接口说明</h3>
-          <button type="button" className="btn-ghost" onClick={copyCurl}>
-            {copied ? '已复制' : '复制 curl'}
-          </button>
-        </div>
-        <table className="ndbg-table">
-          <thead>
-            <tr>
-              <th>字段</th>
-              <th>必填</th>
-              <th>说明</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="mono">level</td>
-              <td>是</td>
-              <td>urgent / normal / digest</td>
-            </tr>
-            <tr>
-              <td className="mono">source</td>
-              <td>是</td>
-              <td>来源标识，如 admin / debug</td>
-            </tr>
-            <tr>
-              <td className="mono">title</td>
-              <td>是</td>
-              <td>标题，≤ 80 字</td>
-            </tr>
-            <tr>
-              <td className="mono">body</td>
-              <td>否</td>
-              <td>正文，纯文本</td>
-            </tr>
-            <tr>
-              <td className="mono">link</td>
-              <td>否</td>
-              <td>跳转链接</td>
-            </tr>
-            <tr>
-              <td className="mono">dedupKey</td>
-              <td>否</td>
-              <td>去重键，10 分钟内相同键只保留一条</td>
-            </tr>
-          </tbody>
-        </table>
-        <p className="muted ndbg-note">
+      <Card
+        size="small"
+        title="接口说明"
+        extra={
+          <Button onClick={copyCurl}>{copied ? '已复制' : '复制 curl'}</Button>
+        }
+      >
+        <Table<FieldRow>
+          rowKey="field"
+          columns={fieldColumns}
+          dataSource={FIELD_ROWS}
+          pagination={false}
+          size="small"
+        />
+        <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
           鉴权：网关登录会话（浏览器内自动带 cookie）或可写 API Token（见「管理」页）。
-        </p>
-        <pre className="ndbg-curl" ref={curlRef}>{curl}</pre>
-      </section>
+        </Typography.Paragraph>
+        <pre ref={curlRef} style={{ margin: '10px 0 0', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+          {curl}
+        </pre>
+      </Card>
 
       {/* 4) 调用结果 */}
-      <section className="ndbg-block">
-        <h3 className="ndbg-title">调用结果</h3>
+      <Card size="small" title="调用结果">
         {callResult ? (
-          <div className="ndbg-result">
-            <div className={'ndbg-result-status' + (callResult.ok ? ' ok' : ' bad')}>
+          <Space direction="vertical" size={8} style={{ width: '100%' }}>
+            <Typography.Text type={callResult.ok ? 'success' : 'danger'}>
               HTTP {callResult.status || '—'}
-            </div>
-            <pre className="ndbg-result-body">{truncate(callResult.body)}</pre>
-          </div>
+            </Typography.Text>
+            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+              {truncate(callResult.body)}
+            </pre>
+          </Space>
         ) : (
-          <div className="muted ndbg-note">尚无调用</div>
+          <Typography.Text type="secondary">尚无调用</Typography.Text>
         )}
-      </section>
-    </div>
+      </Card>
+    </Space>
   );
 }
