@@ -9,7 +9,12 @@ export default defineConfig({
     port: 5199,
     host: '127.0.0.1',
     proxy: {
-      '/api': { target: 'http://127.0.0.1:3199', changeOrigin: true }
+      // 隔离后端是 sso 模式，信任该头（仅用于验收，不影响生产构建）
+      '/api': {
+        target: 'http://127.0.0.1:3199',
+        changeOrigin: true,
+        headers: { 'X-Auth-User': 'verification' }
+      }
     }
   }
 });

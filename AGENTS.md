@@ -8,7 +8,7 @@
 
 | Tab | 组件 | 说明 |
 |---|---|---|
-| 系统 | `System.tsx` | CPU / 内存 / 磁盘 / 网络实时与历史趋势 |
+| 系统 | `System.tsx` | CPU / 内存 / 磁盘 / 网络实时趋势（SSE）；进程全量树走 `/api/admin/services`，仅 Tab 激活时每 5s 取样（SSE 不再携带进程明细） |
 | 应用 | `Apps.tsx` | 服务器应用面板：按分类的卡片网格、SVG 图标（`AppIcon.tsx`，缺省回退首字）、状态点（正常/需登录/响应慢/异常/休眠/未知）、30s 自动刷新（只读，接口 `/api/admin/apps`） |
 | 版本 | `VersionPanel.tsx` | 软件版本 |
 | 博客 | `BlogAdmin.tsx` | 文章 / 合集管理（接口走 `/api/blog/admin/*`） |
