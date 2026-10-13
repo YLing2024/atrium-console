@@ -194,7 +194,7 @@ function assert(cond, msg) {
 
   // D8：刷新带 refresh=1
   const before = appsRequests.length;
-  await page.locator('.apps .system-head .btn-ghost').click();
+  await page.locator('.apps .system-head .ant-btn').click();
   await page.waitForTimeout(300);
   const refreshHits = appsRequests.slice(before).filter((q) => q.includes('refresh=1'));
   assert(appsRequests[0] === '', '首拉不带 refresh');

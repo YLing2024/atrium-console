@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Button, Divider, Empty, Space, Typography } from 'antd';
 import { getApps } from '../api';
 import type { AppsResponse } from '../api';
 import AppCard from './AppCard';
@@ -70,35 +71,41 @@ export default function Apps({ active }: { active: boolean }) {
   return (
     <div className="apps">
       <div className="system-head">
-        <h2>应用</h2>
-        <button
-          type="button"
-          className="btn-ghost"
-          onClick={() => load(true)}
-          disabled={loading}
-          aria-busy={loading}
-        >
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          应用
+        </Typography.Title>
+        <Button onClick={() => load(true)} loading={loading}>
           刷新
-        </button>
+        </Button>
       </div>
 
-      {failed && hasData && <div className="apps-warn muted">加载失败</div>}
+      {failed && hasData && (
+        <Alert type="warning" showIcon message="加载失败" style={{ marginBottom: 16 }} />
+      )}
 
       {failed && !hasData ? (
-        <div className="apps-error">
-          <div className="empty">加载失败</div>
-          <button type="button" className="btn-ghost" onClick={() => load(false)}>
-            重试
-          </button>
-        </div>
+        <Alert
+          type="error"
+          showIcon
+          message="加载失败"
+          action={
+            <Button size="small" onClick={() => load(false)}>
+              重试
+            </Button>
+          }
+        />
       ) : !hasData ? null : apps.length === 0 ? (
-        <div className="empty">暂无应用</div>
+        <Empty description="暂无应用" />
       ) : (
         groups.map((g) => (
           <div className="apps-group" key={g.cat.id}>
             <div className="apps-group-head">
-              <span className="apps-group-name">{g.cat.name}</span>
-              <span className="apps-group-count">· {g.items.length}</span>
+              <Typography.Text className="apps-group-name" strong>
+                {g.cat.name}
+              </Typography.Text>
+              <Typography.Text className="apps-group-count" type="secondary">
+                · {g.items.length}
+              </Typography.Text>
             </div>
             <div className="apps-grid">
               {g.items.map((app) => (
@@ -110,19 +117,24 @@ export default function Apps({ active }: { active: boolean }) {
       )}
 
       {discovered.length > 0 && (
-        <div className="apps-group apps-group--discovered">
+        <div className="apps-group">
+          <Divider style={{ margin: '0 0 16px' }} />
           <div className="apps-group-head">
-            <span className="apps-group-name muted">未登记</span>
-            <span className="apps-group-count">· {discovered.length}</span>
+            <Typography.Text className="apps-group-name" type="secondary">
+              未登记
+            </Typography.Text>
+            <Typography.Text className="apps-group-count" type="secondary">
+              · {discovered.length}
+            </Typography.Text>
           </div>
-          <div className="apps-disc-list">
+          <Space direction="vertical" size={0}>
             {discovered.map((d, i) => (
-              <div className="apps-disc-row" key={d.port != null ? d.port : i}>
-                <span className="apps-disc-port">端口 {d.port}</span>
-                {d.process ? <span className="apps-disc-proc"> · {d.process}</span> : null}
-              </div>
+              <Typography.Text type="secondary" key={d.port != null ? d.port : i}>
+                端口 {d.port}
+                {d.process ? ' · ' + d.process : ''}
+              </Typography.Text>
             ))}
-          </div>
+          </Space>
         </div>
       )}
     </div>
