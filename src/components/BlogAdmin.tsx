@@ -9,6 +9,23 @@ import {
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import {
+  Alert,
+  App,
+  Button,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Segmented,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  Typography
+} from 'antd';
+import type { TableProps } from 'antd';
+import {
   getBlogAdminPosts,
   createBlogPost,
   updateBlogPost,
@@ -66,11 +83,11 @@ const EMPTY_COLLECTION_FORM: CollectionForm = {
 };
 
 export default function BlogAdmin() {
+  const { message, modal } = App.useApp();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const editorApiRef = useRef<MarkdownEditorApi | null>(null); // MarkdownEditor 命令式 API（插图光标插入用）
   const imgInputRef = useRef<HTMLInputElement | null>(null); // 插图文件选择
   const previewRef = useRef<HTMLDivElement | null>(null); // 预览滚动容器（滚动同步用）
-  const [draftNotice, setDraftNotice] = useState(''); // 草稿恢复提示
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   // editing === null 列表视图；'new' 新建；数字 = 编辑对应文章 id
@@ -108,7 +125,7 @@ export default function BlogAdmin() {
     try {
       const data = await getBlogAdminCollections();
       setCollections(data.list || []);
-    } catch (e) {
+    } catch {
       // 合集加载失败不阻塞文章管理，编辑器下拉为空即可
     }
   }, []);
@@ -195,8 +212,7 @@ export default function BlogAdmin() {
       } else {
         setField('content', (form.content ? form.content + '\n' : '') + markdown);
       }
-      setDraftNotice('图片已插入');
-      setTimeout(() => setDraftNotice(''), 2500);
+      message.success('图片已插入');
     } catch (err) {
       setSaveError('图片上传失败: ' + (err as Error).message);
     }
@@ -210,8 +226,7 @@ export default function BlogAdmin() {
       const saved = localStorage.getItem(key);
       if (saved) {
         setForm(JSON.parse(saved));
-        setDraftNotice('已恢复未保存的草稿');
-        setTimeout(() => setDraftNotice(''), 3000);
+        message.info('已恢复未保存的草稿');
       }
     } catch { /* 忽略损坏草稿 */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -230,7 +245,7 @@ export default function BlogAdmin() {
   // 保存/发布成功清除草稿
   function clearDraft() {
     const key = 'blog_draft_' + (editing === 'new' ? 'new' : editing);
-    try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+    try { localStorage.removeItem(key); } catch { /* ignore */ }
   }
 
   // 分栏模式滚动同步：按滚动百分比在编辑区与预览区之间双向同步
@@ -338,7 +353,6 @@ export default function BlogAdmin() {
   }
 
   async function remove(post: BlogPost) {
-    if (!window.confirm(`确定删除「${post.title}」？此操作不可恢复。`)) return;
     try {
       await deleteBlogPost(post.id);
       await load();
@@ -385,6 +399,7 @@ export default function BlogAdmin() {
   }
 
   function cancelCollectionEdit() {
+    if (savingCollection) return;
     setEditingCollection(null);
     setCollectionError('');
   }
@@ -423,9 +438,17 @@ export default function BlogAdmin() {
   }
 
   // 删除合集：二次确认（解除关联不可恢复），完成后同时刷新文章列表（合集列变化）
+  function confirmRemoveCollection(c: BlogCollection) {
+    modal.confirm({
+      title: `再次确认：删除合集「${c.name}」将解除该合集下所有文章的关联，此操作不可恢复。`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: () => removeCollection(c)
+    });
+  }
+
   async function removeCollection(c: BlogCollection) {
-    if (!window.confirm(`确定删除合集「${c.name}」？`)) return;
-    if (!window.confirm(`再次确认：删除合集「${c.name}」将解除该合集下所有文章的关联，此操作不可恢复。`)) return;
     try {
       await deleteBlogCollection(c.id);
       await loadCollections();
@@ -435,266 +458,186 @@ export default function BlogAdmin() {
     }
   }
 
-  if (editingCollection !== null) {
-    return (
-      <div className="system blog-admin">
-        <div className="system-head">
-          <h2>{editingCollection === 'new' ? '新建合集' : '编辑合集'}</h2>
-          <button className="btn-ghost" onClick={cancelCollectionEdit} disabled={savingCollection}>
-            ← 返回
-          </button>
-        </div>
-
-        <div className="blog-editor">
-          <label className="blog-field">
-            <span className="blog-label">名称 *</span>
-            <input
-              className="input"
-              value={collectionForm.name}
-              onChange={(e) => setCollectionField('name', e.target.value)}
-              placeholder="合集名称"
-              autoFocus
-            />
-          </label>
-
-          <label className="blog-field">
-            <span className="blog-label">合集 ID</span>
-            <input
-              className="input"
-              value={collectionForm.public_id || ''}
-              readOnly
-              disabled
-              placeholder="保存后自动生成（雪花 ID，URL 用它）"
-              title="URL 标识：/blog/collections/&lt;合集 ID&gt;，保存后固定不变"
-            />
-          </label>
-
-          <label className="blog-field">
-            <span className="blog-label">描述</span>
-            <textarea
-              className="input blog-excerpt"
-              rows={3}
-              value={collectionForm.description}
-              onChange={(e) => setCollectionField('description', e.target.value)}
-              placeholder="合集简介（列表页展示）"
-            />
-          </label>
-
-          {collectionError && <div className="error">{collectionError}</div>}
-
-          <div className="blog-actions">
-            <button className="btn-ghost" onClick={cancelCollectionEdit} disabled={savingCollection}>
-              取消
-            </button>
-            <button className="btn-primary" onClick={submitCollection} disabled={savingCollection}>
-              {savingCollection ? '保存中…' : '保存'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (editing !== null) {
     return (
       <div className="system blog-admin">
         <div className="system-head">
-          <h2>{editing === 'new' ? '新建文章' : '编辑文章'}</h2>
-          <div className="blog-head-actions">
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            {editing === 'new' ? '新建文章' : '编辑文章'}
+          </Typography.Title>
+          <Space>
             {form.public_id && (
-              <a
-                className="btn-ghost"
+              <Button
+                type="link"
                 href={siteUrl(`/blog/${form.public_id}`)}
                 target="_blank"
                 rel="noreferrer"
               >
                 在 /blog 查看
-              </a>
+              </Button>
             )}
-            <button className="btn-ghost" onClick={cancelEdit} disabled={saving}>
+            <Button onClick={cancelEdit} disabled={saving}>
               ← 返回列表
-            </button>
-          </div>
+            </Button>
+          </Space>
         </div>
 
-        <div className="blog-editor">
-          <label className="blog-field">
-            <span className="blog-label">标题 *</span>
-            <input
-              className="input"
+        <Form layout="vertical" style={{ maxWidth: 720 }}>
+          <Form.Item label="标题" required>
+            <Input
               value={form.title}
               onChange={(e) => setField('title', e.target.value)}
               placeholder="文章标题"
               autoFocus
             />
-          </label>
+          </Form.Item>
 
-          <label className="blog-field">
-            <span className="blog-label">副标题</span>
-            <input
-              className="input"
+          <Form.Item label="副标题">
+            <Input
               value={form.subtitle || ''}
               onChange={(e) => setField('subtitle', e.target.value)}
               placeholder="副标题"
             />
-          </label>
+          </Form.Item>
 
-          <label className="blog-field">
-            <span className="blog-label">文章 ID</span>
-            <input
-              className="input"
+          <Form.Item
+            label="文章 ID"
+            tooltip="URL 标识：/blog/&lt;文章 ID&gt;，保存后固定不变，改标题不影响"
+          >
+            <Input
               value={form.public_id || ''}
               readOnly
               disabled
               placeholder="保存后自动生成（雪花 ID，URL 用它）"
-              title="URL 标识：/blog/&lt;文章 ID&gt;，保存后固定不变，改标题不影响"
             />
-          </label>
+          </Form.Item>
 
-          <label className="blog-field">
-            <span className="blog-label">标签</span>
-            <input
-              className="input"
+          <Form.Item label="标签">
+            <Input
               value={form.tags}
               onChange={(e) => setField('tags', e.target.value)}
               placeholder="逗号分隔，如：前端, 生活"
             />
-          </label>
+          </Form.Item>
 
-          <label className="blog-field">
-            <span className="blog-label">摘要</span>
-            <textarea
-              className="input blog-excerpt"
+          <Form.Item label="摘要">
+            <Input.TextArea
               rows={2}
               value={form.excerpt}
               onChange={(e) => setField('excerpt', e.target.value)}
               placeholder="列表页显示的摘要"
             />
-          </label>
+          </Form.Item>
 
-          <label className="blog-field">
-            <span className="blog-label">所属合集</span>
-            <select
-              className="input blog-select"
-              value={form.collection_id}
-              onChange={(e) => setField('collection_id', e.target.value)}
-            >
-              <option value="">无合集</option>
-              {collections.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Form.Item label="所属合集">
+            <Select
+              value={
+                form.collection_id === '' || form.collection_id == null
+                  ? ''
+                  : String(form.collection_id)
+              }
+              onChange={(v) => setField('collection_id', v)}
+              options={[
+                { value: '', label: '无合集' },
+                ...collections.map((c) => ({ value: String(c.id), label: c.name }))
+              ]}
+            />
+          </Form.Item>
 
-          <div className="blog-field">
-            <span className="blog-label">内容（Markdown）</span>
+          <Form.Item label="内容（Markdown）">
             <div className={'blog-md-wrap' + (fullscreen ? ' fullscreen' : '')}>
-              <div className="blog-toolbar blog-md-toolbar">
-                <div className="blog-md-tools">
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+              <div className="blog-md-toolbar">
+                <Space wrap size={4}>
+                  <Button
+                    size="small"
                     title={'一级标题 ' + modKey + '⇧1'}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.heading(1))}
                   >
                     H1
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title={'二级标题 ' + modKey + '⇧2'}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.heading(2))}
                   >
                     H2
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title={'三级标题 ' + modKey + '⇧3'}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.heading(3))}
                   >
                     H3
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn blog-tool-bold"
+                  </Button>
+                  <Button
+                    size="small"
                     title={'粗体 ' + modKey + 'B'}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.wrap('**', '**', '粗体'))}
                   >
                     B
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn blog-tool-italic"
+                  </Button>
+                  <Button
+                    size="small"
                     title={'斜体 ' + modKey + 'I'}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.wrap('*', '*', '斜体'))}
                   >
                     I
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title={'行内代码 ' + modKey + 'E'}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.wrap('`', '`', '代码'))}
                   >
                     ‹›
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title="代码块"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.insertBlock('```\n代码\n```'))}
                   >
                     ```
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title="引用"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.linePrefix('> '))}
                   >
                     ›
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title="无序列表"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.linePrefix('- '))}
                   >
                     •
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title="有序列表"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.orderedList())}
                   >
                     1.
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title={'链接 ' + modKey + 'K'}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.link())}
                   >
                     链接
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title="表格"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) =>
@@ -702,26 +645,24 @@ export default function BlogAdmin() {
                     )}
                   >
                     表格
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                  <Button
+                    size="small"
                     title="分隔线"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={runTool((api) => api.insertBlock('---'))}
                   >
                     —
-                  </button>
-                </div>
-                <div className="blog-md-tools blog-md-right">
-                  <button
-                    type="button"
-                    className="btn-ghost blog-tool-btn"
+                  </Button>
+                </Space>
+                <Space size={4} style={{ marginLeft: 'auto' }}>
+                  <Button
+                    size="small"
                     title="插入图片（支持粘贴 / 拖拽）"
                     onClick={() => imgInputRef.current && imgInputRef.current.click()}
                   >
                     插图
-                  </button>
+                  </Button>
                   <input
                     ref={imgInputRef}
                     type="file"
@@ -729,40 +670,24 @@ export default function BlogAdmin() {
                     hidden
                     onChange={onPickImage}
                   />
-                  <button
-                    type="button"
-                    className={'btn-ghost blog-tool-btn' + (viewMode === 'edit' ? ' active' : '')}
-                    title="仅编辑"
-                    onClick={() => setViewMode('edit')}
-                  >
-                    编辑
-                  </button>
-                  <button
-                    type="button"
-                    className={'btn-ghost blog-tool-btn' + (viewMode === 'split' ? ' active' : '')}
-                    title="编辑并排预览"
-                    onClick={() => setViewMode('split')}
-                  >
-                    并排
-                  </button>
-                  <button
-                    type="button"
-                    className={'btn-ghost blog-tool-btn' + (viewMode === 'preview' ? ' active' : '')}
-                    title="仅预览"
-                    onClick={() => setViewMode('preview')}
-                  >
-                    预览
-                  </button>
-                  <button
-                    type="button"
-                    className={'btn-ghost blog-tool-btn' + (fullscreen ? ' active' : '')}
+                  <Segmented
+                    size="small"
+                    value={viewMode}
+                    onChange={(v) => setViewMode(String(v))}
+                    options={[
+                      { label: '编辑', value: 'edit' },
+                      { label: '并排', value: 'split' },
+                      { label: '预览', value: 'preview' }
+                    ]}
+                  />
+                  <Button
+                    size="small"
                     title={fullscreen ? '退出全屏（Esc）' : '全屏'}
                     onClick={() => setFullscreen((v) => !v)}
                   >
                     {fullscreen ? '退出全屏' : '全屏'}
-                  </button>
-                </div>
-                {draftNotice && <span className="blog-draft-notice">{draftNotice}</span>}
+                  </Button>
+                </Space>
               </div>
               <div className={'blog-split mode-' + viewMode}>
                 <div className="blog-edit-pane">
@@ -780,181 +705,251 @@ export default function BlogAdmin() {
                 />
               </div>
               <div className="blog-statusbar">
-                <span>字符 {contentStats.chars}</span>
-                <span>字数 {contentStats.words}</span>
-                <span>阅读约 {contentStats.minutes} 分钟</span>
+                <Typography.Text type="secondary">字符 {contentStats.chars}</Typography.Text>
+                <Typography.Text type="secondary">字数 {contentStats.words}</Typography.Text>
+                <Typography.Text type="secondary">阅读约 {contentStats.minutes} 分钟</Typography.Text>
               </div>
             </div>
-          </div>
+          </Form.Item>
 
-          <label className="blog-publish">
-            <input
-              type="checkbox"
-              checked={form.published}
-              onChange={(e) => setField('published', e.target.checked)}
-            />
-            <span>发布状态（勾选为已发布，否则保存为草稿）</span>
-          </label>
+          <Form.Item>
+            <Space>
+              <Switch
+                checked={form.published}
+                onChange={(v) => setField('published', v)}
+              />
+              <span>发布状态（勾选为已发布，否则保存为草稿）</span>
+            </Space>
+          </Form.Item>
 
-          {saveError && <div className="error">{saveError}</div>}
+          {saveError && <Alert type="error" showIcon message={saveError} style={{ marginBottom: 16 }} />}
 
-          <div className="blog-actions">
-            <button className="btn-ghost" onClick={cancelEdit} disabled={saving}>
+          <Space style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button onClick={cancelEdit} disabled={saving}>
               取消
-            </button>
-            <button className="btn-ghost" onClick={() => submit(form.published)} disabled={saving}>
+            </Button>
+            <Button onClick={() => submit(form.published)} disabled={saving}>
               {saving ? '保存中…' : '保存'}
-            </button>
-            <button className="btn-primary" onClick={() => submit(true)} disabled={saving}>
+            </Button>
+            <Button type="primary" onClick={() => submit(true)} disabled={saving}>
               {saving ? '保存中…' : '发布'}
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Space>
+        </Form>
       </div>
     );
   }
 
+  const postColumns: TableProps<BlogPost>['columns'] = [
+    {
+      title: '标题',
+      dataIndex: 'title',
+      key: 'title',
+      sorter: (a, b) => a.title.localeCompare(b.title),
+      render: (_value, p) => (
+        <Space direction="vertical" size={2}>
+          <Typography.Link
+            title={p.published ? '打开文章页' : '打开文章页（草稿预览，链接 30 分钟内有效）'}
+            onClick={() => openPost(p)}
+          >
+            {p.title}
+          </Typography.Link>
+          {p.collection && <Tag>合集：{p.collection.name}</Tag>}
+        </Space>
+      )
+    },
+    {
+      title: '状态',
+      dataIndex: 'published',
+      key: 'status',
+      render: (published: boolean) => (
+        <Tag color={published ? 'green' : 'default'}>{published ? '已发布' : '草稿'}</Tag>
+      )
+    },
+    {
+      title: '日期',
+      key: 'date',
+      sorter: (a, b) =>
+        (a.updated_at || a.created_at || '').localeCompare(b.updated_at || b.created_at || ''),
+      render: (_value, p) => (
+        <Typography.Text type="secondary">{p.updated_at || p.created_at}</Typography.Text>
+      )
+    },
+    {
+      title: '标签',
+      dataIndex: 'tags',
+      key: 'tags',
+      render: (tags: string[] | undefined) => (
+        <Space size={4} wrap>
+          {(tags || []).map((t) => (
+            <Tag key={t}>{t}</Tag>
+          ))}
+        </Space>
+      )
+    },
+    {
+      title: '操作',
+      key: 'ops',
+      width: 140,
+      render: (_value, p) => (
+        <Space size={0}>
+          <Button type="link" size="small" onClick={() => startEdit(p)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title={`确定删除「${p.title}」？此操作不可恢复。`}
+            okText="删除"
+            cancelText="取消"
+            onConfirm={() => remove(p)}
+          >
+            <Button type="link" size="small" danger>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
+
+  const collectionColumns: TableProps<BlogCollection>['columns'] = [
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string, c) => (
+        <Typography.Link
+          href={siteUrl(`/blog/collections/${c.public_id || c.slug}`)}
+          target="_blank"
+          rel="noreferrer"
+          title="打开合集页"
+        >
+          {name}
+        </Typography.Link>
+      )
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      render: (description: string | undefined) => description || '—'
+    },
+    { title: '文章数', dataIndex: 'post_count', key: 'post_count' },
+    {
+      title: '操作',
+      key: 'ops',
+      width: 140,
+      render: (_value, c) => (
+        <Space size={0}>
+          <Button type="link" size="small" onClick={() => startEditCollection(c)}>
+            编辑
+          </Button>
+          <Popconfirm
+            title={`确定删除合集「${c.name}」？`}
+            okText="删除"
+            cancelText="取消"
+            onConfirm={() => confirmRemoveCollection(c)}
+          >
+            <Button type="link" size="small" danger>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
+
   return (
     <div className="system blog-admin">
       <div className="system-head">
-        <h2>博客管理</h2>
-        <div className="blog-head-right">
-          <div className="tabs blog-view-tabs">
-            <button
-              className={'tab' + (view === 'posts' ? ' active' : '')}
-              onClick={() => setView('posts')}
-            >
-              文章
-            </button>
-            <button
-              className={'tab' + (view === 'collections' ? ' active' : '')}
-              onClick={() => setView('collections')}
-            >
-              合集
-            </button>
-          </div>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          博客管理
+        </Typography.Title>
+        <Space>
+          <Segmented
+            value={view}
+            onChange={(v) => setView(String(v))}
+            options={[
+              { label: '文章', value: 'posts' },
+              { label: '合集', value: 'collections' }
+            ]}
+          />
           {view === 'posts' ? (
-            <button className="btn-primary" onClick={startNew}>
+            <Button type="primary" onClick={startNew}>
               ＋ 新建文章
-            </button>
+            </Button>
           ) : (
-            <button className="btn-primary" onClick={startNewCollection}>
+            <Button type="primary" onClick={startNewCollection}>
               ＋ 新建合集
-            </button>
+            </Button>
           )}
-        </div>
+        </Space>
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
       {view === 'posts' ? (
-        loading ? (
-          <div className="empty">加载中…</div>
-        ) : posts.length === 0 ? (
-          <div className="empty">暂无文章，点击右上角「新建文章」开始创作</div>
-        ) : (
-          <div className="blog-table-wrap">
-            <table className="blog-table">
-              <thead>
-                <tr>
-                  <th>标题</th>
-                  <th>状态</th>
-                  <th>日期</th>
-                  <th>标签</th>
-                  <th className="blog-ops">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {posts.map((p) => (
-                  <tr key={p.id}>
-                    <td className="blog-title">
-                      <a
-                        className="blog-title-link"
-                        href={siteUrl(`/blog/${p.public_id || p.slug}`)}
-                        title={p.published ? '打开文章页' : '打开文章页（草稿预览，链接 30 分钟内有效）'}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          openPost(p);
-                        }}
-                      >
-                        {p.title}
-                      </a>
-                      {p.collection && (
-                        <span className="blog-collection-tag">合集：{p.collection.name}</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={'blog-status ' + (p.published ? 'published' : 'draft')}>
-                        {p.published ? '已发布' : '草稿'}
-                      </span>
-                    </td>
-                    <td className="muted">{p.updated_at || p.created_at}</td>
-                    <td>
-                      <div className="blog-tags">
-                        {(p.tags || []).map((t) => (
-                          <span className="chip" key={t}>
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="blog-ops">
-                      <button className="link-btn" onClick={() => startEdit(p)}>
-                        编辑
-                      </button>
-                      <button className="link-btn danger" onClick={() => remove(p)}>
-                        删除
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )
-      ) : collections.length === 0 ? (
-        <div className="empty">暂无合集，点击右上角「新建合集」开始整理文章</div>
+        <Table<BlogPost>
+          rowKey="id"
+          columns={postColumns}
+          dataSource={posts}
+          loading={loading}
+          pagination={{ pageSize: 10, hideOnSinglePage: true }}
+          locale={{ emptyText: '暂无文章，点击右上角「新建文章」开始创作' }}
+          scroll={{ x: 'max-content' }}
+        />
       ) : (
-        <div className="blog-table-wrap">
-          <table className="blog-table">
-            <thead>
-              <tr>
-                <th>名称</th>
-                <th>描述</th>
-                <th>文章数</th>
-                <th className="blog-ops">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {collections.map((c) => (
-                <tr key={c.id}>
-                  <td className="blog-title">
-                    <a
-                      className="blog-title-link"
-                      href={siteUrl(`/blog/collections/${c.public_id || c.slug}`)}
-                      target="_blank"
-                      rel="noreferrer"
-                      title="打开合集页"
-                    >
-                      {c.name}
-                    </a>
-                  </td>
-                  <td className="muted">{c.description || '—'}</td>
-                  <td>{c.post_count}</td>
-                  <td className="blog-ops">
-                    <button className="link-btn" onClick={() => startEditCollection(c)}>
-                      编辑
-                    </button>
-                    <button className="link-btn danger" onClick={() => removeCollection(c)}>
-                      删除
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table<BlogCollection>
+          rowKey="id"
+          columns={collectionColumns}
+          dataSource={collections}
+          pagination={{ pageSize: 10, hideOnSinglePage: true }}
+          locale={{ emptyText: '暂无合集，点击右上角「新建合集」开始整理文章' }}
+          scroll={{ x: 'max-content' }}
+        />
       )}
+
+      <Modal
+        title={editingCollection === 'new' ? '新建合集' : '编辑合集'}
+        open={editingCollection !== null}
+        onOk={submitCollection}
+        onCancel={cancelCollectionEdit}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={savingCollection}
+        maskClosable={!savingCollection}
+        destroyOnHidden
+      >
+        <Form layout="vertical">
+          <Form.Item label="名称" required>
+            <Input
+              value={collectionForm.name}
+              onChange={(e) => setCollectionField('name', e.target.value)}
+              placeholder="合集名称"
+              autoFocus
+            />
+          </Form.Item>
+          <Form.Item
+            label="合集 ID"
+            tooltip="URL 标识：/blog/collections/&lt;合集 ID&gt;，保存后固定不变"
+          >
+            <Input
+              value={collectionForm.public_id || ''}
+              readOnly
+              disabled
+              placeholder="保存后自动生成（雪花 ID，URL 用它）"
+            />
+          </Form.Item>
+          <Form.Item label="描述">
+            <Input.TextArea
+              rows={3}
+              value={collectionForm.description}
+              onChange={(e) => setCollectionField('description', e.target.value)}
+              placeholder="合集简介（列表页展示）"
+            />
+          </Form.Item>
+        </Form>
+        {collectionError && <Alert type="error" showIcon message={collectionError} />}
+      </Modal>
     </div>
   );
 }

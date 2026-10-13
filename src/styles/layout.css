@@ -52,7 +52,7 @@
   gap: 10px;
 }
 
-/* ---------- 博客视图子 Tab（面板视觉，随面板后续轮次迁移） ---------- */
+/* ---------- 共用次级 Tab（终端等多标签页在用） ---------- */
 .tabs {
   display: flex;
   gap: 28px;
@@ -73,15 +73,6 @@
 
 .tab:hover {
   color: var(--fg);
-}
-
-.blog-view-tabs .tab {
-  padding: 0 0 4px;
-  border-bottom: 2px solid transparent;
-}
-
-.blog-view-tabs .tab.active {
-  border-bottom-color: var(--accent);
 }
 
 .tab.active {

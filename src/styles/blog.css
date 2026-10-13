@@ -1,4 +1,6 @@
 /* ============ 博客管理 ============ */
+
+/* 通用细线表格 / 状态标签 / 操作列 / 下拉：博客后台与其它面板共用，样板管理页仍在使用 */
 .blog-table-wrap {
   overflow-x: auto;
 }
@@ -39,29 +41,6 @@
   background: var(--bg-soft);
 }
 
-.blog-title {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  color: var(--fg);
-  white-space: nowrap;
-}
-
-/* 标题即入口：点进文章页（草稿走带预览令牌的地址） */
-.blog-title-link {
-  color: var(--fg);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  cursor: pointer;
-  transition:
-    color 0.15s var(--ease),
-    border-color 0.15s var(--ease);
-}
-
-.blog-title-link:hover {
-  color: var(--accent-ink);
-  border-bottom-color: currentColor;
-}
-
 /* 状态：方形细线标签（Swiss tag） */
 .blog-status {
   display: inline-block;
@@ -83,13 +62,6 @@
 
 .blog-status.draft {
   color: var(--muted);
-}
-
-.blog-tags {
-  display: flex;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  gap: 4px;
 }
 
 .blog-ops {
@@ -115,146 +87,6 @@
 .blog-table th.blog-ops { background: var(--surface-2); }
 .blog-table td.blog-ops { background: var(--surface); }
 .blog-table tbody tr:hover td.blog-ops { background: var(--bg-soft); }
-
-.blog-foot {
-  margin-top: 16px;
-  text-align: right;
-}
-
-/* 编辑页右上角动作区（「在 /blog 查看」+「返回列表」） */
-.blog-head-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.blog-head-actions .btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  text-decoration: none;
-}
-
-.blog-foot a {
-  color: var(--muted);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-decoration: none;
-  padding-bottom: 2px;
-  border-bottom: 1px solid transparent;
-  transition: color 0.14s var(--ease), border-bottom-color 0.14s var(--ease);
-}
-
-.blog-foot a:hover {
-  color: var(--accent-ink);
-  border-bottom-color: var(--accent);
-}
-
-.blog-editor {
-  max-width: 720px;
-}
-
-.blog-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 18px;
-}
-
-.blog-label {
-  font-family: var(--font-sans);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.blog-content {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.7;
-  resize: vertical;
-  min-height: 200px;
-}
-
-.blog-excerpt {
-  resize: vertical;
-}
-
-.blog-publish {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--muted);
-  margin-bottom: 18px;
-  cursor: pointer;
-}
-
-.blog-publish input[type='checkbox'] {
-  width: 15px;
-  height: 15px;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-
-.blog-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-/* 博客编辑器工具栏 */
-.blog-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.blog-img-btn {
-  font-size: 12px;
-  padding: 4px 10px;
-}
-
-.blog-img-btn.active {
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
-
-.blog-draft-notice {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--accent-ink);
-}
-
-.blog-head-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.blog-view-tabs {
-  margin-left: 0;
-  flex-shrink: 0;
-}
-
-/* 文章列表「所属合集」小标签 */
-.blog-collection-tag {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 1px 8px;
-  border-radius: 0;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 400;
-  color: var(--accent-ink);
-  background: transparent;
-  border: 1px solid var(--accent-border);
-  vertical-align: 1px;
-}
 
 .blog-select {
   height: 42px;
@@ -386,6 +218,3 @@
   max-width: 100%;
   border-radius: 0;
 }
-
-/* 窄屏导航改由 antd Drawer 承载（见 Main.tsx），此处不再有侧栏抽屉样式 */
-
