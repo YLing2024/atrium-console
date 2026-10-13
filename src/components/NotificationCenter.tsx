@@ -1,4 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Badge,
+  Button,
+  List,
+  Popconfirm,
+  Segmented,
+  Select,
+  Space,
+  Tag,
+  Tooltip,
+  Typography
+} from 'antd';
 import { getNotifications, getNotificationTypes, markNotificationRead, deleteNotification } from '../api';
 import type { NotificationItem, NotificationParams, NotificationType } from '../api';
 import { useNotificationStream } from '../notificationStream';
@@ -56,6 +69,20 @@ function streamStatusTitle(status: NotificationStreamStatus): string {
   if (status === 'disconnected') return '实时通道：已断开';
   return '实时通道：重连中';
 }
+
+// 状态点映射到 antd Badge 语义色
+function streamStatusBadge(status: NotificationStreamStatus): 'success' | 'warning' | 'error' {
+  if (status === 'connected') return 'success';
+  if (status === 'disconnected') return 'error';
+  return 'warning';
+}
+
+const LEVEL_OPTIONS = [
+  { value: '', label: '全部级别' },
+  { value: 'urgent', label: '紧急' },
+  { value: 'normal', label: '常规' },
+  { value: 'digest', label: '汇总' }
+];
 
 export default function NotificationCenter({
   onUnreadChange,
@@ -265,7 +292,6 @@ export default function NotificationCenter({
   }
 
   async function handleDelete(id: number) {
-    if (!window.confirm('删除这条通知？')) return;
     try {
       await deleteNotification(id);
       setItems((prev) => prev.filter((it) => it.id !== id));
@@ -301,174 +327,188 @@ export default function NotificationCenter({
 
   function renderDesktopControl() {
     if (permission === 'unsupported') {
-      return <span className="notif-desktop muted">当前浏览器不支持桌面通知</span>;
+      return <Typography.Text type="secondary">当前浏览器不支持桌面通知</Typography.Text>;
     }
     if (permission === 'denied') {
-      return <span className="notif-desktop muted">桌面通知已被浏览器阻止</span>;
+      return <Typography.Text type="secondary">桌面通知已被浏览器阻止</Typography.Text>;
     }
     if (permission === 'granted') {
       return (
-        <button className="notif-desktop" onClick={toggleDesktop}>
-          桌面通知 · {desktopPref ? '开' : '关'}
-        </button>
+        <Button onClick={toggleDesktop}>桌面通知 · {desktopPref ? '开' : '关'}</Button>
       );
     }
-    return (
-      <button className="notif-desktop" onClick={requestDesktop}>
-        开启桌面通知
-      </button>
-    );
+    return <Button onClick={requestDesktop}>开启桌面通知</Button>;
   }
 
   // 筛选器只展示服务端标记为 enabled 的类别（停用的历史类别不出现在这里，但其通知仍可按类别查）。
   const enabledTypes = types.filter((t) => Number(t.enabled) === 1);
 
   return (
-    <div className="notif">
-      <div className="notif-head">
-        <div className="notif-title-row">
-          <h2>通知</h2>
-          <span
-            className={'notif-stream-dot ' + stream.status}
-            title={streamStatusTitle(stream.status)}
-            aria-label={streamStatusTitle(stream.status)}
-          />
-        </div>
-        <div className="notif-head-actions">{renderDesktopControl()}</div>
+    <div className="system">
+      <div className="system-head">
+        <Space align="center" size={12}>
+          <Typography.Title level={4} style={{ margin: 0 }}>
+            通知
+          </Typography.Title>
+          <Tooltip title={streamStatusTitle(stream.status)}>
+            <span role="img" aria-label={streamStatusTitle(stream.status)}>
+              <Badge status={streamStatusBadge(stream.status)} />
+            </span>
+          </Tooltip>
+        </Space>
+        <div>{renderDesktopControl()}</div>
       </div>
 
-      <div className="notif-bar">
-        <div className="notif-seg">
-          <button
-            className={'notif-seg-btn' + (!filterUnread ? ' active' : '')}
-            onClick={() => setFilterUnread(false)}
-          >
-            全部
-          </button>
-          <button
-            className={'notif-seg-btn' + (filterUnread ? ' active' : '')}
-            onClick={() => setFilterUnread(true)}
-          >
-            未读
-          </button>
-        </div>
-        <div className="notif-selects">
-          <select className="notif-select" value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
-            <option value="">全部级别</option>
-            <option value="urgent">紧急</option>
-            <option value="normal">常规</option>
-            <option value="digest">汇总</option>
-          </select>
-          <select
-            className="notif-select"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-          >
-            <option value="">全部类别</option>
-            {enabledTypes.map((t) => (
-              <option key={t.key} value={t.key}>
-                {t.label || t.key}
-              </option>
-            ))}
-          </select>
-          <select
-            className="notif-select"
-            value={filterSource}
-            onChange={(e) => setFilterSource(e.target.value)}
-          >
-            <option value="">全部来源</option>
-            {sources.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <Space wrap size={12} style={{ marginBottom: 12 }}>
+        <Segmented
+          value={filterUnread ? 'unread' : 'all'}
+          onChange={(v) => setFilterUnread(v === 'unread')}
+          options={[
+            { label: '全部', value: 'all' },
+            { label: '未读', value: 'unread' }
+          ]}
+        />
+        <Select
+          value={filterLevel}
+          onChange={setFilterLevel}
+          options={LEVEL_OPTIONS}
+          style={{ minWidth: 120 }}
+        />
+        <Select
+          value={filterType}
+          onChange={setFilterType}
+          options={[
+            { value: '', label: '全部类别' },
+            ...enabledTypes.map((t) => ({ value: t.key, label: t.label || t.key }))
+          ]}
+          style={{ minWidth: 120 }}
+        />
+        <Select
+          value={filterSource}
+          onChange={setFilterSource}
+          options={[
+            { value: '', label: '全部来源' },
+            ...sources.map((s) => ({ value: s, label: s }))
+          ]}
+          style={{ minWidth: 120 }}
+        />
+      </Space>
 
-      {error && <div className="notif-error error">{error}</div>}
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
-      <div className="notif-list">
-        {items.map((item) => (
-          <div
-            key={item.id}
-            id={'notif-' + item.id}
-            className={
-              'notif-item' +
-              (item.readAt ? ' is-read' : '') +
-              (expandedId === item.id ? ' is-open' : '') +
-              (highlightId === item.id ? ' is-highlight' : '')
-            }
-          >
-            <button
-              className="notif-main"
-              aria-expanded={expandedId === item.id}
-              onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-            >
-              <span className={'notif-level ' + item.level}>{LEVEL_LABELS[item.level as string] || item.level}</span>
-              <span className="notif-main-text">
-                <span className="notif-item-title">{item.title}</span>
-                {item.body && <span className="notif-item-summary">{item.body}</span>}
-              </span>
-              <span className="notif-src">{typeLabel(item.type || item.source)}</span>
-              <span className="notif-time mono">{fmtTime(item.ts)}</span>
-              {!item.readAt && <span className="notif-dot" />}
-            </button>
-            {expandedId === item.id && (
-              <div className="notif-body">
-                {item.body ? (
-                  <MarkdownBody className="notif-text notif-md" text={item.body} />
-                ) : (
-                  <p className="notif-text muted">（无正文）</p>
-                )}
-                <div className="notif-meta">
-                  <span className="notif-meta-item">
-                    <span className="notif-meta-key">类别</span>
-                    {typeLabel(item.type || item.source) || '—'}
-                  </span>
-                  <span className="notif-meta-item">
-                    <span className="notif-meta-key">级别</span>
-                    {LEVEL_LABELS[item.level as string] || item.level || '—'}
-                  </span>
-                  <span className="notif-meta-item">
-                    <span className="notif-meta-key">来源</span>
-                    {item.source || '—'}
-                  </span>
-                  <span className="notif-meta-item">
-                    <span className="notif-meta-key">时间</span>
-                    <span className="mono">{fmtTimeFull(item.ts) || '—'}</span>
-                  </span>
-                </div>
-                <div className="notif-ops">
-                  {item.link && (
-                    <button className="link-btn" onClick={() => openLink(item.link as string)}>
-                      打开链接
-                    </button>
+      <List
+        dataSource={items}
+        locale={{
+          emptyText: error
+            ? ' '
+            : loading && items.length === 0
+              ? '加载中…'
+              : filterUnread
+                ? '没有未读通知'
+                : '还没有通知'
+        }}
+        loadMore={
+          !error && items.length > 0 && hasMore ? (
+            <div style={{ textAlign: 'center', margin: '16px 0 4px' }}>
+              <Button onClick={() => load(false)} loading={loading}>
+                {loading ? '加载中…' : '加载更多'}
+              </Button>
+            </div>
+          ) : null
+        }
+        renderItem={(item) => (
+          <List.Item key={item.id}>
+            <div id={'notif-' + item.id} style={{ width: '100%' }}>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-expanded={expandedId === item.id}
+                onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setExpandedId(expandedId === item.id ? null : item.id);
+                  }
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+              >
+                <Tag>{LEVEL_LABELS[item.level as string] || item.level}</Tag>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Typography.Text
+                    strong={!item.readAt}
+                    type={item.readAt ? 'secondary' : undefined}
+                  >
+                    {item.title}
+                  </Typography.Text>
+                  {item.body && (
+                    <Typography.Paragraph
+                      type="secondary"
+                      ellipsis={{ rows: 3 }}
+                      style={{ marginBottom: 0 }}
+                    >
+                      {item.body}
+                    </Typography.Paragraph>
                   )}
-                  {!item.readAt && (
-                    <button className="link-btn" onClick={() => handleRead(item.id)}>
-                      标为已读
-                    </button>
-                  )}
-                  <button className="link-btn danger" onClick={() => handleDelete(item.id)}>
-                    删除
-                  </button>
                 </div>
+                <Typography.Text type="secondary">
+                  {typeLabel(item.type || item.source)}
+                </Typography.Text>
+                <Typography.Text type="secondary">{fmtTime(item.ts)}</Typography.Text>
+                {!item.readAt && <Badge status="processing" />}
               </div>
-            )}
-          </div>
-        ))}
 
-        {!error && loading && items.length === 0 && <div className="notif-empty">加载中…</div>}
-        {!error && !loading && items.length === 0 && (
-          <div className="notif-empty">{filterUnread ? '没有未读通知' : '还没有通知'}</div>
+              {expandedId === item.id && (
+                <div style={{ paddingTop: 12 }}>
+                  {item.body ? (
+                    <MarkdownBody text={item.body} />
+                  ) : (
+                    <Typography.Paragraph type="secondary">（无正文）</Typography.Paragraph>
+                  )}
+                  <Space size={16} wrap style={{ marginBottom: 12 }}>
+                    <span>
+                      类别 <Typography.Text>{typeLabel(item.type || item.source) || '—'}</Typography.Text>
+                    </span>
+                    <span>
+                      级别{' '}
+                      <Typography.Text>
+                        {LEVEL_LABELS[item.level as string] || item.level || '—'}
+                      </Typography.Text>
+                    </span>
+                    <span>
+                      来源 <Typography.Text>{item.source || '—'}</Typography.Text>
+                    </span>
+                    <span>
+                      时间 <Typography.Text>{fmtTimeFull(item.ts) || '—'}</Typography.Text>
+                    </span>
+                  </Space>
+                  <Space size={0}>
+                    {item.link && (
+                      <Button type="link" size="small" onClick={() => openLink(item.link as string)}>
+                        打开链接
+                      </Button>
+                    )}
+                    {!item.readAt && (
+                      <Button type="link" size="small" onClick={() => handleRead(item.id)}>
+                        标为已读
+                      </Button>
+                    )}
+                    <Popconfirm
+                      title="删除这条通知？"
+                      okText="删除"
+                      cancelText="取消"
+                      onConfirm={() => handleDelete(item.id)}
+                    >
+                      <Button type="link" size="small" danger>
+                        删除
+                      </Button>
+                    </Popconfirm>
+                  </Space>
+                </div>
+              )}
+            </div>
+          </List.Item>
         )}
-        {!error && items.length > 0 && hasMore && (
-          <button className="btn-ghost notif-more" onClick={() => load(false)} disabled={loading}>
-            {loading ? '加载中…' : '加载更多'}
-          </button>
-        )}
-      </div>
+      />
     </div>
   );
 }
