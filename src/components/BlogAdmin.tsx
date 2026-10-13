@@ -749,8 +749,12 @@ export default function BlogAdmin() {
       render: (_value, p) => (
         <Space direction="vertical" size={2}>
           <Typography.Link
+            href={siteUrl(`/blog/${p.public_id || p.slug}`)}
             title={p.published ? '打开文章页' : '打开文章页（草稿预览，链接 30 分钟内有效）'}
-            onClick={() => openPost(p)}
+            onClick={(e) => {
+              e.preventDefault();
+              openPost(p);
+            }}
           >
             {p.title}
           </Typography.Link>
