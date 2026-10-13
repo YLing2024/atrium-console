@@ -1,10 +1,68 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Divider, Empty, Space, Typography } from 'antd';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Badge, Button, Card, Col, Divider, Empty, Row, Space, Typography } from 'antd';
 import { getApps } from '../api';
-import type { AppsResponse } from '../api';
-import AppCard from './AppCard';
+import type { AppInfo, AppsResponse } from '../api';
+import { STATUS_LABEL, statusOf } from '../appStatus';
+import AppIcon from './AppIcon';
 
 const REFRESH_MS = 30000; // 自动刷新间隔
+
+// 状态 → antd Badge 外观（判定沿用 appStatus 的既有逻辑，这里只做展示映射）
+const BADGE_STATUS: Record<string, 'success' | 'processing' | 'warning' | 'error' | 'default'> = {
+  up: 'success',
+  auth: 'processing',
+  degraded: 'warning',
+  down: 'error',
+  idle: 'default',
+  unknown: 'default'
+};
+
+// 单张应用卡片：antd Card 承载；有 url 时整卡可点、新窗口打开（url 一律用接口返回值）。
+function AppAntCard({ app }: { app: AppInfo }) {
+  const status = statusOf(app);
+  const label = STATUS_LABEL[status];
+  const hasPort = app.port != null && app.port !== '';
+  const hasLatency = app.latencyMs != null && Number.isFinite(Number(app.latencyMs));
+
+  const card = (
+    <Card size="small" hoverable={!!app.url} style={{ height: '100%' }}>
+      <Space direction="vertical" size={4} style={{ width: '100%' }}>
+        <Space align="center" size={8}>
+          <AppIcon name={app.icon} fallback={app.name} />
+          <Typography.Text strong>{app.name}</Typography.Text>
+        </Space>
+        {app.desc ? (
+          <Typography.Text type="secondary" ellipsis style={{ display: 'block' }}>
+            {app.desc}
+          </Typography.Text>
+        ) : null}
+        <Space size={8} wrap>
+          <Badge status={BADGE_STATUS[status] ?? 'default'} text={label} />
+          {hasPort && <Typography.Text type="secondary">端口 {app.port}</Typography.Text>}
+          {hasLatency && (
+            <Typography.Text type="secondary">
+              {Math.round(Number(app.latencyMs))} ms
+            </Typography.Text>
+          )}
+        </Space>
+      </Space>
+    </Card>
+  );
+
+  if (app.url) {
+    return (
+      <a
+        href={app.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}
+      >
+        {card}
+      </a>
+    );
+  }
+  return card;
+}
 
 // 应用面板：只读。首次进入本 Tab 拉一次，之后 30s 自动刷新；
 // 页面隐藏时暂停，恢复可见立即刷新；切走/卸载清定时器。
@@ -98,35 +156,26 @@ export default function Apps({ active }: { active: boolean }) {
         <Empty description="暂无应用" />
       ) : (
         groups.map((g) => (
-          <div className="apps-group" key={g.cat.id}>
-            <div className="apps-group-head">
-              <Typography.Text className="apps-group-name" strong>
-                {g.cat.name}
-              </Typography.Text>
-              <Typography.Text className="apps-group-count" type="secondary">
-                · {g.items.length}
-              </Typography.Text>
-            </div>
-            <div className="apps-grid">
+          <Fragment key={g.cat.id}>
+            <Divider orientation="left" orientationMargin={0}>
+              {g.cat.name} · {g.items.length}
+            </Divider>
+            <Row gutter={[16, 16]}>
               {g.items.map((app) => (
-                <AppCard key={app.id} app={app} />
+                <Col key={app.id} xs={24} sm={12} md={8}>
+                  <AppAntCard app={app} />
+                </Col>
               ))}
-            </div>
-          </div>
+            </Row>
+          </Fragment>
         ))
       )}
 
       {discovered.length > 0 && (
-        <div className="apps-group">
-          <Divider style={{ margin: '0 0 16px' }} />
-          <div className="apps-group-head">
-            <Typography.Text className="apps-group-name" type="secondary">
-              未登记
-            </Typography.Text>
-            <Typography.Text className="apps-group-count" type="secondary">
-              · {discovered.length}
-            </Typography.Text>
-          </div>
+        <>
+          <Divider orientation="left" orientationMargin={0}>
+            未登记 · {discovered.length}
+          </Divider>
           <Space direction="vertical" size={0}>
             {discovered.map((d, i) => (
               <Typography.Text type="secondary" key={d.port != null ? d.port : i}>
@@ -135,7 +184,7 @@ export default function Apps({ active }: { active: boolean }) {
               </Typography.Text>
             ))}
           </Space>
-        </div>
+        </>
       )}
     </div>
   );
