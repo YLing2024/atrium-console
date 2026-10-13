@@ -1,8 +1,25 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Col,
+  Progress,
+  Row,
+  Segmented,
+  Space,
+  Table,
+  Typography,
+  theme
+} from 'antd';
+import type { TableColumnsType } from 'antd';
+import type { EChartsType } from 'echarts/core';
+import type { LineSeriesOption } from 'echarts/charts';
 import { getSystemMetrics } from '../api';
 import type { CoreUsage, DiskInfo, HistoryPoint, PsiInfo, ServiceInfo, SystemData } from '../api';
-import { clampOffset, fmtBytes, fmtDuration, fmtMB, fmtPct, fmtRate, niceMax, toneFor } from '../format';
+import { clampOffset, fmtBytes, fmtDuration, fmtMB, fmtPct, fmtRate, toneFor } from '../format';
+import Chart, { type EChartsOption } from './Chart';
 
 /** 系统 SSE snapshot 帧结构 */
 interface SystemSnapshot {
@@ -23,7 +40,18 @@ interface ProcessInfo {
   cpu?: number;
 }
 
-/** 趋势图序列定义 */
+/** 序列语义色：只给 antd 主题 token 的用途名，颜色在组件内按 token 解析 */
+type SeriesTone = 'primary' | 'secondary' | 'success' | 'error';
+
+/** 趋势图序列定义（颜色由 SeriesTone 解析，不写死色值） */
+interface SeriesSpec {
+  key: string;
+  label: string;
+  tone: SeriesTone;
+  format?: (v: number | null | undefined) => string;
+}
+
+/** 已解析出具体颜色的序列（传给 Legend / Chart） */
 interface ChartSeries {
   key: string;
   label: string;
@@ -39,95 +67,96 @@ function fmtTime(ts: number): string {
   return `${hh}:${mm}:${ss}`;
 }
 
+// 占用率 → 进度条颜色（分级规则见 toneFor，颜色取自 antd 主题 token）
+function clampPct(p?: number | null): number {
+  return Math.max(0, Math.min(100, Number(p) || 0));
+}
+
 // 进度条（CPU / 内存 / 磁盘共用）。动态变色规则见 toneFor
-function Bar({ percent }: { percent?: number | null }) {
-  const p = Math.max(0, Math.min(100, percent || 0));
-  return (
-    <div className="bar">
-      <div className={'bar-fill ' + toneFor(p)} style={{ width: p + '%' }} />
-    </div>
-  );
+function Bar({ percent, color }: { percent?: number | null; color: string }) {
+  return <Progress percent={clampPct(percent)} showInfo={false} strokeColor={color} />;
 }
 
 // 每核占用区块：cpu.per_core 缺失或为空时整块不渲染（兼容旧后端）
-function CoreGrid({ cores }: { cores?: CoreUsage[] }) {
+function CoreGrid({ cores, colorOf }: { cores?: CoreUsage[]; colorOf: (p: number) => string }) {
   if (!Array.isArray(cores) || cores.length === 0) return null;
   return (
-    <div className="cores">
+    <Row gutter={[12, 10]} style={{ marginBottom: 8 }}>
       {cores.map((c, i) => {
         const id = c && c.id != null ? c.id : i;
         const raw = c && c.usage_percent != null ? Number(c.usage_percent) : 0;
-        const p = Math.max(0, Math.min(100, Number.isFinite(raw) ? raw : 0));
+        const p = clampPct(Number.isFinite(raw) ? raw : 0);
         return (
-          <div className="core" key={id}>
-            <div className="core-top">
-              <span className="core-id">#{id}</span>
-              <span className="core-pct">{p.toFixed(1)}%</span>
+          <Col key={id} xs={12} sm={8} md={6}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+              <Typography.Text type="secondary">#{id}</Typography.Text>
+              <Typography.Text>{p.toFixed(1)}%</Typography.Text>
             </div>
-            <div className="core-bar">
-              <div className={'bar-fill ' + toneFor(p)} style={{ width: p + '%' }} />
-            </div>
-          </div>
+            <Progress percent={p} showInfo={false} strokeColor={colorOf(p)} size="small" />
+          </Col>
         );
       })}
-    </div>
+    </Row>
   );
 }
 
 // 单块磁盘卡片：多盘列表与旧单盘回退共用同一结构
-function DiskCard({ title, disk }: { title: string; disk: DiskInfo }) {
+function DiskCard({
+  title,
+  disk,
+  colorOf
+}: {
+  title: string;
+  disk: DiskInfo;
+  colorOf: (p: number) => string;
+}) {
   return (
     <Card title={title}>
-      <div className="disk">
-        <div className="disk-top">
-          <span>已用 {fmtBytes(disk.used)}</span>
-          <span className="muted">
-            {disk.percent == null ? '—' : disk.percent + '%'} · 共 {fmtBytes(disk.total)}
-          </span>
-        </div>
-        <Bar percent={disk.percent} />
-        <Row k="剩余 / 总" v={`${fmtBytes(disk.free)} / ${fmtBytes(disk.total)}`} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+        <Typography.Text>已用 {fmtBytes(disk.used)}</Typography.Text>
+        <Typography.Text type="secondary">
+          {disk.percent == null ? '—' : disk.percent + '%'} · 共 {fmtBytes(disk.total)}
+        </Typography.Text>
       </div>
+      <Bar percent={disk.percent} color={colorOf(clampPct(disk.percent))} />
+      <InfoRow k="剩余 / 总" v={`${fmtBytes(disk.free)} / ${fmtBytes(disk.total)}`} />
     </Card>
   );
 }
 
-function Card({ title, children }: { title: string; children?: ReactNode }) {
+// 详情行：键 / 值，值可带颜色（PSI 压力越大越警示）
+function InfoRow({ k, v, valueStyle }: { k: ReactNode; v: ReactNode; valueStyle?: CSSProperties }) {
   return (
-    <div className="card">
-      <h3>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function Row({ k, v }: { k: ReactNode; v: ReactNode }) {
-  return (
-    <div className="row">
-      <span className="row-k">{k}</span>
-      <span className="row-v">{v}</span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '2px 0' }}>
+      <Typography.Text type="secondary" style={{ flexShrink: 0 }}>
+        {k}
+      </Typography.Text>
+      <Typography.Text style={{ textAlign: 'right', overflowWrap: 'anywhere', ...valueStyle }}>
+        {v}
+      </Typography.Text>
     </div>
   );
 }
 
 // PSI 行：k=资源名，o=/proc/pressure 解析结果（{ some:{avg10,..}, full:{..} } 或 null）。
 // 显示 some/full 的 avg10；无 PSI 时显示 —。压力越大颜色越警示（some≥50 红、≥30 橙）
-function PsiRow({ k, o }: { k: string; o?: PsiInfo | null }) {
-  if (!o || !o.some) return <Row k={k} v="—" />;
+function PsiRow({
+  k,
+  o,
+  danger,
+  warn
+}: {
+  k: string;
+  o?: PsiInfo | null;
+  danger: string;
+  warn: string;
+}) {
+  if (!o || !o.some) return <InfoRow k={k} v="—" />;
   const s = Number(o.some.avg10);
-  const color = s >= 50 ? 'var(--danger)' : s >= 30 ? 'var(--warn)' : undefined;
+  const color = s >= 50 ? danger : s >= 30 ? warn : undefined;
   const v = `some ${fmtPct(o.some.avg10)}% · full ${fmtPct(o.full ? o.full.avg10 : null)}%`;
-  return (
-    <div className="row">
-      <span className="row-k">{k}</span>
-      <span className="row-v" style={color ? { color } : undefined}>{v}</span>
-    </div>
-  );
+  return <InfoRow k={k} v={v} valueStyle={color ? { color } : undefined} />;
 }
-
-const CHART_W = 640;
-const CHART_H = 200;
-const PAD = { l: 46, r: 12, t: 12, b: 24 };
 
 // 秒档默认窗口（30 个点，行为保持不变）；分钟/小时/天档默认最近约 60 个点
 const WINDOW = 30;
@@ -146,12 +175,12 @@ function formatTick(ts: number, granularity: string): string {
   return fmtTime(ts); // 秒档 HH:mm:ss（沿用原函数，行为不变）
 }
 
-// 纯 SVG 折线图：多序列共用一个 Y 轴。yMax 固定时（百分比）用 0-100 刻度，
-// 否则根据数据最大值动态取整。
-// - 秒档（granularity='sec'）行为保持原样：窗口 30 点、跟随最新、可拖拽/滚轮、回最新按钮。
-// - 分钟/小时/天档（sparse=true）：窗口 60 点；0 点占位、1 点也画出（点 + 水平虚线参考线）；
-//   拖动平移，到边即停并给反馈，松手不回弹，位置按档位记忆在内存。
-function LineChart({
+// 趋势图：ECharts 折线，多序列共用一个 Y 轴。yMax 固定时（百分比）用 0-100 刻度，
+// 否则按数据动态取整（ECharts 自适应）。
+// - 秒档（granularity='sec'）行为保持原样：窗口 30 点、跟随最新、可平移、回最新按钮。
+// - 分钟/小时/天档（sparse=true）：窗口 60 点；平移位置按档位记忆在内存。
+// - 平移统一走 ECharts dataZoom(type:'inside')，触屏 / 滚轮 / 拖动均可。
+function TrendChart({
   data,
   series,
   yMax,
@@ -168,26 +197,48 @@ function LineChart({
   chartId: string;
   recordedMinutes?: number | null;
 }) {
-  const iw = CHART_W - PAD.l - PAD.r;
-  const ih = CHART_H - PAD.t - PAD.b;
-
+  const { token } = theme.useToken();
   const sparse = granularity !== 'sec';
   const win = sparse ? WINDOW_WIDE : WINDOW;
   const memoryKey = sparse && chartId ? granularity + ':' + chartId : null;
 
   const remembered = memoryKey ? chartViewMemory.get(memoryKey) : null;
   const [offset, setOffset] = useState(remembered ? remembered.offset : 0);
-  const [dragging, setDragging] = useState(false);
-  const [edge, setEdge] = useState<'start' | 'end' | null>(null);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const dragRef = useRef<{ startX: number; startOffset: number } | null>(null);
   const followRef = useRef(remembered ? remembered.follow : true);
+  const memKeyRef = useRef<string | null>(memoryKey);
+  const rangeRef = useRef({ len: data ? data.length : 0, win });
+  memKeyRef.current = memoryKey;
+  rangeRef.current = { len: data ? data.length : 0, win };
 
   // 记住当前平移位置（仅非秒档；秒档 memoryKey=null，行为不变）
-  function remember(nextOffset: number, following: boolean) {
+  const remember = useCallback((nextOffset: number, following: boolean) => {
     followRef.current = following;
-    if (memoryKey) chartViewMemory.set(memoryKey, { offset: nextOffset, follow: following });
-  }
+    const key = memKeyRef.current;
+    if (key) chartViewMemory.set(key, { offset: nextOffset, follow: following });
+  }, []);
+
+  // dataZoom 平移回调：同步跟随状态与位置（回最新按钮据此显隐）
+  const onReady = useCallback(
+    (chart: EChartsType) => {
+      chart.on('datazoom', (params: unknown) => {
+        const p = params as { batch?: Array<Record<string, number>> };
+        const b = p.batch && p.batch[0];
+        if (!b) return;
+        const { len: L, win: W } = rangeRef.current;
+        let start = b.startValue;
+        let end = b.endValue;
+        if (start == null && b.start != null) start = Math.round((b.start / 100) * (L - 1));
+        if (end == null && b.end != null) end = Math.round((b.end / 100) * (L - 1));
+        const s = Math.round(start == null ? 0 : start);
+        const e = Math.round(end == null ? L - 1 : end);
+        const following = e >= L - 1;
+        const next = Math.max(0, Math.min(s, Math.max(0, L - W)));
+        remember(next, following);
+        setOffset((cur) => (cur !== next ? next : cur));
+      });
+    },
+    [remember]
+  );
 
   // 切换档位（memoryKey 变化）：先恢复该档位上次的平移位置（须在下面的数据 effect 之前执行）
   useEffect(() => {
@@ -195,7 +246,6 @@ function LineChart({
     const m = chartViewMemory.get(memoryKey);
     followRef.current = m ? m.follow : true;
     setOffset(m ? m.offset : 0);
-    setEdge(null);
   }, [memoryKey]);
 
   // 数据更新时自动跟随：初始及跟随状态下始终对齐最新；
@@ -216,175 +266,102 @@ function LineChart({
     }
   }, [data, win, memoryKey]);
 
-  // 鼠标滚轮水平平移（deltaY/deltaX）
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el || !data || data.length < 2) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-      if (!Number.isFinite(delta) || Math.abs(delta) < 1) return;
-      setOffset((cur) => {
-        const next = clampOffset(cur + Math.round(delta / 20), data.length, win);
-        remember(next, next + win >= data.length);
-        return next;
-      });
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [data, win, memoryKey]);
-
-  // 空数据：非秒档给出「数据积累中」占位（带已记录分钟数），秒档维持原文案
-  if (!data || data.length === 0) {
-    return sparse ? (
-      <div className="chart-empty muted">
-        数据积累中（已记录 {recordedMinutes == null ? 0 : recordedMinutes} 分钟）
-      </div>
-    ) : (
-      <div className="chart-empty muted">数据采集中…（约 3 秒后显示趋势）</div>
-    );
-  }
+  const isEmpty = !data || data.length === 0;
   // 秒档不足 2 点：行为保持原样（占位）；非秒档单点也要可见
-  if (!sparse && data.length < 2) {
-    return <div className="chart-empty muted">数据采集中…（约 3 秒后显示趋势）</div>;
+  const tooFew = !sparse && !isEmpty && data.length < 2;
+
+  if (isEmpty || tooFew) {
+    const text = sparse
+      ? `数据积累中（已记录 ${recordedMinutes == null ? 0 : recordedMinutes} 分钟）`
+      : '数据采集中…（约 3 秒后显示趋势）';
+    return (
+      <div style={{ padding: '32px 0', textAlign: 'center' }}>
+        <Typography.Text type="secondary">{text}</Typography.Text>
+      </div>
+    );
   }
 
   const len = data.length;
-  const windowData = data.slice(offset, offset + win);
-  const W = windowData.length;
-  const single = W === 1;
-  const pxPerPoint = iw / Math.max(1, W - 1);
-  const isFollowing = offset + win >= len;
   const maxOffset = Math.max(0, len - win);
+  const isFollowing = offset + win >= len;
 
-  const maxVal = Math.max(
-    1,
-    ...windowData.flatMap((d) => series.map((s) => Number(d[s.key]) || 0))
-  );
-  const axisMax = yMax || niceMax(maxVal);
-
-  // 单点时落在绘图区水平中央，其它情况按点均匀铺开
-  const x = (i: number): number => (single ? PAD.l + iw / 2 : PAD.l + (i / Math.max(1, W - 1)) * iw);
-  const y = (v: number | null | undefined): number => PAD.t + (1 - (Number(v) || 0) / axisMax) * ih;
-  const pathFor = (key: string): string =>
-    windowData
-      .map((d, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(d[key]).toFixed(1)}`)
-      .join(' ');
-
-  // Y 轴刻度：百分比固定 0/50/100 三档，速率动态按 axisMax 取 5 档
-  const ticks = yMax ? [0, 0.5, 1] : [0, 0.25, 0.5, 0.75, 1];
-
-  // X 轴时间标签：按窗口内数据动态取首 / 中 / 尾 3-4 个
-  const labelIdx = [
-    ...new Set([0, Math.floor((W - 1) / 3), Math.floor((2 * (W - 1)) / 3), W - 1])
-  ].filter((i) => i >= 0 && i < W);
-
-  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    // 点在「回最新」按钮上时不接管指针，保证按钮可正常点击
-    const target = e.target as Element | null;
-    if (target && target.closest && target.closest('button')) return;
-    if (e.preventDefault) e.preventDefault();
-    dragRef.current = { startX: e.clientX, startOffset: offset };
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setDragging(true);
-  };
-  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-    if (e.preventDefault) e.preventDefault();
-    const dx = dragRef.current.startX - e.clientX;
-    const raw = dragRef.current.startOffset + Math.round(dx / pxPerPoint);
-    const next = clampOffset(raw, len, win);
-    remember(next, next + win >= len);
-    // 到边反馈仅非秒档（秒档行为保持不变）
-    if (sparse) setEdge(raw < 0 ? 'start' : raw > maxOffset ? 'end' : null);
-    setOffset(next);
-  };
-  const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
-    dragRef.current = null;
-    setDragging(false);
-    setEdge(null);
-    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
+  const option: EChartsOption = {
+    animation: false,
+    grid: { left: 56, right: 16, top: 16, bottom: 30 },
+    tooltip: { trigger: 'axis' },
+    legend: { show: false },
+    xAxis: {
+      type: 'category',
+      data: data.map((d) => formatTick(d.ts, granularity)),
+      boundaryGap: false,
+      axisTick: { show: false },
+      axisLine: { lineStyle: { color: token.colorBorderSecondary } },
+      axisLabel: { color: token.colorTextTertiary, hideOverlap: true }
+    },
+    yAxis: yMax
+      ? {
+          type: 'value',
+          min: 0,
+          max: yMax,
+          splitNumber: 2,
+          axisLabel: {
+            color: token.colorTextTertiary,
+            formatter: (v: number) => Math.round(v) + (yLabel || '%')
+          },
+          splitLine: { lineStyle: { color: token.colorBorderSecondary } }
+        }
+      : {
+          type: 'value',
+          min: 0,
+          axisLabel: {
+            color: token.colorTextTertiary,
+            formatter: (v: number) => fmtRate(v)
+          },
+          splitLine: { lineStyle: { color: token.colorBorderSecondary } }
+        },
+    dataZoom: [
+      {
+        type: 'inside',
+        xAxisIndex: 0,
+        startValue: offset,
+        endValue: offset + win - 1,
+        zoomOnMouseWheel: false,
+        moveOnMouseWheel: true,
+        moveOnMouseMove: true,
+        filterMode: 'filter',
+        preventDefaultMouseMove: false
+      }
+    ],
+    series: series.map<LineSeriesOption>((s) => ({
+      name: s.label,
+      type: 'line',
+      showSymbol: len <= 1,
+      symbolSize: 4,
+      lineStyle: { width: 1.5, color: s.color },
+      itemStyle: { color: s.color },
+      data: data.map((d) => {
+        const v = Number(d[s.key]);
+        return Number.isFinite(v) ? v : null;
+      })
+    }))
   };
 
   return (
-    <div
-      ref={wrapRef}
-      className={
-        'chart-wrap' +
-        (dragging ? ' dragging' : '') +
-        (edge ? ' edge-' + edge : '')
-      }
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={endDrag}
-      onPointerCancel={endDrag}
-    >
-      <svg className="chart" viewBox={`0 0 ${CHART_W} ${CHART_H}`} role="img">
-        {ticks.map((t) => {
-          const v = t * axisMax;
-          return (
-            <g key={t}>
-              <line x1={PAD.l} y1={y(v)} x2={CHART_W - PAD.r} y2={y(v)} className="chart-grid" />
-              <text x={PAD.l - 6} y={y(v) + 4} className="chart-axis" textAnchor="end">
-                {yMax ? Math.round(v) + (yLabel || '') : fmtRate(v)}
-              </text>
-            </g>
-          );
-        })}
-
-        {labelIdx.map((i) => (
-          <text
-            key={windowData[i].ts + '-' + i}
-            x={x(i)}
-            y={CHART_H - 8}
-            className="chart-axis"
-            textAnchor="middle"
-          >
-            {formatTick(windowData[i].ts, granularity)}
-          </text>
-        ))}
-
-        {single
-          ? series.map((s) => (
-              <g key={s.key}>
-                <line
-                  x1={PAD.l}
-                  y1={y(windowData[0][s.key])}
-                  x2={CHART_W - PAD.r}
-                  y2={y(windowData[0][s.key])}
-                  className="chart-line chart-line-single"
-                  style={{ stroke: s.color }}
-                />
-                <circle cx={x(0)} cy={y(windowData[0][s.key])} r={3} fill={s.color} />
-              </g>
-            ))
-          : series.map((s) => (
-              <path
-                key={s.key}
-                d={pathFor(s.key)}
-                className="chart-line"
-                fill="none"
-                style={{ stroke: s.color }}
-              />
-            ))}
-      </svg>
-
-      {sparse && edge && <div className={'chart-edge chart-edge-' + edge} aria-hidden="true" />}
-
+    <div style={{ position: 'relative' }}>
       {!isFollowing && (
-        <button
-          className="chart-back-btn"
-          onClick={() => {
-            remember(Math.max(0, len - win), true);
-            setOffset(Math.max(0, len - win));
-          }}
-        >
-          回最新
-        </button>
+        <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 2 }}>
+          <Button
+            size="small"
+            onClick={() => {
+              remember(maxOffset, true);
+              setOffset(maxOffset);
+            }}
+          >
+            回最新
+          </Button>
+        </div>
       )}
+      <Chart option={option} height={220} onReady={onReady} />
     </div>
   );
 }
@@ -393,38 +370,40 @@ function LineChart({
 function Legend({ series, data }: { series: ChartSeries[]; data: HistoryPoint[] }) {
   const last = data && data.length ? data[data.length - 1] : null;
   return (
-    <div className="chart-legend">
+    <Space size={16} wrap style={{ marginBottom: 8 }}>
       {series.map((s) => (
-        <span key={s.key} className="chart-legend-item">
-          <span className="chart-swatch" style={{ background: s.color }} />
-          <span>{s.label}</span>
+        <Space key={s.key} size={6}>
+          <Badge color={s.color} />
+          <Typography.Text>{s.label}</Typography.Text>
           {last != null && (
-            <span className="chart-last">{s.format ? s.format(last[s.key]) : last[s.key]}</span>
+            <Typography.Text type="secondary">
+              {s.format ? s.format(last[s.key]) : last[s.key]}
+            </Typography.Text>
           )}
-        </span>
+        </Space>
       ))}
-    </div>
+    </Space>
   );
 }
 
-// 趋势序列定义：单点缀色（琥珀）+ 中性灰，走 CSS 变量自动适配明暗
-const MEM_SERIES: ChartSeries[] = [
-  { key: 'cpu', label: 'CPU', color: 'var(--muted)' },
-  { key: 'mem_percent', label: '物理内存', color: 'var(--accent)' },
-  { key: 'swap_percent', label: 'Swap', color: 'var(--ok)' }
+// 趋势序列定义：语义色 → antd 主题 token（主色 / 中性 / 成功 / 错误），深浅色自动适配
+const MEM_SPECS: SeriesSpec[] = [
+  { key: 'cpu', label: 'CPU', tone: 'secondary' },
+  { key: 'mem_percent', label: '物理内存', tone: 'primary' },
+  { key: 'swap_percent', label: 'Swap', tone: 'success' }
 ];
-const PSI_SERIES: ChartSeries[] = [
-  { key: 'psi_mem_avg10', label: '内存', color: 'var(--danger)', format: fmtPct },
-  { key: 'psi_cpu_avg10', label: 'CPU', color: 'var(--accent)', format: fmtPct },
-  { key: 'psi_io_avg10', label: 'I/O', color: 'var(--muted)', format: fmtPct }
+const PSI_SPECS: SeriesSpec[] = [
+  { key: 'psi_mem_avg10', label: '内存', tone: 'error', format: fmtPct },
+  { key: 'psi_cpu_avg10', label: 'CPU', tone: 'primary', format: fmtPct },
+  { key: 'psi_io_avg10', label: 'I/O', tone: 'secondary', format: fmtPct }
 ];
-const NET_SERIES: ChartSeries[] = [
-  { key: 'net_rx_rate', label: '↓ 下载', color: 'var(--accent)', format: fmtRate },
-  { key: 'net_tx_rate', label: '↑ 上传', color: 'var(--muted)', format: fmtRate }
+const NET_SPECS: SeriesSpec[] = [
+  { key: 'net_rx_rate', label: '↓ 下载', tone: 'primary', format: fmtRate },
+  { key: 'net_tx_rate', label: '↑ 上传', tone: 'secondary', format: fmtRate }
 ];
-const IO_SERIES: ChartSeries[] = [
-  { key: 'disk_io_read', label: '读', color: 'var(--accent)', format: fmtRate },
-  { key: 'disk_io_write', label: '写', color: 'var(--muted)', format: fmtRate }
+const IO_SPECS: SeriesSpec[] = [
+  { key: 'disk_io_read', label: '读', tone: 'primary', format: fmtRate },
+  { key: 'disk_io_write', label: '写', tone: 'secondary', format: fmtRate }
 ];
 
 // 趋势粒度：秒 = 现有 SSE 实时流（默认，行为不变）；其它档位改用历史聚合接口。
@@ -598,6 +577,23 @@ export default function System({ active }: { active: boolean }) {
     }
   }
 
+  const { token } = theme.useToken();
+  const toneColor = (tone: SeriesTone): string =>
+    tone === 'primary'
+      ? token.colorPrimary
+      : tone === 'success'
+        ? token.colorSuccess
+        : tone === 'error'
+          ? token.colorError
+          : token.colorTextTertiary;
+  const resolveSeries = (specs: SeriesSpec[]): ChartSeries[] =>
+    specs.map((s) => ({ key: s.key, label: s.label, color: toneColor(s.tone), format: s.format }));
+  // 占用率分级颜色（>80 红 / 60-80 橙 / <60 绿），颜色取自 antd 主题 token
+  const barColor = (p?: number | null): string => {
+    const t = toneFor(p);
+    return t === 'hi' ? token.colorError : t === 'mid' ? token.colorWarning : token.colorSuccess;
+  };
+
   if (!data) {
     return (
       <div className="system">
@@ -633,221 +629,292 @@ export default function System({ active }: { active: boolean }) {
     return bv - av;
   });
 
+  const processColumns: TableColumnsType<ProcessInfo> = [
+    {
+      key: 'status',
+      width: 32,
+      align: 'center',
+      render: (_: unknown, p: ProcessInfo) => {
+        const down = services.find((s) => s.pid === p.pid)?.status === 'down';
+        return <Badge status={down ? 'error' : 'success'} />;
+      }
+    },
+    { title: '进程', dataIndex: 'name', ellipsis: true },
+    { title: 'PID', dataIndex: 'pid', width: 96, align: 'right' },
+    {
+      title: '内存',
+      dataIndex: 'mem_mb',
+      width: 104,
+      align: 'right',
+      render: (v: number | undefined) => fmtMB(v)
+    },
+    {
+      title: 'CPU',
+      dataIndex: 'cpu',
+      width: 96,
+      align: 'right',
+      render: (v: number | undefined) => (Number(v) || 0).toFixed(1) + '%'
+    }
+  ];
+
   // 趋势数据源：秒档位沿用 SSE 实时 history；其它档位用聚合接口结果
   const trend = granularity === 'sec' ? history : trendPoints;
+  const memSeries = resolveSeries(MEM_SPECS);
+  const psiSeries = resolveSeries(PSI_SPECS);
+  const netSeries = resolveSeries(NET_SPECS);
+  const ioSeries = resolveSeries(IO_SPECS);
 
   return (
     <div className="system">
       <div className="system-head">
-        <h2>系统监控</h2>
-        <span className="muted">更新于 {updated ? updated.toLocaleTimeString('zh-CN') : '--'}</span>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          系统监控
+        </Typography.Title>
+        <Typography.Text type="secondary">
+          更新于 {updated ? updated.toLocaleTimeString('zh-CN') : '--'}
+        </Typography.Text>
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
-      <div className="cards">
-        <Card title="CPU">
-          <div className="big">{cpu.usage_percent == null ? '—' : cpu.usage_percent + '%'}</div>
-          <Bar percent={cpu.usage_percent} />
-          <CoreGrid cores={cpu.per_core} />
-          <Row k="型号" v={cpu.model} />
-          <Row k="核心数" v={cpu.cores} />
-          <Row k="进程" v={procCount ? `${procCount.running} / ${procCount.total}` : '—'} />
-          <Row k="负载 (1/5/15m)" v={loadavg} />
-        </Card>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={12} lg={8}>
+          <Card title="CPU">
+            <Typography.Title level={3} style={{ margin: '0 0 8px' }}>
+              {cpu.usage_percent == null ? '—' : cpu.usage_percent + '%'}
+            </Typography.Title>
+            <Bar percent={cpu.usage_percent} color={barColor(cpu.usage_percent)} />
+            <CoreGrid cores={cpu.per_core} colorOf={barColor} />
+            <InfoRow k="型号" v={cpu.model} />
+            <InfoRow k="核心数" v={cpu.cores} />
+            <InfoRow k="进程" v={procCount ? `${procCount.running} / ${procCount.total}` : '—'} />
+            <InfoRow k="负载 (1/5/15m)" v={loadavg} />
+          </Card>
+        </Col>
 
-        <Card title="内存">
-          <div className="big">{memory.percent == null ? '—' : memory.percent + '%'}</div>
-          <Bar percent={memory.percent} />
-          <Row k="已用（不含缓存）" v={fmtBytes(memory.used)} />
-          <Row k="可用" v={memory.available != null ? fmtBytes(memory.available) : '—'} />
-          <Row k="其中缓存（可回收）" v={memory.buffCache != null ? fmtBytes(memory.buffCache) : '—'} />
-          <Row k="剩余 / 总计" v={`${fmtBytes(memory.free)} / ${fmtBytes(memory.total)}`} />
-        </Card>
+        <Col xs={24} sm={12} lg={8}>
+          <Card title="内存">
+            <Typography.Title level={3} style={{ margin: '0 0 8px' }}>
+              {memory.percent == null ? '—' : memory.percent + '%'}
+            </Typography.Title>
+            <Bar percent={memory.percent} color={barColor(memory.percent)} />
+            <InfoRow k="已用（不含缓存）" v={fmtBytes(memory.used)} />
+            <InfoRow k="可用" v={memory.available != null ? fmtBytes(memory.available) : '—'} />
+            <InfoRow
+              k="其中缓存（可回收）"
+              v={memory.buffCache != null ? fmtBytes(memory.buffCache) : '—'}
+            />
+            <InfoRow k="剩余 / 总计" v={`${fmtBytes(memory.free)} / ${fmtBytes(memory.total)}`} />
+          </Card>
+        </Col>
 
-        <Card title="Swap">
-          {swap ? (
-            <>
-              <div className="big">{memory.swapPercent + '%'}</div>
-              <Bar percent={memory.swapPercent} />
-              <Row k="已用" v={fmtBytes(memory.swapUsed)} />
-              <Row k="剩余 / 总计" v={`${fmtBytes(memory.swapFree)} / ${fmtBytes(memory.swapTotal)}`} />
-              {zram ? (
-                <Row k="zram (lz4)" v={`${fmtBytes(zram.used)} / ${fmtBytes(zram.total)}`} />
-              ) : (
-                <Row k="zram" v="无" />
-              )}
-            </>
-          ) : (
-            <>
-              <div className="big muted">0%</div>
-              <Bar percent={0} />
-              <Row k="zram" v="无" />
-              <Row k="备注" v="本机未配置 swap" />
-            </>
-          )}
-        </Card>
+        <Col xs={24} sm={12} lg={8}>
+          <Card title="Swap">
+            {swap ? (
+              <>
+                <Typography.Title level={3} style={{ margin: '0 0 8px' }}>
+                  {memory.swapPercent + '%'}
+                </Typography.Title>
+                <Bar percent={memory.swapPercent} color={barColor(memory.swapPercent)} />
+                <InfoRow k="已用" v={fmtBytes(memory.swapUsed)} />
+                <InfoRow
+                  k="剩余 / 总计"
+                  v={`${fmtBytes(memory.swapFree)} / ${fmtBytes(memory.swapTotal)}`}
+                />
+                {zram ? (
+                  <InfoRow k="zram (lz4)" v={`${fmtBytes(zram.used)} / ${fmtBytes(zram.total)}`} />
+                ) : (
+                  <InfoRow k="zram" v="无" />
+                )}
+              </>
+            ) : (
+              <>
+                <Typography.Title level={3} type="secondary" style={{ margin: '0 0 8px' }}>
+                  0%
+                </Typography.Title>
+                <Bar percent={0} color={barColor(0)} />
+                <InfoRow k="zram" v="无" />
+                <InfoRow k="备注" v="本机未配置 swap" />
+              </>
+            )}
+          </Card>
+        </Col>
 
-        <Card title="PSI 压力">
-          <PsiRow k="内存 (memory)" o={psi.memory} />
-          <PsiRow k="CPU" o={psi.cpu} />
-          <PsiRow k="I/O" o={psi.io} />
-          <Row k="说明" v="avg10 压力 · some/full" />
-        </Card>
+        <Col xs={24} sm={12} lg={8}>
+          <Card title="PSI 压力">
+            <PsiRow k="内存 (memory)" o={psi.memory} danger={token.colorError} warn={token.colorWarning} />
+            <PsiRow k="CPU" o={psi.cpu} danger={token.colorError} warn={token.colorWarning} />
+            <PsiRow k="I/O" o={psi.io} danger={token.colorError} warn={token.colorWarning} />
+            <InfoRow k="说明" v="avg10 压力 · some/full" />
+          </Card>
+        </Col>
 
-        <Card title="系统">
-          <Row k="主机名" v={hostname} />
-          <Row k="操作系统" v={os} />
-          <Row k="运行时长" v={fmtDuration(uptime)} />
-        </Card>
+        <Col xs={24} sm={12} lg={8}>
+          <Card title="系统">
+            <InfoRow k="主机名" v={hostname} />
+            <InfoRow k="操作系统" v={os} />
+            <InfoRow k="运行时长" v={fmtDuration(uptime)} />
+          </Card>
+        </Col>
 
-        <Card title="网络">
-          <Row k="↓ 下载" v={network ? fmtRate(network.rx_rate) : '—'} />
-          <Row k="↑ 上传" v={network ? fmtRate(network.tx_rate) : '—'} />
-          <Row k="累计下载" v={network ? fmtBytes(network.rx_bytes) : '—'} />
-          <Row k="累计上传" v={network ? fmtBytes(network.tx_bytes) : '—'} />
-        </Card>
+        <Col xs={24} sm={12} lg={8}>
+          <Card title="网络">
+            <InfoRow k="↓ 下载" v={network ? fmtRate(network.rx_rate) : '—'} />
+            <InfoRow k="↑ 上传" v={network ? fmtRate(network.tx_rate) : '—'} />
+            <InfoRow k="累计下载" v={network ? fmtBytes(network.rx_bytes) : '—'} />
+            <InfoRow k="累计上传" v={network ? fmtBytes(network.tx_bytes) : '—'} />
+          </Card>
+        </Col>
 
-        <Card title="磁盘 I/O">
-          <Row k="读" v={disk_io ? fmtRate(disk_io.read_rate) : '—'} />
-          <Row k="写" v={disk_io ? fmtRate(disk_io.write_rate) : '—'} />
-          <Row k="累计读" v={disk_io ? fmtBytes(disk_io.read_bytes) : '—'} />
-          <Row k="累计写" v={disk_io ? fmtBytes(disk_io.write_bytes) : '—'} />
-        </Card>
-      </div>
+        <Col xs={24} sm={12} lg={8}>
+          <Card title="磁盘 I/O">
+            <InfoRow k="读" v={disk_io ? fmtRate(disk_io.read_rate) : '—'} />
+            <InfoRow k="写" v={disk_io ? fmtRate(disk_io.write_rate) : '—'} />
+            <InfoRow k="累计读" v={disk_io ? fmtBytes(disk_io.read_bytes) : '—'} />
+            <InfoRow k="累计写" v={disk_io ? fmtBytes(disk_io.write_bytes) : '—'} />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="cards">
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         {Array.isArray(data.disks) && data.disks.length > 0
           ? data.disks.map((d, i) => (
-              <DiskCard
-                key={(d && d.mount ? d.mount : 'disk') + '-' + i}
-                title={'磁盘 ' + (d && d.mount ? d.mount : '')}
-                disk={d || {}}
-              />
+              <Col xs={24} sm={12} lg={8} key={(d && d.mount ? d.mount : 'disk') + '-' + i}>
+                <DiskCard
+                  title={'磁盘 ' + (d && d.mount ? d.mount : '')}
+                  disk={d || {}}
+                  colorOf={barColor}
+                />
+              </Col>
             ))
-          : disk && <DiskCard title="磁盘" disk={disk} />}
-      </div>
+          : disk && (
+              <Col xs={24} sm={12} lg={8}>
+                <DiskCard title="磁盘" disk={disk} colorOf={barColor} />
+              </Col>
+            )}
+      </Row>
 
       {processes.length > 0 && (
-        <div className="services-block">
-          <div className="proc-head">
-            <h3 className="block-title">进程排行</h3>
-            <div className="proc-sort">
-              <button
-                type="button"
-                className={'proc-sort-btn' + (procSort === 'name' ? ' active' : '')}
-                onClick={() => setProcSort('name')}
-              >
-                按名称
-              </button>
-              <button
-                type="button"
-                className={'proc-sort-btn' + (procSort === 'mem' ? ' active' : '')}
-                onClick={() => setProcSort('mem')}
-              >
-                按内存
-              </button>
-              <button
-                type="button"
-                className={'proc-sort-btn' + (procSort === 'cpu' ? ' active' : '')}
-                onClick={() => setProcSort('cpu')}
-              >
-                按 CPU
-              </button>
-            </div>
+        <div style={{ marginTop: 24 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              marginBottom: 12
+            }}
+          >
+            <Typography.Title level={5} style={{ margin: 0 }}>
+              进程排行
+            </Typography.Title>
+            <Segmented
+              size="small"
+              value={procSort}
+              onChange={(v) => setProcSort(String(v))}
+              options={[
+                { label: '按名称', value: 'name' },
+                { label: '按内存', value: 'mem' },
+                { label: '按 CPU', value: 'cpu' }
+              ]}
+            />
           </div>
-          <div className="process-list">
-            <div className="list-head">
-              <span className="dot-spacer" />
-              <span className="process-name">进程</span>
-              <span className="process-pid">PID</span>
-              <span className="process-mem">内存</span>
-              <span className="process-cpu">CPU</span>
-            </div>
-            {sortedProcesses.map((p) => (
-              <div className="process-row" key={p.pid}>
-                <span className={`service-dot ${services.find((s) => s.pid === p.pid)?.status === 'down' ? 'down' : 'up'}`} />
-                <span className="process-name">{p.name}</span>
-                <span className="process-pid">{p.pid}</span>
-                <span className="process-mem">{fmtMB(p.mem_mb)}</span>
-                <span className="process-cpu">{(Number(p.cpu) || 0).toFixed(1)}%</span>
-              </div>
-            ))}
-            <div className="process-total">
-              <span className="process-name">合计（全部进程）</span>
-              <span className="process-pid" />
-              <span className="process-mem" />
-              <span className="process-cpu">
-                {totalCpu == null ? '—' : Number(totalCpu).toFixed(1) + '%'}
-              </span>
-            </div>
-          </div>
+          <Table<ProcessInfo>
+            rowKey="pid"
+            size="small"
+            columns={processColumns}
+            dataSource={sortedProcesses}
+            pagination={false}
+            scroll={{ x: 'max-content' }}
+            summary={() => (
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0} />
+                <Table.Summary.Cell index={1}>合计（全部进程）</Table.Summary.Cell>
+                <Table.Summary.Cell index={2} />
+                <Table.Summary.Cell index={3} />
+                <Table.Summary.Cell index={4} align="right">
+                  {totalCpu == null ? '—' : Number(totalCpu).toFixed(1) + '%'}
+                </Table.Summary.Cell>
+              </Table.Summary.Row>
+            )}
+          />
         </div>
       )}
 
-      <div className="trend-block">
-        <div className="trend-head">
-          <h3 className="block-title">趋势</h3>
-          <div className="granularity" role="group" aria-label="趋势粒度">
-            {GRANULARITY_OPTIONS.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                className={'gran-btn' + (granularity === g.id ? ' active' : '')}
-                aria-pressed={granularity === g.id}
-                onClick={() => selectGranularity(g.id)}
-              >
-                {g.label}
-              </button>
-            ))}
-          </div>
+      <div style={{ marginTop: 24 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            marginBottom: 12
+          }}
+        >
+          <Typography.Title level={5} style={{ margin: 0 }}>
+            趋势
+          </Typography.Title>
+          <Segmented
+            value={granularity}
+            onChange={(v) => selectGranularity(String(v))}
+            options={GRANULARITY_OPTIONS.map((g) => ({ label: g.label, value: g.id }))}
+          />
         </div>
-        <div className="cards cards-charts">
-          <Card title="CPU / 内存 / Swap（%）">
-            <Legend series={MEM_SERIES} data={trend} />
-            <LineChart
-              data={trend}
-              series={MEM_SERIES}
-              yMax={100}
-              yLabel="%"
-              granularity={granularity}
-              chartId="mem"
-              recordedMinutes={trendRecordedMinutes}
-            />
-          </Card>
-          <Card title="PSI 压力 · some avg10（%）">
-            <Legend series={PSI_SERIES} data={trend} />
-            <LineChart
-              data={trend}
-              series={PSI_SERIES}
-              yMax={100}
-              yLabel="%"
-              granularity={granularity}
-              chartId="psi"
-              recordedMinutes={trendRecordedMinutes}
-            />
-          </Card>
-          <Card title="网速（/s）">
-            <Legend series={NET_SERIES} data={trend} />
-            <LineChart
-              data={trend}
-              series={NET_SERIES}
-              granularity={granularity}
-              chartId="net"
-              recordedMinutes={trendRecordedMinutes}
-            />
-          </Card>
-          <Card title="磁盘 I/O（/s）">
-            <Legend series={IO_SERIES} data={trend} />
-            <LineChart
-              data={trend}
-              series={IO_SERIES}
-              granularity={granularity}
-              chartId="io"
-              recordedMinutes={trendRecordedMinutes}
-            />
-          </Card>
-        </div>
+
+        <Row gutter={[16, 16]}>
+          <Col span={24}>
+            <Card title="CPU / 内存 / Swap（%）">
+              <Legend series={memSeries} data={trend} />
+              <TrendChart
+                data={trend}
+                series={memSeries}
+                yMax={100}
+                yLabel="%"
+                granularity={granularity}
+                chartId="mem"
+                recordedMinutes={trendRecordedMinutes}
+              />
+            </Card>
+          </Col>
+          <Col span={24}>
+            <Card title="PSI 压力 · some avg10（%）">
+              <Legend series={psiSeries} data={trend} />
+              <TrendChart
+                data={trend}
+                series={psiSeries}
+                yMax={100}
+                yLabel="%"
+                granularity={granularity}
+                chartId="psi"
+                recordedMinutes={trendRecordedMinutes}
+              />
+            </Card>
+          </Col>
+          <Col span={24}>
+            <Card title="网速（/s）">
+              <Legend series={netSeries} data={trend} />
+              <TrendChart
+                data={trend}
+                series={netSeries}
+                granularity={granularity}
+                chartId="net"
+                recordedMinutes={trendRecordedMinutes}
+              />
+            </Card>
+          </Col>
+          <Col span={24}>
+            <Card title="磁盘 I/O（/s）">
+              <Legend series={ioSeries} data={trend} />
+              <TrendChart
+                data={trend}
+                series={ioSeries}
+                granularity={granularity}
+                chartId="io"
+                recordedMinutes={trendRecordedMinutes}
+              />
+            </Card>
+          </Col>
+        </Row>
       </div>
     </div>
   );
