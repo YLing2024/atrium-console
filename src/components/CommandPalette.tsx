@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Input, List, Modal } from 'antd';
 
 /**
  * Ctrl+K 命令面板：全局命令列表。
- * ↑↓ 选择 / Enter 执行 / Esc 关闭，样式与现有 modal 一致。
+ * ↑↓ 选择 / Enter 执行 / Esc 关闭；antd Modal + Input + List。
  */
 export default function CommandPalette({
   onClose,
@@ -16,7 +17,8 @@ export default function CommandPalette({
   onLogout: () => void;
 }) {
   const [index, setIndex] = useState(0);
-  const listRef = useRef<HTMLUListElement | null>(null);
+  const [query, setQuery] = useState('');
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   // 通过 ref 读取最新 props，命令列表可稳定 useMemo，避免 keydown 监听反复重建
   const propsRef = useRef({ onClose, onSwitchTab, onShowReset, onLogout });
@@ -45,26 +47,41 @@ export default function CommandPalette({
     []
   );
 
-  function run(i: number): void {
-    const item = items[i];
-    if (!item) return;
+  // 关键字过滤（空串即全部）；选中项回到首条
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (it) => it.label.toLowerCase().includes(q) || it.hint.toLowerCase().includes(q)
+    );
+  }, [items, query]);
+
+  useEffect(() => {
+    setIndex(0);
+  }, [query]);
+
+  function runItem(item: { run: () => void }): void {
     propsRef.current.onClose();
     setTimeout(() => item.run(), 0); // 先关面板再执行，避免命令内弹窗与面板键盘监听冲突
   }
 
-  // 打开时重置选中项，并接管键盘：↑↓ 选择 / Enter 执行 / Esc 关闭
+  function run(i: number): void {
+    const item = visible[i];
+    if (item) runItem(item);
+  }
+
+  // 接管键盘：↑↓ 选择 / Enter 执行 / Esc 关闭
   useEffect(() => {
-    setIndex(0);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         propsRef.current.onClose();
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setIndex((i) => (i + 1) % items.length);
+        setIndex((i) => (visible.length ? (i + 1) % visible.length : 0));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setIndex((i) => (i - 1 + items.length) % items.length);
+        setIndex((i) => (visible.length ? (i - 1 + visible.length) % visible.length : 0));
       } else if (e.key === 'Enter') {
         e.preventDefault();
         run(index);
@@ -73,7 +90,7 @@ export default function CommandPalette({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
+  }, [index, visible]);
 
   // 选中项滚入可视区（列表过长时）
   useEffect(() => {
@@ -84,28 +101,46 @@ export default function CommandPalette({
   }, [index]);
 
   return (
-    <div className="modal-mask cmd-mask" onClick={() => propsRef.current.onClose()}>
-      <div className="cmd-palette" onClick={(e) => e.stopPropagation()}>
-        <div className="cmd-head">
-          <span className="cmd-title">命令面板</span>
-          <span className="cmd-kbd">Ctrl + K</span>
-        </div>
-        <ul className="cmd-list" ref={listRef}>
-          {items.map((item, i) => (
-            <li key={item.id}>
-              <button
-                className={'cmd-item' + (i === index ? ' selected' : '')}
-                onMouseEnter={() => setIndex(i)}
-                onClick={() => run(i)}
-              >
-                <span className="cmd-label">{item.label}</span>
-                <span className="cmd-hint">{item.hint}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="cmd-foot muted">↑↓ 选择 · Enter 执行 · Esc 关闭</div>
+    <Modal
+      open
+      title={null}
+      footer={null}
+      closable={false}
+      onCancel={() => propsRef.current.onClose()}
+      className="cmd-palette"
+      width={440}
+      style={{ top: 96 }}
+      styles={{ body: { padding: 14 } }}
+    >
+      <div className="cmd-head">
+        <span className="cmd-title">命令面板</span>
+        <span className="cmd-kbd">Ctrl + K</span>
       </div>
-    </div>
+      <Input
+        autoFocus
+        allowClear
+        value={query}
+        placeholder="输入命令"
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <div ref={listRef}>
+        <List
+          className="cmd-list"
+          dataSource={visible}
+          locale={{ emptyText: '没有匹配的命令' }}
+          renderItem={(item, i) => (
+            <List.Item
+              className={'cmd-item' + (i === index ? ' selected' : '')}
+              onMouseEnter={() => setIndex(i)}
+              onClick={() => runItem(item)}
+            >
+              <span className="cmd-label">{item.label}</span>
+              <span className="cmd-hint">{item.hint}</span>
+            </List.Item>
+          )}
+        />
+      </div>
+      <div className="cmd-foot muted">↑↓ 选择 · Enter 执行 · Esc 关闭</div>
+    </Modal>
   );
 }
