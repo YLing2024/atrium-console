@@ -115,13 +115,24 @@ export default function Main() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // 未读徽标：不用默认亮红，改成与主题呼应的琥珀（浅 #a05b0c / 深 #c77c1f）。
+  // 深色下数字改用墨色，保证与琥珀底的对比度可读（白字在 #c77c1f 上仅约 3.3:1）。
+  const badgeColor = theme === 'dark' ? '#c77c1f' : '#a05b0c';
+
   const navItems: MenuProps['items'] = TABS.map((id) => ({
     key: id,
     label:
       id === 'notifications' ? (
         <span className="nav-item-label">
           {TAB_LABELS[id]}
-          {unread > 0 && <Badge count={unread} overflowCount={99} />}
+          {unread > 0 && (
+            <Badge
+              count={unread}
+              overflowCount={99}
+              color={badgeColor}
+              styles={theme === 'dark' ? { indicator: { color: '#171512' } } : undefined}
+            />
+          )}
         </span>
       ) : (
         TAB_LABELS[id]
