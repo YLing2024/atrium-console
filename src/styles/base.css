@@ -15,11 +15,8 @@ body,
 }
 
 body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: var(--font);
-  font-size: 14px;
-  line-height: 1.5;
+  /* 背景 / 文字色 / 字体交给 antd 默认（页面外壳由 antd Layout / App 承担），
+     这里只保留与设计语言无关的字体渲染设置。 */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

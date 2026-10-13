@@ -6,7 +6,7 @@ import App from './App';
 import { initTheme, getTheme, effectiveTheme, subscribeTheme, type Theme } from './theme';
 import { buildAntdTheme } from './antdTheme';
 import { initPwa } from './pwa';
-import './fonts/fonts.css';
+// 全局字体交给 antd 默认（system-ui 等）；自托管字体文件保留在 src/fonts，不再引用。
 import './styles.css';
 
 initTheme(); // 应用 localStorage 记忆的主题（亮/暗），避免刷新闪回
