@@ -64,7 +64,7 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test（改完代
 ```
 
 工程化基线（2026-09-30 落地）：ESLint（typescript-eslint + react-hooks，只正确性规则）、Stylelint（只正确性规则）、
-`node:test` 单测（24 例，纯函数）、设计令牌一致性校验 `scripts/check-tokens.mjs`（6 个核心令牌 × 深浅两套，与 homepage 同一份基准表）。
+`node:test` 单测（24 例，纯函数）、旧调色板清零守卫 `scripts/check-tokens.mjs`（源码里不得再出现旧令牌 `var(--...)` 引用与旧调色板字面色值）。
 纯函数已从组件抽到 `src/{appIcons,appStatus,format}.ts` 以便测试（搬移式，字符串字面量零变化）。
 
 > **构建即部署**：`vite.config.ts` 里写死了 `outDir` + `emptyOutDir`，构建会清空该目录。构建完刷新浏览器即可，无进程需重启。
@@ -86,7 +86,7 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test（改完代
 - **网络不可达状态页**：`src/App.tsx` 启动探测若 `fetch` 直接 reject（`isNetworkError`，即 `TypeError`）→ 渲染 `src/components/OfflineNotice.tsx`（「当前离线」+ 刷新按钮，样式为 `components.css` 的 `.offline-*`）；收到 HTTP 4xx/5xx 维持原处理（不渲染应用），加载中状态不变。
 - **更新最高优先级**：SW `skipWaiting()` + `clients.claim()`，注册用 `updateViaCache: 'none'`；缓存名带版本常量，`activate` 删除旧版本缓存；新版本接管时 `src/pwa.ts` 弹克制提示「有新版本，刷新即可更新」，由用户刷新（不自动刷新）。**改 `sw.js` 行为或缓存清单时必须同步提升版本常量**。
 - **部署**：`/sw.js` **不得被长缓存**（建议 `no-cache`），否则发现不了新版本；同源可访问 `/sw.js`、`manifest.webmanifest`、`offline.html`、`icons/*.png`。`public.html` 不加 `manifest` 链接，保持公开页独立。
-- 文案克制、禁 emoji / 技术说明；不新增依赖、不改设计令牌与既有样式分区顺序；**不改 `src/api.ts` 的鉴权流程**（仅可追加纯辅助函数，如 `isNetworkError`）。
+- 文案克制、禁 emoji / 技术说明；不新增依赖、不改既有样式分区顺序；**不改 `src/api.ts` 的鉴权流程**（仅可追加纯辅助函数，如 `isNetworkError`）。
 
 ## 鉴权约定（强约束）
 
@@ -123,7 +123,7 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test（改完代
 ## 应用图标与「休眠」状态（强约束）
 
 - 卡片图标走 `src/components/AppIcon.tsx`：内联 31 个 24×24 单色描边 SVG（key = 登记表 `icon`），`name` 未命中（含历史中文单字、`undefined`）回退成单个文字。颜色一律 `currentColor`（深浅主题通用），**不新增依赖、不引图标库、不用 emoji**；图标表是模块内静态常量，改动须整体照抄、不得"优化"路径与坐标。
-- 接口 `status: "idle"`（按需唤醒应用当前未运行、探活不通属正常）文案「休眠」，点样式 `.apps-dot--idle`（短横线、`--muted`）；`idle` **不计入**异常。状态点 class 沿用 `apps-dot apps-dot--${status}`，不为 idle 单开分支。
+- 接口 `status: "idle"`（按需唤醒应用当前未运行、探活不通属正常）文案「休眠」，点样式 `.apps-dot--idle`（短横线、次要文字色）；`idle` **不计入**异常。状态点 class 沿用 `apps-dot apps-dot--${status}`，不为 idle 单开分支。
 
 ## 公开「应用中心」页（强约束）
 
@@ -132,15 +132,12 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test（改完代
 - 卡片复用 `AppCard.tsx`（与后台同一组件，不得改动其类名与渲染结构），按 `categories` 分组、30s 自动刷新；有 `url` 才可点，新窗口 `target="_blank" rel="noopener noreferrer"`。
 - 不引入新依赖、禁 emoji、UI 不写技术说明性文案。
 
-## 设计系统（硬性，与 homepage / quotahub / v2link 同一套）
+## 设计系统（硬性）
 
-```
---bg #f7f6f3  --fg #171512  --muted #6f6a63  --accent #a05b0c
-深色 --bg #13110f  --surface #191715  --fg #efeae3  --accent #c77c1f
-字体 Inter Tight / Inter / JetBrains Mono；直角、发丝线、单琥珀点缀、动效 ≤150ms
-```
-
-文案：唯美克制，**禁 emoji / 鸡汤 / 网络热词**；UI 不写技术说明性文案。
+- **颜色一律取 antd 默认 token**：组件里用 antd 组件 / `theme.useToken()`，纯 CSS 用 cssVar 模式下的 `--ant-*` 变量（如 `--ant-color-text`、`--ant-color-text-secondary`、`--ant-color-bg-container`、`--ant-color-border`、`--ant-color-primary`、`--ant-color-error`）。深浅两套由 antd 的 default / dark 算法生成。
+- **不保留自建调色板、不做自定义 token 映射**：不要新增 `--bg` / `--fg` / `--accent` 之类的自定义色板；过渡动效沿用 `ease`（≤150ms）。
+- 公开「应用中心」页不引 antd：与后台共用的纯 CSS 规则（`src/styles/{base,apps,monitoring}.css`）对 `--ant-*` 变量加了系统色兜底（`Canvas` / `CanvasText` / `GrayText` / `ButtonBorder` / `AccentColor`），公开页据此自动适配深浅。
+- 文案：唯美克制，**禁 emoji / 鸡汤 / 网络热词**；UI 不写技术说明性文案。
 
 ## 已知坑
 

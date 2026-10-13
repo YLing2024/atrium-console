@@ -8,10 +8,9 @@
 - 用 **Ant Design 5**（`antd`）替换现有手写组件与大部分手写 CSS，统一交互与外观。
 - 图表用 **ECharts** 替换 `System.tsx` 里自绘的 SVG 折线图。
 - **功能行为不变**：接口、路由、鉴权流程、文案、PWA 行为、终端 iframe、Markdown 编辑器一律照旧。
-- **设计语言整体换成 Ant Design 默认**：用 antd 自带的配色（主色 `#1677ff`）、圆角（6px）、字体栈、
+- **设计语言整体换成 Ant Design 默认**：用 antd 自带的配色（默认主色）、圆角、字体栈、
   组件默认样式、默认动效 —— **不要把本仓库既有调色板（暖纸白 / 墨黑 / 琥珀 / 直角）映射进 antd token**，
-  那样看起来"还是老设计语言"。仓库既有的 CSS 令牌定义与 `check:tokens` 校验保持不动（后续轮次还要用），
-  但**不得作用到 antd 组件上**。
+  那样看起来"还是老设计语言"。（收尾轮已把那套调色板连同其 CSS 令牌与 `check-tokens` 基准比对一并删除，见 3.5。）
 
 ## 2. 现状（改造前）
 
@@ -20,7 +19,7 @@
 | 栈 | React 18 + Vite 5 + TypeScript strict |
 | 依赖 | `react` `react-dom` `marked` `dompurify` `qrcode` `codemirror` 系列 |
 | 样式 | 手写 CSS，入口 `src/styles.css`（只 `@import`），分区在 `src/styles/`（20 个文件） |
-| 设计令牌 | 6 个核心令牌 `--bg --surface --fg --muted --line --accent`，深浅两套，由 `scripts/check-tokens.mjs` 与基准表逐值校验 |
+| 设计令牌 | 改造前有 6 个核心令牌（暖纸白 / 墨黑 / 琥珀），收尾轮已全部移除，改用 antd 默认 token（见 3.5） |
 | 校验 | `npm run check` = `typecheck` + `lint` + `lint:css` + `check:tokens` + `test`（node:test 纯函数单测） |
 | e2e | `e2e/`（独立 package.json）：`apps-check.cjs`、`sidebar-check.cjs`，用了 `.sidenav-item` 等选择器 |
 | 构建 | `vite.config.ts` 里 `outDir: process.env.BUILD_OUT_DIR || '/var/www/admin'`，`emptyOutDir: true` |
@@ -51,37 +50,13 @@ import { CanvasRenderer } from 'echarts/renderers';
 echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, LegendComponent, CanvasRenderer]);
 ```
 
-### 3.2 主题映射（`ConfigProvider`）
+### 3.2 主题映射（`ConfigProvider`）—— 已被 3.5 取代
 
-在 `src/main.tsx`（后台入口）外层包 `ConfigProvider`，中文语言包 `zhCN`，并把本仓库设计令牌映射到 antd token。
-**深浅色必须跟随现有 `src/theme.ts`（localStorage `admin_theme`）**，切换时同步 antd 主题。
+初版曾计划把本仓库调色板逐值映射进 antd token；3.5 已推翻该方案，最终不保留任何自定义 token。
+（收尾轮进一步删除了 `styles/tokens.css` 的令牌定义，并把 `check-tokens` 改成旧调色板清零守卫。）
 
-浅色：`algorithm: theme.defaultAlgorithm`
+补充约定（仍有效）：
 
-| antd token | 值 |
-|---|---|
-| `colorPrimary` | `#a05b0c` |
-| `colorBgBase` / `colorBgLayout` | `#f7f6f3` |
-| `colorBgContainer` | `#fbfaf8` |
-| `colorText` | `#171512` |
-| `colorTextSecondary` / `colorTextTertiary` | `#6f6a63` |
-| `colorBorder` / `colorBorderSecondary` | `rgba(23,21,18,0.16)` |
-| `borderRadius` `borderRadiusLG` `borderRadiusSM` `borderRadiusXS` | `0` |
-| `fontFamily` | `'Inter Tight', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif` |
-| `fontSize` | `14` |
-| `controlHeight` | `32` |
-| `motionDurationFast` / `motionDurationMid` / `motionDurationSlow` | `0.1s` / `0.15s` / `0.15s` |
-| `wireframe` | `false` |
-| `cssVar` | `true`（开启 CSS 变量模式，减少运行时样式抖动） |
-
-深色：`algorithm: theme.darkAlgorithm`，并把 `colorPrimary` 换成 `#c77c1f`、
-`colorBgBase/colorBgLayout` 换成 `#13110f`、`colorBgContainer` 换成 `#191715`、
-`colorText` 换成 `#efeae3`、`colorTextSecondary` 换成 `#a29b92`、`colorBorder/Secondary` 换成 `rgba(239,234,227,0.16)`。
-
-补充约定：
-
-- 令牌**只改 antd token 层，不改 CSS 里的令牌定义**——`scripts/check-tokens.mjs` 必须继续通过（那 6 个令牌仍是唯一基准）。
-- 直角是硬要求：所有圆角令牌为 `0`；不要手动覆盖成 antd 默认的 6px/8px。
 - 文案仍然克制：**禁 emoji、禁技术说明性文案**；不要在 UI 上写"Powered by Ant Design"之类。
 - 图标用 `@ant-design/icons`；**应用卡片里的 31 个应用图标（`AppIcon.tsx` 的内联 SVG）保持不动**，它们不是 UI 图标。
 
@@ -108,13 +83,13 @@ echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, Lege
 
 - `src/antdTheme.ts` 只保留 `algorithm`（浅色 `defaultAlgorithm` / 深色 `darkAlgorithm`）与 `cssVar: true`：
   **删掉一切自定义 token**（配色、圆角、边框色、字体、动效、`wireframe`）。
-- 主色用 antd 默认 `#1677ff`、圆角 6px、默认动效、默认字体栈（system-ui 等）。
+- 主色用 antd 默认主色、圆角 6px、默认动效、默认字体栈（system-ui 等）。
 - 全局（含内容区背景/文字色）交给 antd 默认，不再用本仓库 CSS 令牌去覆盖 antd；
   强制 Inter Tight / Inter 的全局规则去掉（字体文件保留但不再引用）。
 - 未读徽标回到 antd 默认色。
 - 清理与 antd 争夺外观的自写规则（`.sidenav`、`.topbar`、品牌区、菜单项等），只留布局 glue。
-- `styles/tokens.css` 的 6 个令牌定义与 `scripts/check-tokens.mjs` 校验**保持不动、继续通过**（后续轮次仍会用到），
-  只是不再作用到 antd 组件上。
+- `styles/tokens.css` 的自建调色板与 `scripts/check-tokens.mjs` 的基准表比对，均已在收尾轮删除：
+  颜色统一走 antd 默认 token，`check-tokens.mjs` 改为「旧调色板清零」守卫。
 - 仍然保留（与设计语言无关、用户明确要求）：窄屏顶栏「目录」按钮 + 右侧 `Drawer`、桌面常驻侧栏、
   Tab 顺序与 `sessionStorage` 白名单、默认 `system`、深浅色跟随 `theme.ts`、全部文案。
 
