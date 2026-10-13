@@ -840,6 +840,7 @@ export default function System({ active }: { active: boolean }) {
             />
           </div>
           <Table<ProcessInfo>
+            sticky={{ offsetHeader: 64 }}
             rowKey="pid"
             size="small"
             columns={processColumns}

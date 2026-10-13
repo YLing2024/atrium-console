@@ -895,6 +895,7 @@ export default function BlogAdmin() {
 
       {view === 'posts' ? (
         <Table<BlogPost>
+          sticky={{ offsetHeader: 64 }}
           rowKey="id"
           columns={postColumns}
           dataSource={posts}
@@ -905,6 +906,7 @@ export default function BlogAdmin() {
         />
       ) : (
         <Table<BlogCollection>
+          sticky={{ offsetHeader: 64 }}
           rowKey="id"
           columns={collectionColumns}
           dataSource={collections}

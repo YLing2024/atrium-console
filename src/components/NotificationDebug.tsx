@@ -262,6 +262,7 @@ export default function NotificationDebug() {
         }
       >
         <Table<FieldRow>
+          sticky={{ offsetHeader: 64 }}
           rowKey="field"
           columns={fieldColumns}
           dataSource={FIELD_ROWS}

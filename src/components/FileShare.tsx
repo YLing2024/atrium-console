@@ -570,6 +570,7 @@ export function ShareManageModal({ onClose }: { onClose: () => void }) {
         {err && <Alert type="error" showIcon message={err} style={{ marginBottom: 8 }} />}
 
         <Table<FileShare>
+          sticky={{ offsetHeader: 64 }}
           rowKey="id"
           columns={columns}
           dataSource={shares}

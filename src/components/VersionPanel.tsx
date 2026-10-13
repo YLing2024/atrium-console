@@ -55,6 +55,7 @@ export default function VersionPanel({ active }: { active: boolean }) {
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
       <Table<VersionInfo>
+        sticky={{ offsetHeader: 64 }}
         rowKey="name"
         columns={columns}
         dataSource={versions}

@@ -605,6 +605,7 @@ export default function Files({ active }: { active: boolean }) {
 
       {/* 列表 */}
       <Table<FileEntry>
+        sticky={{ offsetHeader: 64 }}
         rowKey="name"
         columns={columns}
         dataSource={shown}
