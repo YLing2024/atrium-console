@@ -24,27 +24,27 @@ import { languages } from '@codemirror/language-data';
 import { tags } from '@lezer/highlight';
 
 const mdHighlightStyle = HighlightStyle.define([
-  { tag: tags.heading1, color: 'var(--accent-ink)', fontWeight: '700' },
-  { tag: tags.heading2, color: 'var(--accent-ink)', fontWeight: '700' },
-  { tag: tags.heading3, color: 'var(--accent-ink)', fontWeight: '700' },
-  { tag: tags.heading, color: 'var(--accent-ink)', fontWeight: '600' },
+  { tag: tags.heading1, color: 'var(--ant-color-primary-active)', fontWeight: '700' },
+  { tag: tags.heading2, color: 'var(--ant-color-primary-active)', fontWeight: '700' },
+  { tag: tags.heading3, color: 'var(--ant-color-primary-active)', fontWeight: '700' },
+  { tag: tags.heading, color: 'var(--ant-color-primary-active)', fontWeight: '600' },
   { tag: tags.strong, fontWeight: '700' },
   { tag: tags.emphasis, fontStyle: 'italic' },
-  { tag: tags.strikethrough, color: 'var(--muted)', textDecoration: 'line-through' },
-  { tag: tags.monospace, color: 'var(--accent)' },
-  { tag: tags.link, color: 'var(--accent)', textDecoration: 'underline' },
-  { tag: tags.url, color: 'var(--accent)' },
-  { tag: tags.labelName, color: 'var(--faint)' },
-  { tag: tags.quote, color: 'var(--muted)', fontStyle: 'italic' },
-  { tag: tags.contentSeparator, color: 'var(--faint)' },
-  { tag: tags.processingInstruction, color: 'var(--faint)' }
+  { tag: tags.strikethrough, color: 'var(--ant-color-text-secondary)', textDecoration: 'line-through' },
+  { tag: tags.monospace, color: 'var(--ant-color-primary)' },
+  { tag: tags.link, color: 'var(--ant-color-primary)', textDecoration: 'underline' },
+  { tag: tags.url, color: 'var(--ant-color-primary)' },
+  { tag: tags.labelName, color: 'var(--ant-color-text-tertiary)' },
+  { tag: tags.quote, color: 'var(--ant-color-text-secondary)', fontStyle: 'italic' },
+  { tag: tags.contentSeparator, color: 'var(--ant-color-text-tertiary)' },
+  { tag: tags.processingInstruction, color: 'var(--ant-color-text-tertiary)' }
 ]);
 
 const editorTheme = EditorView.theme({
   '&': {
     height: '100%',
-    color: 'var(--fg)',
-    backgroundColor: 'var(--surface)',
+    color: 'var(--ant-color-text)',
+    backgroundColor: 'var(--ant-color-bg-container)',
     fontSize: '13px'
   },
   '.cm-scroller': {
@@ -52,32 +52,32 @@ const editorTheme = EditorView.theme({
     lineHeight: '1.7'
   },
   '.cm-content': {
-    caretColor: 'var(--accent)',
+    caretColor: 'var(--ant-color-primary)',
     paddingBottom: '48px'
   },
   '.cm-cursor, .cm-dropCursor': {
-    borderLeftColor: 'var(--accent)',
+    borderLeftColor: 'var(--ant-color-primary)',
     borderLeftWidth: '2px'
   },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-    backgroundColor: 'var(--accent-soft)'
+    backgroundColor: 'var(--ant-color-primary-bg)'
   },
-  '.cm-activeLine': { backgroundColor: 'var(--surface-2)' },
+  '.cm-activeLine': { backgroundColor: 'var(--ant-color-fill-alter)' },
   '.cm-gutters': {
-    backgroundColor: 'var(--surface)',
-    color: 'var(--faint)',
+    backgroundColor: 'var(--ant-color-bg-container)',
+    color: 'var(--ant-color-text-tertiary)',
     border: 'none',
-    borderRight: '1px solid var(--line-soft)'
+    borderRight: '1px solid var(--ant-color-border-secondary)'
   },
-  '.cm-activeLineGutter': { backgroundColor: 'var(--surface-2)', color: 'var(--muted)' },
+  '.cm-activeLineGutter': { backgroundColor: 'var(--ant-color-fill-alter)', color: 'var(--ant-color-text-secondary)' },
   '.cm-lineNumbers .cm-gutterElement': { padding: '0 10px 0 12px', minWidth: '32px' },
   '.cm-line': { padding: '0 14px' },
-  '.cm-placeholder': { color: 'var(--faint)' },
-  '& .cm-md-code-line': { backgroundColor: 'var(--surface-2)' },
+  '.cm-placeholder': { color: 'var(--ant-color-text-tertiary)' },
+  '& .cm-md-code-line': { backgroundColor: 'var(--ant-color-fill-alter)' },
   '.cm-tooltip': {
-    border: '1px solid var(--border)',
-    backgroundColor: 'var(--surface-2)',
-    color: 'var(--fg)'
+    border: '1px solid var(--ant-color-border)',
+    backgroundColor: 'var(--ant-color-fill-alter)',
+    color: 'var(--ant-color-text)'
   }
 });
 

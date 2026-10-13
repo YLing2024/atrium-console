@@ -16,7 +16,7 @@
   flex-wrap: wrap;
   gap: 16px;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--ant-color-border, ButtonBorder);
   margin-bottom: 20px;
 }
 
@@ -26,5 +26,5 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--fg);
+  color: var(--ant-color-text, CanvasText);
 }

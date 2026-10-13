@@ -20,6 +20,11 @@
   gap: 8px;
 }
 
+/* 主题三态切换器：窄屏时置于右侧抽屉顶部（宽屏在顶栏内联） */
+.sidenav-theme {
+  margin-bottom: 12px;
+}
+
 /* 主列：顶栏 + 内容区，占满侧栏之外的全部宽度 */
 .main-col {
   display: flex;
@@ -76,35 +81,35 @@
   display: inline-flex;
   align-items: center;
   padding: 0 2px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.06em;
-  transition: color 0.14s var(--ease);
+  transition: color 0.14s ease;
 }
 
 .tab:hover {
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .tab.active {
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .link-btn {
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.06em;
   padding: 6px 8px;
   white-space: nowrap;
-  transition: color 0.14s var(--ease);
+  transition: color 0.14s ease;
 }
 
 .link-btn:hover {
-  color: var(--accent-ink);
+  color: var(--ant-color-primary-active);
 }
 
 .link-btn.danger:hover {
-  color: var(--danger);
+  color: var(--ant-color-error);
 }

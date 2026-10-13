@@ -3,23 +3,38 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#f7f6f3" />
+    <meta name="color-scheme" content="light dark" />
     <title>当前离线</title>
+    <script>
+      // 与后台入口一致：按记忆值落定 data-theme，让原生配色随主题。
+      (function () {
+        try {
+          var pref = localStorage.getItem('admin_theme');
+          if (pref !== 'light' && pref !== 'dark' && pref !== 'auto') pref = 'auto';
+          var dark =
+            pref === 'dark' ||
+            (pref === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var el = document.documentElement;
+          if (pref === 'auto') el.removeAttribute('data-theme');
+          else el.setAttribute('data-theme', pref);
+          var meta = document.querySelector('meta[name="color-scheme"]');
+          if (meta) meta.setAttribute('content', dark ? 'dark light' : 'light dark');
+        } catch (e) {
+          /* localStorage 不可用时退回系统偏好 */
+        }
+      })();
+    </script>
     <style>
-      :root {
-        --bg: #f7f6f3;
-        --fg: #171512;
-        --muted: #6f6a63;
-        --line: rgba(23, 21, 18, 0.12);
-        --accent: #a05b0c;
+      /* 离线兜底页不加载 antd：颜色取浏览器系统色（随 color-scheme 自动适配深浅）。 */
+      html {
+        color-scheme: light;
+      }
+      html[data-theme='dark'] {
+        color-scheme: dark;
       }
       @media (prefers-color-scheme: dark) {
-        :root {
-          --bg: #13110f;
-          --fg: #efeae3;
-          --muted: #a29b91;
-          --line: rgba(239, 234, 227, 0.14);
-          --accent: #c77c1f;
+        html:not([data-theme='light']) {
+          color-scheme: dark;
         }
       }
       * {
@@ -35,8 +50,8 @@
         align-items: center;
         justify-content: center;
         padding: 24px;
-        background: var(--bg);
-        color: var(--fg);
+        background: Canvas;
+        color: CanvasText;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
           Arial, "Noto Sans", sans-serif;
         -webkit-font-smoothing: antialiased;
@@ -44,7 +59,7 @@
       main {
         width: 100%;
         max-width: 360px;
-        border: 1px solid var(--line);
+        border: 1px solid ButtonBorder;
         padding: 40px 32px;
         text-align: center;
       }
@@ -52,7 +67,7 @@
         width: 14px;
         height: 14px;
         margin: 0 auto 24px;
-        background: var(--accent);
+        background: AccentColor;
         transform: rotate(45deg);
       }
       h1 {
@@ -65,7 +80,7 @@
         margin: 0;
         font-size: 14px;
         line-height: 1.6;
-        color: var(--muted);
+        color: GrayText;
       }
     </style>
   </head>

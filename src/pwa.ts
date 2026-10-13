@@ -19,6 +19,8 @@ function showUpdateBar(onRefresh: () => void): void {
   const bar = document.createElement('div');
   bar.id = 'pwa-update-bar';
   bar.setAttribute('role', 'status');
+  // 提示条挂在 <body> 上，位于 antd App 上下文之外，取不到 --ant-* 变量，
+  // 因此用浏览器系统色（随 color-scheme 自动适配深浅），不写死任何调色板色值。
   bar.style.cssText = [
     'position:fixed',
     'left:50%',
@@ -29,9 +31,9 @@ function showUpdateBar(onRefresh: () => void): void {
     'align-items:center',
     'gap:16px',
     'padding:10px 10px 10px 16px',
-    'background:var(--surface,#fbfaf8)',
-    'color:var(--fg,#171512)',
-    'border:1px solid var(--border,rgba(23,21,18,.16))',
+    'background:Canvas',
+    'color:CanvasText',
+    'border:1px solid ButtonBorder',
     'font-size:13px',
     'line-height:1.4'
   ].join(';');
@@ -46,8 +48,8 @@ function showUpdateBar(onRefresh: () => void): void {
     'border:0',
     'padding:6px 12px',
     'cursor:pointer',
-    'background:var(--accent,#a05b0c)',
-    'color:#fff',
+    'background:AccentColor',
+    'color:AccentColorText',
     'font:inherit'
   ].join(';');
   button.addEventListener('click', onRefresh);

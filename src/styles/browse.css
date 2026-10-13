@@ -7,8 +7,8 @@
 .sidebar {
   width: 220px;
   flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  background: var(--bg-soft);
+  border-right: 1px solid var(--ant-color-border);
+  background: var(--ant-color-fill-alter);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -20,7 +20,7 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   flex-shrink: 0;
 }
 
@@ -37,24 +37,24 @@
   padding: 9px 10px;
   margin-bottom: 2px;
   border-left: 2px solid transparent;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: color 0.14s var(--ease), background 0.14s var(--ease),
-    border-color 0.14s var(--ease);
+  transition: color 0.14s ease, background 0.14s ease,
+    border-color 0.14s ease;
 }
 
 .session-item:hover {
-  background: var(--surface);
-  color: var(--fg);
+  background: var(--ant-color-bg-container);
+  color: var(--ant-color-text);
 }
 
 .session-item.active {
-  background: var(--surface);
-  color: var(--fg);
-  border-left-color: var(--accent);
+  background: var(--ant-color-bg-container);
+  color: var(--ant-color-text);
+  border-left-color: var(--ant-color-primary);
 }
 
 /* 浏览模式会话条目：标题 + 时间/消息数两行 */
@@ -71,7 +71,7 @@
   font-size: 10px;
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   opacity: 0.85;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -86,7 +86,7 @@
   padding: 14px 16px;
   font-size: 11px;
   letter-spacing: 0.04em;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 /* 只读浏览提示条 */
@@ -95,9 +95,9 @@
   font-size: 10.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
-  background: var(--bg-soft);
-  border-bottom: 1px solid var(--line-soft);
+  color: var(--ant-color-text-secondary);
+  background: var(--ant-color-fill-alter);
+  border-bottom: 1px solid var(--ant-color-border-secondary);
   flex-shrink: 0;
 }
 
@@ -107,7 +107,7 @@
   padding: 32px 0;
   text-align: center;
   font-size: 13px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 .session-row {
@@ -150,8 +150,8 @@
   max-width: 78%;
   padding: 10px 14px;
   border-radius: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border);
   overflow-wrap: break-word;
   position: relative;
 }
@@ -164,7 +164,7 @@
   gap: 4px;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.14s var(--ease);
+  transition: opacity 0.14s ease;
   z-index: 3;
 }
 
@@ -176,32 +176,32 @@
 .msg-action {
   padding: 2px 8px;
   border-radius: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--muted);
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text-secondary);
   font-size: 10.5px;
   font-weight: 500;
   letter-spacing: 0.08em;
   line-height: 1.6;
-  transition: color 0.14s var(--ease), border-color 0.14s var(--ease);
+  transition: color 0.14s ease, border-color 0.14s ease;
 }
 
 .msg-action:hover {
-  color: var(--fg);
-  border-color: var(--accent);
+  color: var(--ant-color-text);
+  border-color: var(--ant-color-primary);
 }
 
 .msg-action.danger:hover {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--ant-color-error);
+  border-color: var(--ant-color-error);
 }
 
 .msg.user .bubble {
-  background: var(--surface-2);
+  background: var(--ant-color-fill-alter);
 }
 
 .msg.system .bubble {
-  color: var(--danger);
+  color: var(--ant-color-error);
   background: transparent;
   border-color: transparent;
   font-size: 13px;
@@ -229,8 +229,8 @@
 
 .md pre {
   position: relative;
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
+  background: var(--ant-color-fill-alter);
+  border: 1px solid var(--ant-color-border);
   border-radius: 0;
   padding: 12px;
   overflow-x: auto;
@@ -244,13 +244,13 @@
   right: 6px;
   padding: 2px 9px;
   border-radius: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--muted);
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text-secondary);
   font-size: 11px;
   line-height: 1.7;
   opacity: 0;
-  transition: opacity 0.14s var(--ease), color 0.14s var(--ease);
+  transition: opacity 0.14s ease, color 0.14s ease;
 }
 
 .md pre:hover .md-copy-btn {
@@ -258,12 +258,12 @@
 }
 
 .md-copy-btn:hover {
-  color: var(--accent-ink);
-  border-color: var(--accent);
+  color: var(--ant-color-primary-active);
+  border-color: var(--ant-color-primary);
 }
 
 .md code {
-  background: var(--surface-2);
+  background: var(--ant-color-fill-alter);
   padding: 2px 5px;
   border-radius: 0;
   font-size: 12.5px;
@@ -284,25 +284,25 @@
 
 .md th,
 .md td {
-  border: 1px solid var(--border);
+  border: 1px solid var(--ant-color-border);
   padding: 8px;
   text-align: left;
 }
 
 .md th {
-  background: var(--surface-2);
+  background: var(--ant-color-fill-alter);
   font-weight: 600;
 }
 
 .md a {
-  color: var(--accent-ink);
+  color: var(--ant-color-primary-active);
   text-decoration: none;
   border-bottom: 1px solid transparent;
-  transition: border-bottom-color 0.14s var(--ease);
+  transition: border-bottom-color 0.14s ease;
 }
 
 .md a:hover {
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ant-color-primary);
 }
 
 .md img {
@@ -347,15 +347,15 @@
 }
 
 .md blockquote {
-  border-left: 2px solid var(--fg);
+  border-left: 2px solid var(--ant-color-text);
   padding: 2px 0 2px 16px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   margin: 6px 0;
 }
 
 .md hr {
   border: none;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ant-color-border);
   margin: 12px 0;
 }
 
@@ -372,15 +372,15 @@
   height: 160px;
   object-fit: cover;
   border-radius: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ant-color-border);
   padding: 2px;
-  background: var(--surface-2);
+  background: var(--ant-color-fill-alter);
   cursor: zoom-in;
-  transition: border-color 0.14s var(--ease);
+  transition: border-color 0.14s ease;
 }
 
 .msg-img:hover {
-  border-color: var(--accent);
+  border-color: var(--ant-color-primary);
 }
 
 .msg-img-failed {
@@ -391,10 +391,10 @@
   gap: 8px;
   width: 100%;
   height: 160px;
-  background: var(--surface-2);
-  border: 1px dashed var(--border);
+  background: var(--ant-color-fill-alter);
+  border: 1px dashed var(--ant-color-border);
   border-radius: 0;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   cursor: default;
 }
 
@@ -413,15 +413,15 @@
   gap: 10px;
   min-width: 0;
   max-width: 260px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border);
   border-radius: 0;
   padding: 10px 12px;
-  transition: border-color 0.14s var(--ease);
+  transition: border-color 0.14s ease;
 }
 
 .msg-file:hover {
-  border-color: var(--accent);
+  border-color: var(--ant-color-primary);
 }
 
 .msg-file .file-icon {
@@ -431,8 +431,8 @@
   justify-content: center;
   width: 38px;
   height: 38px;
-  background: var(--accent);
-  color: var(--bg);
+  background: var(--ant-color-primary);
+  color: var(--ant-color-bg-layout);
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -441,8 +441,8 @@
 
 .msg-file .file-icon-generic {
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--muted);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text-secondary);
 }
 
 .msg-file .file-main {
@@ -455,7 +455,7 @@
 
 .msg-file .file-name {
   font-size: 13px;
-  color: var(--fg);
+  color: var(--ant-color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -463,7 +463,7 @@
 
 .msg-file .file-size {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 .msg-file .file-dl {
@@ -475,15 +475,15 @@
   height: 28px;
   border-radius: 0;
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--muted);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text-secondary);
   text-decoration: none;
-  transition: border-color 0.14s var(--ease), color 0.14s var(--ease);
+  transition: border-color 0.14s ease, color 0.14s ease;
 }
 
 .msg-file .file-dl:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--ant-color-primary);
+  color: var(--ant-color-primary);
 }
 
 .msg-time {
@@ -492,7 +492,7 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
   line-height: 1.4;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 .msg.user .msg-time {
@@ -500,7 +500,7 @@
 }
 
 .loading {
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   text-align: center;
   padding: 48px 0;
   font-size: 13px;
@@ -511,17 +511,17 @@
   align-items: center;
   gap: 6px;
   max-width: 240px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border);
   border-radius: 0;
   padding: 4px 8px;
   font-size: 12px;
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .chip .chip-icon {
   flex: none;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 .chip .chip-name {
@@ -535,14 +535,14 @@
   padding: 0;
   background: none;
   border: none;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
 }
 
 .chip button:hover {
-  color: var(--danger);
+  color: var(--ant-color-error);
 }
 
 .toast.chat-toast {
@@ -553,7 +553,7 @@
   position: fixed;
   inset: 0;
   z-index: 200;
-  background: rgba(23, 21, 18, 0.9);
+  background: var(--ant-color-bg-spotlight);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -574,16 +574,16 @@
   width: 38px;
   height: 38px;
   border-radius: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--fg);
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text);
   font-size: 20px;
   line-height: 1;
-  transition: color 0.14s var(--ease), border-color 0.14s var(--ease);
+  transition: color 0.14s ease, border-color 0.14s ease;
 }
 
 .lightbox-close:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--ant-color-primary);
+  border-color: var(--ant-color-primary);
 }
 

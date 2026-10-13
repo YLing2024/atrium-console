@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Form, Input, Modal, Space, Typography } from 'antd';
+import { Alert, Button, Form, Input, Modal, Space, Typography, theme } from 'antd';
 import QRCode from 'qrcode';
 import { totpReset, totpResetConfirm } from '../api';
 
@@ -7,6 +7,7 @@ import { totpReset, totpResetConfirm } from '../api';
 //  弹窗1 二次确认 → 调 reset 生成 pending → 弹窗2 显示 otpauth URI + 输入新验证码 → confirm 转正。
 //  reset 后不 confirm 的 pending 5 分钟自动过期，不影响当前登录态。
 export default function ResetTotp({ onClose }: { onClose: () => void }) {
+  const { token } = theme.useToken();
   const [step, setStep] = useState('confirm'); // 'confirm' → 'uri'
   const [loading, setLoading] = useState(false);
   const [uri, setUri] = useState('');
@@ -89,10 +90,10 @@ export default function ResetTotp({ onClose }: { onClose: () => void }) {
               style={{
                 width: 180,
                 height: 180,
-                border: '1px solid var(--border)',
+                border: `1px solid ${token.colorBorder}`,
                 borderRadius: 4,
                 padding: 10,
-                background: '#fff'
+                background: token.colorWhite
               }}
             />
           </div>

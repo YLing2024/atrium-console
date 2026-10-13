@@ -1,11 +1,27 @@
 /* ============ 基础 ============ */
+/* 原生画布 / 控件的配色随主题：首屏由 index.html 内联脚本落定 data-theme，避免白闪。
+   颜色本身一律由 antd 默认 token 提供，这里不定义任何自定义色值。 */
+html {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme='light']) {
+    color-scheme: dark;
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
   /* 滚动条 Firefox 侧（WebKit 侧见下方 Scrollbars 段）：细滚动条 + 跟随主题令牌 */
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--ant-color-border, ButtonBorder) transparent;
 }
 
 html,
@@ -27,8 +43,8 @@ body {
 }
 
 ::selection {
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--ant-color-primary, AccentColor);
+  color: var(--ant-color-text-light-solid, Canvas);
 }
 
 /* ---------- Scrollbars ----------
@@ -51,17 +67,17 @@ body {
 ::-webkit-scrollbar-thumb {
   /* 3px 透明边 + content-box 裁剪 → 视觉上 4px 的细线，与发丝线风格一致；
      直角不加圆角，跟全站的 border-radius: 0 对齐 */
-  background-color: var(--border);
+  background-color: var(--ant-color-border, ButtonBorder);
   background-clip: content-box;
   border: 3px solid transparent;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--muted);
+  background-color: var(--ant-color-text-secondary, GrayText);
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background-color: var(--accent);
+  background-color: var(--ant-color-primary, AccentColor);
 }
 
 /* 原生按钮复位：排除一切 antd 组件（类名含 ant-），避免元素级规则盖掉 antd 默认外观
@@ -76,48 +92,48 @@ button:not([class*='ant-']) {
 
 /* 键盘焦点圈：antd 组件有自带焦点样式，这里只补原生元素，不覆盖 antd。 */
 :focus-visible:not([class*='ant-']) {
-  outline: 1px solid var(--accent);
+  outline: 1px solid var(--ant-color-primary, AccentColor);
   outline-offset: 3px;
 }
 
 .input {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ant-color-border, ButtonBorder);
   border-radius: 0;
   background: transparent;
-  color: var(--fg);
+  color: var(--ant-color-text, CanvasText);
   font-size: 14px;
   outline: none;
-  transition: border-color 0.14s var(--ease);
+  transition: border-color 0.14s ease;
 }
 
 .input::placeholder {
-  color: var(--faint);
+  color: var(--ant-color-text-tertiary, GrayText);
 }
 
 .input:focus {
-  border-color: var(--accent);
+  border-color: var(--ant-color-primary, AccentColor);
 }
 
 .error {
-  color: var(--danger);
+  color: var(--ant-color-error, CanvasText);
   font-size: 13px;
   margin: 8px 0;
 }
 
 .success {
-  color: var(--ok);
+  color: var(--ant-color-success, CanvasText);
   font-size: 13px;
   margin: 8px 0;
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--ant-color-text-secondary, GrayText);
 }
 
 .empty {
-  color: var(--muted);
+  color: var(--ant-color-text-secondary, GrayText);
   text-align: center;
   padding: 60px 0;
 }

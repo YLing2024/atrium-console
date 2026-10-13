@@ -12,7 +12,7 @@
 
 .debug-head {
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--ant-color-border);
 }
 
 .debug-head h2 {
@@ -20,7 +20,7 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .debug-body {
@@ -35,7 +35,7 @@
   flex-direction: column;
   flex-shrink: 0;
   width: 150px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ant-color-border);
 }
 
 .debug-tool {
@@ -45,17 +45,17 @@
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--muted);
-  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+  color: var(--ant-color-text-secondary);
+  transition: color 0.14s ease, background-color 0.14s ease;
 }
 
 .debug-tool:hover {
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .debug-tool.active {
-  color: var(--bg);
-  background: var(--fg);
+  color: var(--ant-color-bg-layout);
+  background: var(--ant-color-text);
 }
 
 .debug-panel {
@@ -71,7 +71,7 @@
 
 .ndbg-block {
   padding: 16px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid var(--ant-color-border-secondary);
 }
 
 .ndbg-title {
@@ -79,7 +79,7 @@
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   margin-bottom: 12px;
 }
 
@@ -89,22 +89,22 @@
   flex-wrap: wrap;
   gap: 8px;
   font-size: 13px;
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .ndbg-dot {
   width: 8px;
   height: 8px;
-  background: var(--faint);
+  background: var(--ant-color-text-tertiary);
   transform: rotate(45deg);
 }
 
 .ndbg-dot.on {
-  background: var(--ok);
+  background: var(--ant-color-success);
 }
 
 .ndbg-dot.warn {
-  background: var(--warn);
+  background: var(--ant-color-warning);
 }
 
 .ndbg-send {
@@ -163,8 +163,8 @@
 .ndbg-table td {
   padding: 7px 8px;
   text-align: left;
-  border-bottom: 1px solid var(--line-soft);
-  color: var(--fg);
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  color: var(--ant-color-text);
 }
 
 .ndbg-table th {
@@ -172,7 +172,7 @@
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 .ndbg-note {
@@ -187,24 +187,24 @@
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--muted);
+  background: var(--ant-color-bg-layout);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text-secondary);
   user-select: all;
 }
 
 .ndbg-result-status {
   font-size: 13px;
   font-weight: 600;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 .ndbg-result-status.ok {
-  color: var(--ok);
+  color: var(--ant-color-success);
 }
 
 .ndbg-result-status.bad {
-  color: var(--danger);
+  color: var(--ant-color-error);
 }
 
 .ndbg-result-body {
@@ -216,8 +216,8 @@
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-all;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--fg);
+  background: var(--ant-color-bg-layout);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text);
 }
 

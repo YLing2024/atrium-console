@@ -32,12 +32,12 @@
 }
 
 .apps-group-name {
-  color: var(--fg);
+  color: var(--ant-color-text, CanvasText);
   font-weight: 500;
 }
 
 .apps-group-count {
-  color: var(--muted);
+  color: var(--ant-color-text-secondary, GrayText);
 }
 
 .apps-grid {
@@ -53,11 +53,11 @@
   gap: 8px;
   padding: 14px;
   min-width: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--fg);
+  background: var(--ant-color-bg-container, Canvas);
+  border: 1px solid var(--ant-color-border, ButtonBorder);
+  color: var(--ant-color-text, CanvasText);
   text-decoration: none;
-  transition: border-color 0.14s var(--ease);
+  transition: border-color 0.14s ease;
 }
 
 a.apps-card {
@@ -65,7 +65,7 @@ a.apps-card {
 }
 
 a.apps-card:hover {
-  border-color: var(--fg);
+  border-color: var(--ant-color-text, CanvasText);
 }
 
 .apps-card--static {
@@ -73,7 +73,7 @@ a.apps-card:hover {
 }
 
 .apps-card:focus-visible {
-  outline: 1px solid var(--accent);
+  outline: 1px solid var(--ant-color-primary, AccentColor);
   outline-offset: 2px;
 }
 
@@ -83,20 +83,20 @@ a.apps-card:hover {
   justify-content: center;
   width: 24px;
   height: 24px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ant-color-border, ButtonBorder);
   font-size: 12px;
   line-height: 1;
-  color: var(--fg);
+  color: var(--ant-color-text, CanvasText);
 }
 
 .apps-name {
   font-size: 14px;
-  color: var(--fg);
+  color: var(--ant-color-text, CanvasText);
 }
 
 .apps-desc {
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary, GrayText);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -108,7 +108,7 @@ a.apps-card:hover {
   margin-top: auto;
   padding-top: 4px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary, GrayText);
 }
 
 .apps-status {
@@ -117,13 +117,13 @@ a.apps-card:hover {
 
 .apps-sep {
   margin: 0 5px;
-  color: var(--faint);
+  color: var(--ant-color-text-tertiary, GrayText);
 }
 
 .apps-num {
 }
 
-/* 状态点：颜色只沿用既有令牌（--accent / --muted / --danger） */
+/* 状态点：颜色取 antd 默认 token（公开页无 antd 时回退系统色），不自定义调色板 */
 .apps-dot {
   width: 6px;
   height: 6px;
@@ -132,19 +132,19 @@ a.apps-card:hover {
 }
 
 .apps-dot--up {
-  background: var(--accent);
+  background: var(--ant-color-primary, AccentColor);
 }
 
 .apps-dot--auth {
-  border: 1px solid var(--accent);
+  border: 1px solid var(--ant-color-primary, AccentColor);
 }
 
 .apps-dot--degraded {
-  background: var(--muted);
+  background: var(--ant-color-text-secondary, GrayText);
 }
 
 .apps-dot--down {
-  background: var(--danger);
+  background: var(--ant-color-error, CanvasText);
 }
 
 /* 休眠：按需唤醒应用当前未运行 —— 短横线，区别于实心/空心圆点 */
@@ -152,11 +152,11 @@ a.apps-card:hover {
   width: 6px;
   height: 1.5px;
   border-radius: 1px;
-  background: var(--muted);
+  background: var(--ant-color-text-secondary, GrayText);
 }
 
 .apps-dot--unknown {
-  border: 1px solid var(--muted);
+  border: 1px solid var(--ant-color-text-secondary, GrayText);
 }
 
 /* 窄屏单列（<640px） */

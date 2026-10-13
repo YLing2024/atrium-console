@@ -14,7 +14,7 @@
   align-items: center;
   gap: 8px;
   font-weight: 500;
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .dev-name-text {
@@ -28,14 +28,14 @@
   justify-content: center;
   padding: 3px;
   border-radius: 0;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   background: transparent;
-  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+  transition: color 0.14s ease, background-color 0.14s ease;
 }
 
 .dev-rename-btn:hover {
-  color: var(--accent-ink);
-  background-color: var(--accent-soft);
+  color: var(--ant-color-primary-active);
+  background-color: var(--ant-color-primary-bg);
 }
 
 .dev-rename-btn svg {
@@ -51,8 +51,8 @@
   font-weight: 500;
   letter-spacing: 0.08em;
   white-space: nowrap;
-  color: var(--accent-ink);
-  border: 1px solid var(--accent-border);
+  color: var(--ant-color-primary-active);
+  border: 1px solid var(--ant-color-primary-border);
 }
 
 .dev-ua {
@@ -96,16 +96,16 @@
 .modal-body {
   font-size: 13px;
   line-height: 1.7;
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .modal-body.muted {
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 /* ============ 接口令牌（管理 Tab） ============ */
 .manage-sep {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--ant-color-border);
   margin: 34px 0 22px;
 }
 
@@ -115,22 +115,22 @@
 
 .api-token-name {
   font-weight: 500;
-  color: var(--fg);
+  color: var(--ant-color-text);
   word-break: break-all;
 }
 
 .usage-code {
   font-size: 11.5px;
   padding: 1px 6px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--accent-ink);
+  border: 1px solid var(--ant-color-border);
+  background: var(--ant-color-fill-alter);
+  color: var(--ant-color-primary-active);
   word-break: break-all;
 }
 
 .blog-status.danger {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--ant-color-error);
+  border-color: var(--ant-color-error);
 }
 
 .field-label {
@@ -139,7 +139,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   margin-bottom: -6px;
 }
 
@@ -148,9 +148,9 @@
   line-height: 1.6;
   word-break: break-all;
   padding: 12px 14px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--fg);
+  background: var(--ant-color-bg-layout);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text);
 }
 
 .token-actions {
@@ -163,9 +163,9 @@
   line-height: 1.6;
   word-break: break-all;
   padding: 10px 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--muted);
+  background: var(--ant-color-bg-layout);
+  border: 1px solid var(--ant-color-border);
+  color: var(--ant-color-text-secondary);
   user-select: all;
 }
 
@@ -173,8 +173,8 @@
 .blog-md-wrap {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: 1px solid var(--ant-color-border);
+  background: var(--ant-color-bg-container);
   min-width: 0;
 }
 
@@ -183,7 +183,7 @@
   inset: 0;
   z-index: 300;
   border: none;
-  background: var(--bg);
+  background: var(--ant-color-bg-layout);
   padding: 20px clamp(12px, 4vw, 40px) 12px;
 }
 
@@ -193,7 +193,7 @@
   flex-wrap: wrap;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--ant-color-border-secondary);
   flex-shrink: 0;
 }
 
@@ -227,7 +227,7 @@
   min-height: 0;
   padding: 14px 20px;
   overflow-y: auto;
-  border-left: 1px solid var(--line-soft);
+  border-left: 1px solid var(--ant-color-border-secondary);
 }
 
 .blog-split.mode-edit .blog-preview-pane {
@@ -254,9 +254,9 @@
   align-items: center;
   gap: 16px;
   padding: 6px 12px;
-  border-top: 1px solid var(--line-soft);
+  border-top: 1px solid var(--ant-color-border-secondary);
   font-size: 11px;
-  color: var(--faint);
+  color: var(--ant-color-text-tertiary);
   flex-shrink: 0;
   user-select: none;
 }
@@ -272,7 +272,7 @@
 
   .blog-preview-pane {
     border-left: none;
-    border-top: 1px solid var(--line-soft);
+    border-top: 1px solid var(--ant-color-border-secondary);
   }
 }
 

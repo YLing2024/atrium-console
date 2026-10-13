@@ -19,7 +19,7 @@
   gap: 12px;
   flex-shrink: 0;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--ant-color-border-secondary);
 }
 
 .hermes-bar h2 {
@@ -27,7 +27,7 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 /* 窄屏才提示：宽屏隐藏 */
@@ -52,7 +52,7 @@
   width: 100%;
   height: 100%;
   border: 0;
-  background: var(--bg);
+  background: var(--ant-color-bg-layout);
 }
 
 @media (max-width: 900px) {

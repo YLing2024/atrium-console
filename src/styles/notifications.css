@@ -17,7 +17,7 @@
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--ant-color-border);
 }
 
 .notif-title-row {
@@ -32,7 +32,7 @@
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 /* 实时通道状态点：克制的小方块 + 悬停说明；断开 / 重连中转琥珀色，不弹窗不响铃 */
@@ -41,18 +41,18 @@
   height: 7px;
   flex-shrink: 0;
   align-self: center;
-  background: var(--faint);
+  background: var(--ant-color-text-tertiary);
   transform: rotate(45deg);
-  transition: background-color 0.14s var(--ease);
+  transition: background-color 0.14s ease;
 }
 
 .notif-stream-dot.connected {
-  background: var(--ok);
+  background: var(--ant-color-success);
 }
 
 .notif-stream-dot.reconnecting,
 .notif-stream-dot.disconnected {
-  background: var(--warn);
+  background: var(--ant-color-warning);
 }
 
 .notif-count {
@@ -66,14 +66,14 @@
   font-weight: 500;
   letter-spacing: 0.04em;
   padding: 7px 12px;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  transition: color 0.14s var(--ease), border-color 0.14s var(--ease);
+  color: var(--ant-color-text-secondary);
+  border: 1px solid var(--ant-color-border);
+  transition: color 0.14s ease, border-color 0.14s ease;
 }
 
 .notif-desktop:hover:not(:disabled) {
-  color: var(--fg);
-  border-color: var(--fg);
+  color: var(--ant-color-text);
+  border-color: var(--ant-color-text);
 }
 
 span.notif-desktop {
@@ -87,13 +87,13 @@ span.notif-desktop {
   align-items: center;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--ant-color-border-secondary);
   flex-wrap: wrap;
 }
 
 .notif-seg {
   display: inline-flex;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ant-color-border);
 }
 
 .notif-seg-btn {
@@ -101,17 +101,17 @@ span.notif-desktop {
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--muted);
-  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
+  color: var(--ant-color-text-secondary);
+  transition: color 0.14s ease, background-color 0.14s ease;
 }
 
 .notif-seg-btn + .notif-seg-btn {
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--ant-color-border);
 }
 
 .notif-seg-btn.active {
-  color: var(--bg);
-  background: var(--fg);
+  color: var(--ant-color-bg-layout);
+  background: var(--ant-color-text);
 }
 
 .notif-selects {
@@ -121,16 +121,16 @@ span.notif-desktop {
 
 .notif-select {
   padding: 6px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--ant-color-border);
   border-radius: 0;
   background: transparent;
-  color: var(--fg);
+  color: var(--ant-color-text);
   font-size: 12.5px;
   outline: none;
 }
 
 .notif-select:focus {
-  border-color: var(--accent);
+  border-color: var(--ant-color-primary);
 }
 
 .notif-head-actions {
@@ -146,17 +146,17 @@ span.notif-desktop {
   font-weight: 500;
   letter-spacing: 0.04em;
   padding: 7px 12px;
-  color: var(--fg);
-  border: 1px solid var(--border);
-  transition: color 0.14s var(--ease), border-color 0.14s var(--ease),
-    background-color 0.14s var(--ease);
+  color: var(--ant-color-text);
+  border: 1px solid var(--ant-color-border);
+  transition: color 0.14s ease, border-color 0.14s ease,
+    background-color 0.14s ease;
 }
 
 .notif-compose-toggle:hover,
 .notif-compose-toggle.active {
-  color: var(--bg);
-  background: var(--fg);
-  border-color: var(--fg);
+  color: var(--ant-color-bg-layout);
+  background: var(--ant-color-text);
+  border-color: var(--ant-color-text);
 }
 
 /* 统计行：共 N 条 · 未读 M · 来源 K 个（悬停/点击展开 Top 5） */
@@ -167,14 +167,14 @@ span.notif-desktop {
 
 .notif-stats-line {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   white-space: nowrap;
   padding: 2px 0;
-  transition: color 0.14s var(--ease);
+  transition: color 0.14s ease;
 }
 
 .notif-stats-line:hover {
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .notif-stats-pop {
@@ -184,9 +184,9 @@ span.notif-desktop {
   z-index: 20;
   min-width: 180px;
   padding: 8px 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: 0 1px 0 var(--line-soft), 0 10px 24px rgba(23, 21, 18, 0.08);
+  background: var(--ant-color-bg-container);
+  border: 1px solid var(--ant-color-border);
+  box-shadow: var(--ant-box-shadow-secondary);
 }
 
 .notif-stats-row {
@@ -196,12 +196,12 @@ span.notif-desktop {
   gap: 16px;
   padding: 3px 0;
   font-size: 12px;
-  color: var(--fg);
+  color: var(--ant-color-text);
 }
 
 .notif-stats-src {
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -214,7 +214,7 @@ span.notif-desktop {
   flex-direction: column;
   gap: 10px;
   padding: 14px 0 16px;
-  border-bottom: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--ant-color-border-secondary);
 }
 
 .notif-compose-row {
@@ -278,13 +278,13 @@ span.notif-desktop {
 }
 
 .notif-manage .btn-ghost.danger {
-  color: var(--danger);
-  border-color: var(--danger);
+  color: var(--ant-color-error);
+  border-color: var(--ant-color-error);
 }
 
 .notif-manage .btn-ghost.danger:hover {
-  color: var(--bg);
-  background: var(--danger);
+  color: var(--ant-color-bg-layout);
+  background: var(--ant-color-error);
 }
 
 .notif-error {
@@ -296,13 +296,13 @@ span.notif-desktop {
 }
 
 .notif-item {
-  border-bottom: 1px solid var(--line-soft);
-  transition: background-color 0.14s var(--ease);
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+  transition: background-color 0.14s ease;
 }
 
 .notif-item.is-highlight {
-  background: var(--accent-soft);
-  outline: 1px solid var(--accent-border);
+  background: var(--ant-color-primary-bg);
+  outline: 1px solid var(--ant-color-primary-border);
 }
 
 .notif-main {
@@ -313,11 +313,11 @@ span.notif-desktop {
   width: 100%;
   padding: 12px 4px;
   text-align: left;
-  transition: background-color 0.14s var(--ease);
+  transition: background-color 0.14s ease;
 }
 
 .notif-main:hover {
-  background: var(--surface-2);
+  background: var(--ant-color-fill-alter);
 }
 
 .notif-level {
@@ -327,14 +327,14 @@ span.notif-desktop {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--muted);
-  border: 1px solid var(--line-soft);
+  color: var(--ant-color-text-secondary);
+  border: 1px solid var(--ant-color-border-secondary);
 }
 
 .notif-level.urgent {
-  color: var(--accent-ink);
-  background: var(--accent-soft);
-  border-color: var(--accent-border);
+  color: var(--ant-color-primary-active);
+  background: var(--ant-color-primary-bg);
+  border-color: var(--ant-color-primary-border);
 }
 
 .notif-main-text {
@@ -346,7 +346,7 @@ span.notif-desktop {
 
 .notif-item-title {
   font-size: 13.5px;
-  color: var(--fg);
+  color: var(--ant-color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -359,18 +359,18 @@ span.notif-desktop {
   overflow: hidden;
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 .notif-item.is-read .notif-item-title {
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 .notif-src {
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -378,7 +378,7 @@ span.notif-desktop {
 
 .notif-time {
   font-size: 11.5px;
-  color: var(--faint);
+  color: var(--ant-color-text-tertiary);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
@@ -386,7 +386,7 @@ span.notif-desktop {
 .notif-dot {
   width: 7px;
   height: 7px;
-  background: var(--accent);
+  background: var(--ant-color-primary);
   transform: rotate(45deg);
   justify-self: end;
 }
@@ -404,14 +404,14 @@ span.notif-desktop {
 
 .notif-body {
   padding: 4px 4px 16px 64px;
-  animation: notif-open 0.14s var(--ease);
+  animation: notif-open 0.14s ease;
 }
 
 .notif-text {
   margin: 0 0 10px;
   font-size: 13px;
   line-height: 1.6;
-  color: var(--fg);
+  color: var(--ant-color-text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: min(48vh, 420px);
@@ -438,14 +438,14 @@ span.notif-desktop {
 }
 
 .notif-md a {
-  color: var(--accent-ink);
+  color: var(--ant-color-primary-active);
   text-decoration: none;
   border-bottom: 1px solid transparent;
-  transition: border-bottom-color 0.14s var(--ease);
+  transition: border-bottom-color 0.14s ease;
 }
 
 .notif-md a:hover {
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ant-color-primary);
 }
 
 .notif-md ul,
@@ -461,21 +461,21 @@ span.notif-desktop {
 .notif-md blockquote {
   margin: 0 0 8px;
   padding: 2px 0 2px 14px;
-  border-left: 2px solid var(--line-soft);
-  color: var(--muted);
+  border-left: 2px solid var(--ant-color-border-secondary);
+  color: var(--ant-color-text-secondary);
 }
 
 .notif-md code {
   font-size: 12.5px;
-  background: var(--surface-2);
+  background: var(--ant-color-fill-alter);
   padding: 1px 5px;
 }
 
 .notif-md pre {
   margin: 8px 0;
   padding: 12px 14px;
-  background: var(--bg-soft);
-  border: 1px solid var(--border);
+  background: var(--ant-color-fill-alter);
+  border: 1px solid var(--ant-color-border);
   white-space: pre;
   overflow-x: auto;
 }
@@ -493,9 +493,9 @@ span.notif-desktop {
   gap: 4px 20px;
   margin: 0 0 12px;
   padding-top: 10px;
-  border-top: 1px solid var(--line-soft);
+  border-top: 1px solid var(--ant-color-border-secondary);
   font-size: 12px;
-  color: var(--muted);
+  color: var(--ant-color-text-secondary);
 }
 
 .notif-meta-item {
@@ -506,7 +506,7 @@ span.notif-desktop {
 }
 
 .notif-meta-key {
-  color: var(--faint);
+  color: var(--ant-color-text-tertiary);
   letter-spacing: 0.04em;
 }
 
@@ -519,7 +519,7 @@ span.notif-desktop {
   padding: 60px 0;
   text-align: center;
   font-size: 13px;
-  color: var(--faint);
+  color: var(--ant-color-text-tertiary);
 }
 
 .notif-more {
