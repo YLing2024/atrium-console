@@ -229,7 +229,7 @@ npm run check                                                      # typecheck +
 BUILD_OUT_DIR=/tmp/admin-web-verify npx vite build --emptyOutDir    # 构建通过、无告警级错误
 git status --porcelain                                              # 应为空（改动都已提交）
 git log --oneline -8                                               # 能看到本轮的多次提交
-grep -rnE "zhangyunling|223\.254|24\.233|sk-[A-Za-z0-9]{10,}" src/ public/ *.ts *.tsx *.md | wc -l   # 应为 0
+grep -rnE "<域名关键字>|223\.254|24\.233|sk-[A-Za-z0-9]{10,}" src/ public/ *.ts *.tsx *.md | wc -l   # 应为 0
 ```
 
 ## 8. 完成后回写
