@@ -5,6 +5,11 @@
     gap: 10px;
   }
 
+  /* 窄屏内容区：内边距不小于 16px（与 antd 布局规范一致） */
+  .content {
+    padding: 16px;
+  }
+
   .tabs {
     margin-left: 0;
     gap: 16px;

@@ -29,6 +29,19 @@
   height: 100%;
 }
 
+/* 内容区：按 antd 布局规范统一给标准内边距（24px；窄屏 16px 见 mobile.css） */
+.content {
+  padding: 24px;
+}
+
+/* 面板自带的页面级内边距在内容区内取消，统一由内容区提供，避免叠加成两倍。
+   公开「应用中心」页没有 .content 祖先，仍沿用 .apps 自身内边距，不受影响。 */
+.content > .pane > .system,
+.content > .pane > .apps,
+.content > .pane > .debug {
+  padding: 0;
+}
+
 /* 窄屏菜单按钮：窄屏才渲染（antd Button），桌面端不在 DOM 中 */
 .nav-toggle {
   margin-right: auto;
