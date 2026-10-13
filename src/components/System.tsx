@@ -661,7 +661,6 @@ export default function System({ active }: { active: boolean }) {
   const disk = data.disk || null;
   const network = data.network || null;
   const disk_io = data.disk_io || null;
-  const procCount = data.processes || null;
   const { uptime, os, hostname } = data;
   const swap = memory.swapTotal ? memory : null;
   const zram = memory.zram || null;
@@ -748,7 +747,7 @@ export default function System({ active }: { active: boolean }) {
             <CoreGrid cores={cpu.per_core} colorOf={barColor} />
             <InfoRow k="型号" v={cpu.model} />
             <InfoRow k="核心数" v={cpu.cores} />
-            <InfoRow k="进程" v={procCount ? `${procCount.running} / ${procCount.total}` : '—'} />
+            <InfoRow k="进程" v={procTotalCount == null ? '—' : `${procTotalCount} 个`} />
             <InfoRow k="负载 (1/5/15m)" v={loadavg} />
           </Card>
         </Col>
