@@ -8,7 +8,10 @@
 - 用 **Ant Design 5**（`antd`）替换现有手写组件与大部分手写 CSS，统一交互与外观。
 - 图表用 **ECharts** 替换 `System.tsx` 里自绘的 SVG 折线图。
 - **功能行为不变**：接口、路由、鉴权流程、文案、PWA 行为、终端 iframe、Markdown 编辑器一律照旧。
-- 视觉不追求"antd 默认脸"：主题令牌对齐本仓库既有设计系统（暖纸白 / 墨黑 / 琥珀，直角，发丝线，动效 ≤150ms）。
+- **设计语言整体换成 Ant Design 默认**：用 antd 自带的配色（主色 `#1677ff`）、圆角（6px）、字体栈、
+  组件默认样式、默认动效 —— **不要把本仓库既有调色板（暖纸白 / 墨黑 / 琥珀 / 直角）映射进 antd token**，
+  那样看起来"还是老设计语言"。仓库既有的 CSS 令牌定义与 `check:tokens` 校验保持不动（后续轮次还要用），
+  但**不得作用到 antd 组件上**。
 
 ## 2. 现状（改造前）
 
@@ -97,6 +100,23 @@ echarts.use([LineChart, GridComponent, TooltipComponent, DataZoomComponent, Lege
   抽屉不放在正文开头。桌面端用 `Layout.Sider` 常驻。
 - 正文不得出现横向滚动条（图表、表格要在自身容器内处理溢出）。
 - 表格在窄屏可横向滚动，但**操作列不换行**。
+
+## 3.5 追加决定（2026-10-12，用户当场纠正，优先于 3.2）
+
+**设计语言 = Ant Design 默认，不做任何自定义映射。** 用户原话：「我要的是整个设计语言都变成 ant design」
+「我要的是按照 ant design 的设计语言和设计标准去做，你现在改了和我改之前长一个样」。
+
+- `src/antdTheme.ts` 只保留 `algorithm`（浅色 `defaultAlgorithm` / 深色 `darkAlgorithm`）与 `cssVar: true`：
+  **删掉一切自定义 token**（配色、圆角、边框色、字体、动效、`wireframe`）。
+- 主色用 antd 默认 `#1677ff`、圆角 6px、默认动效、默认字体栈（system-ui 等）。
+- 全局（含内容区背景/文字色）交给 antd 默认，不再用本仓库 CSS 令牌去覆盖 antd；
+  强制 Inter Tight / Inter 的全局规则去掉（字体文件保留但不再引用）。
+- 未读徽标回到 antd 默认色。
+- 清理与 antd 争夺外观的自写规则（`.sidenav`、`.topbar`、品牌区、菜单项等），只留布局 glue。
+- `styles/tokens.css` 的 6 个令牌定义与 `scripts/check-tokens.mjs` 校验**保持不动、继续通过**（后续轮次仍会用到），
+  只是不再作用到 antd 组件上。
+- 仍然保留（与设计语言无关、用户明确要求）：窄屏顶栏「目录」按钮 + 右侧 `Drawer`、桌面常驻侧栏、
+  Tab 顺序与 `sessionStorage` 白名单、默认 `system`、深浅色跟随 `theme.ts`、全部文案。
 
 ## 4. 红线（不许动）
 
