@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Alert, Button, Form, Input } from 'antd';
 import QRCode from 'qrcode';
 import { login, totpSetup } from '../api';
 import type { ApiError } from '../api';
@@ -59,8 +60,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
     }
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
+  async function submit() {
     if (loading || retryLeft > 0) return;
     const value = code.replace(/\s+/g, ''); // 自动 trim 空格
     if (!/^\d{6}$/.test(value)) {
@@ -94,7 +94,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
 
   return (
     <div className="login-wrap">
-      <form className="login-card" onSubmit={submit}>
+      <Form className="login-card" onFinish={submit}>
         <div className="login-logo">Admin</div>
         <p className="login-sub">管理后台 · 请输入动态验证码</p>
 
@@ -126,7 +126,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
           </div>
         )}
 
-        <input
+        <Input
           className="input"
           type="text"
           inputMode="numeric"
@@ -140,19 +140,20 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         />
 
         {retryLeft > 0 ? (
-          <div className="error">尝试过多，请 {retryLeft} 秒后再试</div>
+          <Alert type="error" message={`尝试过多，请 ${retryLeft} 秒后再试`} />
         ) : (
-          error && <div className="error">{error}</div>
+          error && <Alert type="error" message={error} />
         )}
 
-        <button
-          className="btn-primary"
-          type="submit"
+        <Button
+          type="primary"
+          htmlType="submit"
+          size="large"
           disabled={loading || retryLeft > 0 || !code.trim()}
         >
           {loading ? '登录中…' : retryLeft > 0 ? `请等待 ${retryLeft}s` : '登录'}
-        </button>
-      </form>
+        </Button>
+      </Form>
     </div>
   );
 }
