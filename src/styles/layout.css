@@ -5,19 +5,7 @@
   height: 100dvh;
 }
 
-/* ---------- 侧栏导航（桌面左侧固定；窄屏右侧抽屉见文末媒体查询） ---------- */
-.sidenav {
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  width: 200px;
-  height: 100%;
-  overflow-y: auto;
-  background: var(--bg);
-  border-right: 1px solid var(--line-soft);
-}
-
-/* 复用既有品牌标记（.brand + .dot），仅调整侧栏内的内边距 */
+/* ---------- 侧栏导航（antd Sider 常驻 / 窄屏右侧 Drawer，见 Main.tsx） ---------- */
 .sidenav-brand {
   flex-shrink: 0;
   height: 56px;
@@ -25,70 +13,15 @@
   color: var(--fg);
 }
 
-.sidenav-list {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 0;
-}
-
-.sidenav-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 20px 10px 22px;
-  text-align: left;
-  color: var(--muted);
-  font-family: var(--font-sans);
-  font-size: 12.5px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  transition: color 0.14s var(--ease), background-color 0.14s var(--ease);
-}
-
-.sidenav-item-label {
-  flex: 1;
-  text-align: left;
-}
-
-/* 未读数字徽标（未读 0 时不渲染） */
-.sidenav-badge {
+/* 侧栏菜单：未读徽标与标签一行排布 */
+.nav-item-label {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1;
-  color: var(--accent-ink);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent-border);
+  gap: 8px;
 }
 
-.sidenav-item:hover {
-  color: var(--fg);
-}
-
-/* 当前项：左侧琥珀短竖线 + 文字转 fg */
-.sidenav-item.active {
-  color: var(--fg);
-}
-
-.sidenav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 2px;
-  height: 16px;
-  background: var(--accent);
+.sidenav-menu {
+  border-inline-end: 0;
 }
 
 /* 主列：顶栏 + 内容区，占满侧栏之外的全部宽度 */
@@ -100,39 +33,21 @@
   height: 100%;
 }
 
-/* 窄屏菜单按钮与遮罩：桌面端隐藏 */
+/* 窄屏菜单按钮：窄屏才渲染（antd Button），桌面端不在 DOM 中 */
 .nav-toggle {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 34px;
-  height: 34px;
-  color: var(--fg);
-  border: 1px solid var(--border);
-}
-
-.nav-toggle svg {
-  display: block;
-}
-
-.nav-toggle svg line {
-  stroke: currentColor;
-  stroke-width: 1.5;
-}
-
-.sidenav-backdrop {
-  display: none;
+  margin-right: auto;
 }
 
 .topbar {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 20px;
   padding: 0 24px;
   height: 56px;
   background: var(--bg);
   border-bottom: 1px solid var(--line-soft);
+  line-height: 1.5;
   flex-shrink: 0;
 }
 

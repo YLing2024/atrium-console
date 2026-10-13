@@ -387,41 +387,5 @@
   border-radius: 0;
 }
 
-/* ---------- 窄屏（<1024px）：侧栏收为左侧滑出抽屉，顶部菜单按钮常驻 ---------- */
-@media (max-width: 1023px) {
-  .nav-toggle {
-    display: flex;
-  }
-
-  .sidenav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: 78vw;
-    max-width: 300px;
-    height: 100%;
-    z-index: 120;
-    border-left: none;
-    border-right: 1px solid var(--border);
-    background: var(--surface);
-    transform: translateX(-105%);
-    translate: -105%;
-    transition: transform 0.24s var(--ease), translate 0.24s var(--ease);
-    box-shadow: 0 1px 0 var(--line-soft), 0 8px 24px rgba(23, 21, 18, 0.06);
-  }
-
-  .sidenav.open {
-    transform: translateX(0);
-    translate: 0;
-  }
-
-  .sidenav-backdrop {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(23, 21, 18, 0.5);
-    z-index: 115;
-  }
-}
+/* 窄屏导航改由 antd Drawer 承载（见 Main.tsx），此处不再有侧栏抽屉样式 */
 

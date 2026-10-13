@@ -1,4 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Badge, Button, Drawer, Dropdown, Layout, Menu } from 'antd';
+import type { MenuProps } from 'antd';
+import {
+  KeyOutlined,
+  LogoutOutlined,
+  MenuOutlined,
+  MoonOutlined,
+  SunOutlined,
+  UserOutlined
+} from '@ant-design/icons';
 import { logout } from '../api';
 import { getTheme, effectiveTheme, toggleTheme } from '../theme';
 import System from './System';
@@ -44,20 +54,34 @@ const TAB_LABELS: Record<string, string> = {
   hermes: 'Hermes'
 };
 
+// 窄屏判定（< 900px）：此时侧栏改由右侧抽屉承载
+function useIsNarrow(): boolean {
+  const [narrow, setNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 899px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 899px)');
+    const onChange = () => setNarrow(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return narrow;
+}
+
+const { Header, Sider, Content } = Layout;
+
 export default function Main() {
   const [tab, setTab] = useState(() => {
     const saved = sessionStorage.getItem('admin_tab');
     return saved && TABS.includes(saved) ? saved : 'system';
   });
   const [showReset, setShowReset] = useState(false);
-  const [toast, setToast] = useState('');
   const [theme, setTheme] = useState(() => effectiveTheme(getTheme()));
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // 窄屏：右侧抽屉是否展开
   const [unread, setUnread] = useState(0); // 通知中心未读数（侧栏徽标）
   const [notifRefreshTick, setNotifRefreshTick] = useState(0); // 管理页操作后触发展示页刷新
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const narrow = useIsNarrow();
 
   function switchTab(t: string) {
     setTab(t);
@@ -74,37 +98,10 @@ export default function Main() {
     logout();
   }
 
-  // 主题切换：applyTheme 改 CSS 变量并写入 localStorage，state 用于刷新按钮图标
+  // 主题切换：applyTheme 改 CSS 变量并写入 localStorage，state 用于用户菜单图标
   function handleToggleTheme() {
     setTheme(toggleTheme());
   }
-
-  // 用户菜单：点击外部 / 按 Esc 关闭
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onDocClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setMenuOpen(false);
-    }
-    document.addEventListener('mousedown', onDocClick);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDocClick);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [menuOpen]);
-
-  // 窄屏抽屉：按 Esc 关闭
-  useEffect(() => {
-    if (!navOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setNavOpen(false);
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [navOpen]);
 
   // 全局 Ctrl+K 弹出命令面板（含 metaKey 兼容 macOS）
   useEffect(() => {
@@ -118,94 +115,100 @@ export default function Main() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const navItems: MenuProps['items'] = TABS.map((id) => ({
+    key: id,
+    label:
+      id === 'notifications' ? (
+        <span className="nav-item-label">
+          {TAB_LABELS[id]}
+          {unread > 0 && <Badge count={unread} overflowCount={99} />}
+        </span>
+      ) : (
+        TAB_LABELS[id]
+      )
+  }));
+
+  const userItems: MenuProps['items'] = [
+    {
+      key: 'theme',
+      icon: theme === 'dark' ? <SunOutlined /> : <MoonOutlined />,
+      label: theme === 'dark' ? '浅色主题' : '深色主题'
+    },
+    { key: 'reset', icon: <KeyOutlined />, label: '重置验证器' },
+    { type: 'divider' },
+    { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true }
+  ];
+
+  function onUserMenuClick({ key }: { key: string }) {
+    if (key === 'theme') handleToggleTheme();
+    else if (key === 'reset') setShowReset(true);
+    else if (key === 'logout') handleLogout();
+  }
+
+  const navMenu = (
+    <Menu
+      mode="inline"
+      className="sidenav-menu"
+      selectedKeys={[tab]}
+      items={navItems}
+      onClick={({ key }) => switchTab(key)}
+      style={{ borderInlineEnd: 0 }}
+    />
+  );
+
   return (
-    <div className="app">
-      {/* 窄屏抽屉遮罩：点击关闭；桌面端由 CSS 隐藏 */}
-      {navOpen && <div className="sidenav-backdrop" onClick={() => setNavOpen(false)} />}
-
-      {/* 导航：桌面为左侧固定侧栏（≥1024px），窄屏为右侧滑出抽屉 */}
-      <aside className={'sidenav' + (navOpen ? ' open' : '')}>
-        <div className="brand sidenav-brand">
-          <span className="dot" />
-          Admin
-        </div>
-        <nav className="sidenav-list">
-          {TABS.map((id) => (
-            <button
-              key={id}
-              className={'sidenav-item' + (tab === id ? ' active' : '')}
-              onClick={() => switchTab(id)}
-            >
-              <span className="sidenav-item-label">{TAB_LABELS[id]}</span>
-              {id === 'notifications' && unread > 0 && (
-                <span className="sidenav-badge">{unread > 99 ? '99+' : unread}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </aside>
-
-      <div className="main-col">
-        <header className="topbar">
-          <button
-            type="button"
-            className="nav-toggle"
-            onClick={() => setNavOpen(true)}
-            title="菜单"
-            aria-label="菜单"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-              <line x1="2" y1="5" x2="16" y2="5" />
-              <line x1="2" y1="9" x2="16" y2="9" />
-              <line x1="2" y1="13" x2="16" y2="13" />
-            </svg>
-          </button>
-          <div className="user-menu" ref={menuRef}>
-            <button
-              className="user-menu-btn"
-              onClick={() => setMenuOpen((o) => !o)}
-              title="账户菜单"
-              aria-label="账户菜单"
-            >
+    <Layout hasSider className="app">
+      {/* 导航：桌面为左侧常驻侧栏，窄屏改由右侧抽屉承载（不隐藏导航） */}
+      {narrow ? (
+        <Drawer
+          placement="right"
+          open={navOpen}
+          onClose={() => setNavOpen(false)}
+          width={260}
+          className="sidenav-drawer"
+          title={
+            <span className="brand">
               <span className="dot" />
               Admin
-              <span className="caret">▾</span>
-            </button>
-            {menuOpen && (
-              <div className="user-dropdown">
-                <button
-                  className="dropdown-item"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    handleToggleTheme();
-                  }}
-                >
-                  {theme === 'dark' ? '浅色主题' : '深色主题'}
-                </button>
-                <button
-                  className="dropdown-item"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setShowReset(true);
-                  }}
-                >
-                  重置验证器
-                </button>
-                <button
-                  className="dropdown-item danger"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    handleLogout();
-                  }}
-                >
-                  退出登录
-                </button>
-              </div>
-            )}
+            </span>
+          }
+        >
+          {navMenu}
+        </Drawer>
+      ) : (
+        <Sider width={200} theme="light" className="sidenav">
+          <div className="brand sidenav-brand">
+            <span className="dot" />
+            Admin
           </div>
-        </header>
+          {navMenu}
+        </Sider>
+      )}
 
-        <div className="content">
+      <Layout className="main-col">
+        <Header className="topbar">
+          {narrow && (
+            <Button
+              type="text"
+              className="nav-toggle"
+              icon={<MenuOutlined />}
+              onClick={() => setNavOpen(true)}
+              title="目录"
+              aria-label="目录"
+            />
+          )}
+          <Dropdown
+            menu={{ items: userItems, onClick: onUserMenuClick }}
+            trigger={['click']}
+            placement="bottomRight"
+          >
+            <Button type="text" className="user-entry" icon={<UserOutlined />}>
+              Admin
+            </Button>
+          </Dropdown>
+        </Header>
+
+        <Content className="content">
           {/* 面板常驻挂载，仅切换显隐：避免切 tab 时浏览状态/内容丢失 */}
           <div className="pane" hidden={tab !== 'system'}>
             <System active={tab === 'system'} />
@@ -247,8 +250,8 @@ export default function Main() {
           <div className="pane pane--hermes" hidden={tab !== 'hermes'}>
             <Hermes />
           </div>
-        </div>
-      </div>
+        </Content>
+      </Layout>
 
       {showReset && <ResetTotp onClose={handleResetClose} />}
       {cmdOpen && (
@@ -259,7 +262,6 @@ export default function Main() {
           onLogout={handleLogout}
         />
       )}
-      {toast && <div className="toast">{toast}</div>}
-    </div>
+    </Layout>
   );
 }
