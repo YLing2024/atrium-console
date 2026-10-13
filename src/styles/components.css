@@ -132,10 +132,6 @@
 }
 
 /* ============ Ctrl+K 命令面板（antd Modal + Input + List） ============ */
-.cmd-palette .ant-modal-content {
-  border: 1px solid var(--border);
-}
-
 .cmd-head {
   display: flex;
   align-items: center;

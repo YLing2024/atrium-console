@@ -1,4 +1,5 @@
 /* ============ 布局 ============ */
+/* 只保留布局 glue：颜色 / 边框 / 背景 / 字体 / 动效一律交给 antd 默认。 */
 .app {
   display: flex;
   flex-direction: row;
@@ -10,7 +11,6 @@
   flex-shrink: 0;
   height: 56px;
   padding: 0 20px;
-  color: var(--fg);
 }
 
 /* 侧栏菜单：未读徽标与标签一行排布 */
@@ -18,10 +18,6 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-
-.sidenav-menu {
-  border-inline-end: 0;
 }
 
 /* 主列：顶栏 + 内容区，占满侧栏之外的全部宽度 */
@@ -38,6 +34,7 @@
   margin-right: auto;
 }
 
+/* 顶栏：背景 / 边框 / 文字交给 antd Header 默认，这里只负责排布 */
 .topbar {
   display: flex;
   align-items: center;
@@ -45,8 +42,6 @@
   gap: 20px;
   padding: 0 24px;
   height: 56px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--line-soft);
   line-height: 1.5;
   flex-shrink: 0;
 }
@@ -55,29 +50,13 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: 15px;
-  letter-spacing: 0.02em;
 }
 
-.dot {
-  width: 7px;
-  height: 7px;
-  background: var(--accent);
-  transform: rotate(45deg);
-  flex-shrink: 0;
-}
-
-/* ---------- Tabs: hairline amber rule on active ---------- */
+/* ---------- 博客视图子 Tab（面板视觉，随面板后续轮次迁移） ---------- */
 .tabs {
   display: flex;
   gap: 28px;
   margin-left: 8px;
-}
-
-.topbar .tabs {
-  align-self: stretch;
 }
 
 .tab {
@@ -96,28 +75,6 @@
   color: var(--fg);
 }
 
-/* 顶栏主 Tab：active 态在容器底缘画 amber 细线 */
-.topbar .tab {
-  position: relative;
-  align-self: stretch;
-}
-
-.topbar .tab::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 2px;
-  background: transparent;
-  transition: background-color 0.14s var(--ease);
-}
-
-.topbar .tab.active::after {
-  background: var(--accent);
-}
-
-/* 博客子 Tab：按钮自身底缘细线（紧凑布局） */
 .blog-view-tabs .tab {
   padding: 0 0 4px;
   border-bottom: 2px solid transparent;
@@ -129,20 +86,6 @@
 
 .tab.active {
   color: var(--fg);
-}
-
-.logout {
-  margin-left: auto;
-  color: var(--muted);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  padding: 6px 8px;
-  transition: color 0.14s var(--ease);
-}
-
-.logout:hover {
-  color: var(--danger);
 }
 
 .link-btn {
@@ -163,4 +106,3 @@
 .link-btn.danger:hover {
   color: var(--danger);
 }
-

@@ -115,24 +115,14 @@ export default function Main() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // 未读徽标：不用默认亮红，改成与主题呼应的琥珀（浅 #a05b0c / 深 #c77c1f）。
-  // 深色下数字改用墨色，保证与琥珀底的对比度可读（白字在 #c77c1f 上仅约 3.3:1）。
-  const badgeColor = theme === 'dark' ? '#c77c1f' : '#a05b0c';
-
+  // 未读徽标：使用 antd 默认色，不做自定义配色。
   const navItems: MenuProps['items'] = TABS.map((id) => ({
     key: id,
     label:
       id === 'notifications' ? (
         <span className="nav-item-label">
           {TAB_LABELS[id]}
-          {unread > 0 && (
-            <Badge
-              count={unread}
-              overflowCount={99}
-              color={badgeColor}
-              styles={theme === 'dark' ? { indicator: { color: '#171512' } } : undefined}
-            />
-          )}
+          {unread > 0 && <Badge count={unread} overflowCount={99} />}
         </span>
       ) : (
         TAB_LABELS[id]
@@ -159,11 +149,9 @@ export default function Main() {
   const navMenu = (
     <Menu
       mode="inline"
-      className="sidenav-menu"
       selectedKeys={[tab]}
       items={navItems}
       onClick={({ key }) => switchTab(key)}
-      style={{ borderInlineEnd: 0 }}
     />
   );
 
@@ -177,21 +165,13 @@ export default function Main() {
           onClose={() => setNavOpen(false)}
           width={260}
           className="sidenav-drawer"
-          title={
-            <span className="brand">
-              <span className="dot" />
-              Admin
-            </span>
-          }
+          title={<span className="brand">Admin</span>}
         >
           {navMenu}
         </Drawer>
       ) : (
         <Sider width={200} theme="light" className="sidenav">
-          <div className="brand sidenav-brand">
-            <span className="dot" />
-            Admin
-          </div>
+          <div className="brand sidenav-brand">Admin</div>
           {navMenu}
         </Sider>
       )}
