@@ -397,8 +397,7 @@
   flex-shrink: 0;
 }
 
-.list-head .process-name,
-.list-head .version-name {
+.list-head .process-name {
   font-family: var(--font-sans);
   font-weight: 600;
 }
@@ -409,31 +408,6 @@
   font-size: 10px;
   font-family: inherit;
   color: inherit;
-}
-
-.version-list-head {
-  gap: 10px;
-  padding-right: 2px;
-  padding-left: 2px;
-}
-
-.version-list-head .version-name {
-  min-width: 90px;
-}
-
-.version-list-head .version-cat {
-  border: none;
-  background: none;
-  padding: 0 7px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: inherit;
-}
-
-.version-list-head .version-val {
-  margin-left: auto;
-  font-family: inherit;
-  font-size: 10px;
 }
 
 /* ============ 趋势图（纯 SVG） ============ */

@@ -43,20 +43,3 @@
   }
 }
 
-/* 软件版本列表 */
-.version-list { display: flex; flex-direction: column; }
-.version-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 7px 2px; border-bottom: 1px solid var(--border);
-  font-family: var(--font-sans); font-size: 13px;
-}
-.version-row:last-child { border-bottom: none; }
-.version-name { min-width: 90px; font-family: var(--font-sans); font-weight: 500; }
-.version-cat {
-  font-family: var(--font-sans); font-size: 10px; font-weight: 500;
-  padding: 1px 6px; border: 1px solid var(--border);
-  border-radius: 0; text-transform: uppercase; letter-spacing: 0.06em;
-}
-.version-val { margin-left: auto; font-family: var(--font-mono); font-size: 12px; }
-.version-bad { color: var(--danger); }
-

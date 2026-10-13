@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { Alert, Table, Typography } from 'antd';
+import type { TableProps } from 'antd';
 import { getVersions } from '../api';
 import type { VersionInfo } from '../api';
 
@@ -7,52 +9,60 @@ import type { VersionInfo } from '../api';
 export default function VersionPanel({ active }: { active: boolean }) {
   const [versions, setVersions] = useState<VersionInfo[]>([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const fetchedRef = useRef(false);
 
   useEffect(() => {
     if (!active || fetchedRef.current) return;
     fetchedRef.current = true;
     let alive = true;
+    setLoading(true);
     getVersions()
       .then((v) => {
         if (alive) setVersions(v?.list || []);
       })
       .catch((e) => {
         if (alive) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
     return () => {
       alive = false;
     };
   }, [active]);
 
+  const columns: TableProps<VersionInfo>['columns'] = [
+    { title: '软件', dataIndex: 'name', key: 'name' },
+    { title: '类别', dataIndex: 'category', key: 'category' },
+    {
+      title: '版本',
+      dataIndex: 'version',
+      key: 'version',
+      render: (version: string | undefined, row: VersionInfo) =>
+        row.ok === false ? <Typography.Text type="danger">{version}</Typography.Text> : version
+    }
+  ];
+
   return (
     <div className="system">
       <div className="system-head">
-        <h2>软件版本</h2>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          软件版本
+        </Typography.Title>
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
-      <div className="services-block">
-        {versions.length === 0 ? (
-          <div className="empty">{error ? '' : '加载中…'}</div>
-        ) : (
-          <div className="version-list">
-            <div className="list-head version-list-head">
-              <span className="version-name">软件</span>
-              <span className="version-cat">类别</span>
-              <span className="version-val">版本</span>
-            </div>
-            {versions.map((v) => (
-              <div className="version-row" key={v.name}>
-                <span className="version-name">{v.name}</span>
-                <span className="version-cat muted">{v.category}</span>
-                <span className={`version-val ${v.ok ? '' : 'version-bad'}`}>{v.version}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <Table<VersionInfo>
+        rowKey="name"
+        columns={columns}
+        dataSource={versions}
+        loading={loading}
+        pagination={false}
+        size="small"
+        locale={{ emptyText: error ? ' ' : '加载中…' }}
+      />
     </div>
   );
 }
