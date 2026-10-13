@@ -15,8 +15,11 @@ body,
 }
 
 body {
-  /* 背景 / 文字色 / 字体交给 antd 默认（页面外壳由 antd Layout / App 承担），
+  /* 全局字体取 antd 默认字体栈（非 antd 组件同样继承，避免回退到衬线体）；
+     背景 / 文字色交给 antd 默认（页面外壳由 antd Layout / App 承担），
      这里只保留与设计语言无关的字体渲染设置。 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
