@@ -193,9 +193,9 @@ export default function Main() {
               className="nav-toggle"
               icon={<MenuOutlined />}
               onClick={() => setNavOpen(true)}
-              title="目录"
-              aria-label="目录"
-            />
+            >
+              目录
+            </Button>
           )}
           <Dropdown
             menu={{ items: userItems, onClick: onUserMenuClick }}
