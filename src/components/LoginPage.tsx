@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Form, Input, Typography } from 'antd';
+import { Alert, Button, Form, Input, Layout, Typography, theme } from 'antd';
 import QRCode from 'qrcode';
 import { login, totpSetup } from '../api';
 import type { ApiError } from '../api';
@@ -7,8 +7,9 @@ import type { ApiError } from '../api';
 // 自带账号（builtin）登录页：唯一输入是 TOTP 动态码（6 位数字）。
 // 仅在未登录且后端 auth-mode 为 builtin 时渲染；sso 模式不会走到这里。
 // 首次使用（后端回 code:'totp_setup_required'）就地引导绑定验证器，
-// 二维码/密钥沿用既有 TOTP 设置样式（.totp-*），不另起一套。
+// 二维码用 qrcode 绘制；密钥与提示一律 antd 默认样式（不写自定义配色/字距）。
 export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
+  const { token } = theme.useToken();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -93,7 +94,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="login-wrap">
+    <Layout className="login-wrap">
       <Form className="login-card" onFinish={submit}>
         <Typography.Title level={3} style={{ margin: 0 }}>
           Admin
@@ -102,29 +103,26 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
 
         {setup && (
           <div className="totp-setup">
-            <label className="totp-label">首次使用：请设置 TOTP</label>
+            <Typography.Text>首次使用：请设置 TOTP</Typography.Text>
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <canvas
                 ref={qrRef}
                 style={{
                   width: 180,
                   height: 180,
-                  border: '1px solid var(--border)',
-                  borderRadius: 4,
                   padding: 10,
-                  background: '#fff'
+                  background: token.colorWhite
                 }}
               />
             </div>
-            <button
-              className="totp-secret"
-              type="button"
-              onClick={copySecret}
-              title="点击复制密钥"
-            >
-              {setup.secret || '（未获取到密钥）'}
-            </button>
-            <span className="totp-label">{copied ? '已复制' : '点击密钥复制'}</span>
+            <Button block title="点击复制密钥" onClick={copySecret}>
+              <Typography.Text code style={{ wordBreak: 'break-all' }}>
+                {setup.secret || '（未获取到密钥）'}
+              </Typography.Text>
+            </Button>
+            <Typography.Text type="secondary">
+              {copied ? '已复制' : '点击密钥复制'}
+            </Typography.Text>
           </div>
         )}
 
@@ -154,6 +152,6 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
           {loading ? '登录中…' : retryLeft > 0 ? `请等待 ${retryLeft}s` : '登录'}
         </Button>
       </Form>
-    </div>
+    </Layout>
   );
 }
