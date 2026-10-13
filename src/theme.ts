@@ -25,6 +25,35 @@ export function getTheme(): ThemePref {
   return (localStorage.getItem(THEME_KEY) as ThemePref) || 'auto';
 }
 
+// 生效主题变化的订阅口：框架层（antd ConfigProvider）据此同步深浅色。
+// 只通知「实际生效」的 light/dark，auto 由系统偏好解析后通知。
+type ThemeListener = (theme: Theme) => void;
+const listeners = new Set<ThemeListener>();
+let systemBound = false;
+
+function notifyTheme(): void {
+  const t = effectiveTheme(getTheme());
+  listeners.forEach((fn) => fn(t));
+}
+
+// 订阅生效主题；订阅时立即回调一次当前值，返回取消订阅函数
+export function subscribeTheme(fn: ThemeListener): () => void {
+  listeners.add(fn);
+  fn(effectiveTheme(getTheme()));
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
+// auto 时跟随系统偏好（只绑一次）
+function bindSystemTheme(): void {
+  if (systemBound || typeof window === 'undefined' || !window.matchMedia) return;
+  systemBound = true;
+  window.matchMedia(MEDIA).addEventListener('change', () => {
+    if (getTheme() === 'auto') notifyTheme();
+  });
+}
+
 // 应用主题到 <html data-theme>，并同步浏览器主题色 meta 与 localStorage
 export function applyTheme(theme: ThemePref): void {
   const el = document.documentElement;
@@ -38,10 +67,12 @@ export function applyTheme(theme: ThemePref): void {
   if (meta) {
     meta.setAttribute('content', effectiveTheme(theme) === 'dark' ? '#13110f' : '#f7f6f3');
   }
+  notifyTheme();
 }
 
 // 启动时调用，避免刷新后闪回
 export function initTheme(): void {
+  bindSystemTheme();
   applyTheme(getTheme());
 }
 
