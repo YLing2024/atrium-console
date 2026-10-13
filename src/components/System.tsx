@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Alert,
   Badge,
@@ -17,32 +17,24 @@ import {
 import type { TableColumnsType } from 'antd';
 import type { EChartsType } from 'echarts/core';
 import type { LineSeriesOption } from 'echarts/charts';
-import { getSystemMetrics } from '../api';
-import type { CoreUsage, DiskInfo, HistoryPoint, PsiInfo, ServiceInfo, SystemData } from '../api';
+import { getServices, getSystemMetrics } from '../api';
+import type { CoreUsage, DiskInfo, HistoryPoint, ProcessInfo, PsiInfo, ServiceInfo, SystemData } from '../api';
 import { clampOffset, fmtBytes, fmtDuration, fmtMB, fmtPct, fmtRate, toneFor } from '../format';
+import { buildProcTree, sortProcTree, type ProcSortKey, type ProcTreeNode } from '../procTree';
 import type { EChartsOption } from './Chart';
 
 // ECharts 体积大：图表实现（Chart.tsx + echarts）改为动态 import，
 // 只在系统面板真正要画趋势图时才拉取，主入口与其它面板都不引入。
 const Chart = lazy(() => import('./Chart'));
 
-/** 系统 SSE snapshot 帧结构 */
+/** 系统 SSE snapshot 帧结构（进程明细已不从 SSE 读，见下方 REST 取样） */
 interface SystemSnapshot {
   system?: SystemData;
   history?: HistoryPoint[];
   services?: {
     services?: ServiceInfo[];
-    processes?: ProcessInfo[];
     total_cpu?: number;
   };
-}
-
-/** 进程排行项 */
-interface ProcessInfo {
-  pid: number;
-  name: string;
-  mem_mb?: number;
-  cpu?: number;
 }
 
 /** 序列语义色：只给 antd 主题 token 的用途名，颜色在组件内按 token 解析 */
@@ -459,6 +451,9 @@ export default function System({ active }: { active: boolean }) {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [services, setServices] = useState<ServiceInfo[]>([]);
   const [processes, setProcesses] = useState<ProcessInfo[]>([]);
+  // 合计行用：count（截断前进程总数）与 total_mem_mb（全部进程 RSS 之和），均来自 REST /services
+  const [procTotalCount, setProcTotalCount] = useState<number | null>(null);
+  const [procTotalMemMb, setProcTotalMemMb] = useState<number | null>(null);
   const [totalCpu, setTotalCpu] = useState<number | null>(null);
   const [procSort, setProcSort] = useState('mem');
   const [error, setError] = useState('');
@@ -470,7 +465,7 @@ export default function System({ active }: { active: boolean }) {
   const trendCacheRef = useRef<Record<string, HistoryPoint[]>>({}); // 各档位上次成功的数据，切回时立即命中，避免闪空
   const trendMetaCacheRef = useRef<Record<string, { recordedSeconds?: number }>>({}); // 各档位上次成功的 meta
 
-  // SSE 实时推送：仅 active（系统 Tab 激活）时建连，切走立即断开，无任何轮询。
+  // 系统指标走 SSE；进程全量列表在系统 Tab 激活时每 5s 取样一次。
   // 用 fetch + ReadableStream 自管流（非 EventSource）：需要在客户端做连接状态与重连观测；
   useEffect(() => {
     if (!active) return;
@@ -499,7 +494,6 @@ export default function System({ active }: { active: boolean }) {
       setHistory(Array.isArray(d.history) ? d.history : []);
       const s = d.services || {};
       setServices(Array.isArray(s) ? s : s.services || []);
-      setProcesses(s.processes || []);
       setTotalCpu(s.total_cpu != null ? s.total_cpu : null);
       setUpdated(new Date());
       setError('');
@@ -542,6 +536,40 @@ export default function System({ active }: { active: boolean }) {
       disposed = true;
       if (retryTimer) clearTimeout(retryTimer);
       ctrl?.abort(); // 切走 / 卸载立即断开，零残留
+    };
+  }, [active]);
+
+  // 进程全量列表：SSE 帧已不再携带进程明细，改从 REST /api/admin/services 取样。
+  // 仅系统 Tab 激活时生效：激活立即拉一次，此后每 5s 一次；切走 / 卸载立即 abort + 清定时器。
+  // 拉取失败保留上次列表（不清空），不弹新提示，等待下个周期重试。
+  useEffect(() => {
+    if (!active) return;
+
+    let disposed = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let ctrl: AbortController | null = null;
+
+    async function load() {
+      ctrl?.abort(); // 上一条未完成即作废，避免慢响应覆盖新数据
+      ctrl = new AbortController();
+      try {
+        const d = await getServices({ signal: ctrl.signal });
+        if (disposed) return;
+        if (Array.isArray(d.processes)) setProcesses(d.processes);
+        if (d.count != null) setProcTotalCount(Number(d.count));
+        if (d.total_mem_mb != null) setProcTotalMemMb(Number(d.total_mem_mb));
+      } catch (e) {
+        // 拉取失败 / 主动中止：保留上次数据
+      }
+    }
+
+    load();
+    timer = setInterval(load, 5000);
+
+    return () => {
+      disposed = true;
+      if (timer) clearInterval(timer);
+      ctrl?.abort(); // 切走 / 卸载立即停止取样，零残留
     };
   }, [active]);
 
@@ -614,6 +642,12 @@ export default function System({ active }: { active: boolean }) {
     return t === 'hi' ? token.colorError : t === 'mid' ? token.colorWarning : token.colorSuccess;
   };
 
+  // 进程树：按 pid/ppid 组树 + 同级排序（排序只作用在兄弟之间，防环在 buildProcTree 内）
+  const processTree = useMemo(
+    () => sortProcTree(buildProcTree(processes), procSort as ProcSortKey),
+    [processes, procSort]
+  );
+
   if (!data) {
     return (
       <div className="system">
@@ -639,27 +673,34 @@ export default function System({ active }: { active: boolean }) {
       ? String(cpu.loadavg)
       : '—';
 
-  // 进程排行：按名称升序（拼音/字符串），按内存 mem_mb / CPU cpu 降序
-  const sortedProcesses = [...processes].sort((a, b) => {
-    if (procSort === 'name') {
-      return String(a.name).localeCompare(String(b.name), 'zh');
-    }
-    const av = Number(procSort === 'mem' ? a.mem_mb : a.cpu) || 0;
-    const bv = Number(procSort === 'mem' ? b.mem_mb : b.cpu) || 0;
-    return bv - av;
-  });
-
-  const processColumns: TableColumnsType<ProcessInfo> = [
+  const processColumns: TableColumnsType<ProcTreeNode<ProcessInfo>> = [
     {
       key: 'status',
       width: 32,
       align: 'center',
-      render: (_: unknown, p: ProcessInfo) => {
+      render: (_: unknown, p: ProcTreeNode<ProcessInfo>) => {
         const down = services.find((s) => s.pid === p.pid)?.status === 'down';
         return <Badge status={down ? 'error' : 'success'} />;
       }
     },
-    { title: '进程', dataIndex: 'name', ellipsis: true },
+    {
+      title: '进程',
+      dataIndex: 'name',
+      ellipsis: true,
+      render: (_: unknown, p: ProcTreeNode<ProcessInfo>) => {
+        const kids = p.children ? p.children.length : 0;
+        return (
+          <span>
+            {p.name}
+            {kids > 0 && (
+              <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                {p.subtree_count} 个进程 · {fmtMB(p.subtree_mem_mb)} · {(Number(p.subtree_cpu) || 0).toFixed(1)}%
+              </Typography.Text>
+            )}
+          </span>
+        );
+      }
+    },
     { title: 'PID', dataIndex: 'pid', width: 96, align: 'right' },
     {
       title: '内存',
@@ -839,20 +880,24 @@ export default function System({ active }: { active: boolean }) {
               ]}
             />
           </div>
-          <Table<ProcessInfo>
-            sticky={{ offsetHeader: 64 }}
+          <Table<ProcTreeNode<ProcessInfo>>
             rowKey="pid"
             size="small"
             columns={processColumns}
-            dataSource={sortedProcesses}
+            dataSource={processTree}
             pagination={false}
-            scroll={{ x: 'max-content' }}
+            expandable={{ defaultExpandAllRows: true, expandIconColumnIndex: 1 }}
+            scroll={{ x: 'max-content', y: '60vh' }}
             summary={() => (
               <Table.Summary.Row>
                 <Table.Summary.Cell index={0} />
                 <Table.Summary.Cell index={1}>合计（全部进程）</Table.Summary.Cell>
-                <Table.Summary.Cell index={2} />
-                <Table.Summary.Cell index={3} />
+                <Table.Summary.Cell index={2} align="right">
+                  {procTotalCount == null ? '—' : `${procTotalCount} 个`}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={3} align="right">
+                  {procTotalMemMb == null ? '—' : fmtMB(procTotalMemMb)}
+                </Table.Summary.Cell>
                 <Table.Summary.Cell index={4} align="right">
                   {totalCpu == null ? '—' : Number(totalCpu).toFixed(1) + '%'}
                 </Table.Summary.Cell>
