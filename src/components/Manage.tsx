@@ -375,6 +375,7 @@ export default function Manage() {
       title: '操作',
       key: 'ops',
       width: 120,
+      fixed: 'right',
       render: (_value, s) => {
         if (editingId === s.id) {
           return (
@@ -433,6 +434,7 @@ export default function Manage() {
       title: '操作',
       key: 'ops',
       width: 120,
+      fixed: 'right',
       render: (_value, t) => (
         <Space size={0}>
           <Button type="link" size="small" onClick={() => openEdit(t)}>

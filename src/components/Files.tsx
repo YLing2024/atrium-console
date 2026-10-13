@@ -490,6 +490,7 @@ export default function Files({ active }: { active: boolean }) {
       title: '',
       key: 'ops',
       width: 280,
+      fixed: 'right',
       render: (_value, entry) => (
         <Space size={0} wrap={false}>
           {entry.type === 'file' && (

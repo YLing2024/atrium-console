@@ -506,6 +506,7 @@ export function ShareManageModal({ onClose }: { onClose: () => void }) {
       title: '',
       key: 'ops',
       width: 280,
+      fixed: 'right',
       render: (_value, s) => (
         <Space size={0} wrap={false}>
           <Button type="link" size="small" onClick={() => copy(s)}>

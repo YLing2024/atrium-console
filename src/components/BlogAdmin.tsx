@@ -795,6 +795,7 @@ export default function BlogAdmin() {
       title: '操作',
       key: 'ops',
       width: 140,
+      fixed: 'right',
       render: (_value, p) => (
         <Space size={0}>
           <Button type="link" size="small" onClick={() => startEdit(p)}>
@@ -842,6 +843,7 @@ export default function BlogAdmin() {
       title: '操作',
       key: 'ops',
       width: 140,
+      fixed: 'right',
       render: (_value, c) => (
         <Space size={0}>
           <Button type="link" size="small" onClick={() => startEditCollection(c)}>
