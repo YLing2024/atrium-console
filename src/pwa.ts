@@ -32,7 +32,6 @@ function showUpdateBar(onRefresh: () => void): void {
     'background:var(--surface,#fbfaf8)',
     'color:var(--fg,#171512)',
     'border:1px solid var(--border,rgba(23,21,18,.16))',
-    'font-family:var(--font,sans-serif)',
     'font-size:13px',
     'line-height:1.4'
   ].join(';');

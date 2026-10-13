@@ -14,7 +14,6 @@
 
 /* 公开「应用中心」顶部的更新时间 */
 .apps-updated {
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.04em;
 }
@@ -28,7 +27,6 @@
   align-items: baseline;
   gap: 2px;
   margin-bottom: 10px;
-  font-family: var(--font-sans);
   font-size: 12px;
   letter-spacing: 0.04em;
 }
@@ -86,7 +84,6 @@ a.apps-card:hover {
   width: 24px;
   height: 24px;
   border: 1px solid var(--border);
-  font-family: var(--font-sans);
   font-size: 12px;
   line-height: 1;
   color: var(--fg);
@@ -124,7 +121,6 @@ a.apps-card:hover {
 }
 
 .apps-num {
-  font-family: var(--font-mono);
 }
 
 /* 状态点：颜色只沿用既有令牌（--accent / --muted / --danger） */

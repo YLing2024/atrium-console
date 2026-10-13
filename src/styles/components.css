@@ -24,7 +24,6 @@
 }
 
 .modal-title {
-  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -47,7 +46,6 @@
   border-radius: 0;
   border: 1px solid var(--border);
   color: var(--muted);
-  font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.06em;
@@ -69,7 +67,6 @@
 .btn-primary {
   background: var(--fg);
   color: var(--bg);
-  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 12.5px;
   letter-spacing: 0.06em;
@@ -117,7 +114,6 @@
 
 .offline-title {
   margin: 0 0 8px;
-  font-family: var(--font-sans);
   font-size: 18px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -140,7 +136,6 @@
 }
 
 .cmd-title {
-  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -148,7 +143,6 @@
 }
 
 .cmd-kbd {
-  font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -181,7 +175,6 @@
 }
 
 .cmd-hint {
-  font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--faint);
   opacity: 1;
@@ -190,7 +183,6 @@
 
 .cmd-foot {
   padding: 10px 4px 2px;
-  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -242,7 +234,6 @@
   align-items: center;
   gap: 7px;
   padding: 0 8px 0 12px;
-  font-family: var(--font-mono);
   font-size: 11.5px;
   letter-spacing: 0.03em;
   color: var(--muted);
@@ -284,7 +275,6 @@
 
 .term-x {
   padding: 1px 4px;
-  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1;
   color: var(--faint);
@@ -298,7 +288,6 @@
 .term-lock,
 .term-reconnect {
   padding: 0 14px;
-  font-family: var(--font-mono);
   font-size: 12px;
   color: var(--muted);
   border-right: 1px solid var(--line-soft);
@@ -352,7 +341,6 @@
 .term-gate-input {
   width: 200px;
   padding: 8px 12px;
-  font-family: var(--font-mono);
   font-size: 13px;
   letter-spacing: 0.18em;
   color: var(--fg);
@@ -369,7 +357,6 @@
 
 .term-gate-btn {
   padding: 8px 16px;
-  font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0.06em;
   color: var(--fg);
@@ -386,7 +373,6 @@
 }
 
 .term-gate-err {
-  font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--danger);
 }

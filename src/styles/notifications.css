@@ -28,7 +28,6 @@
 }
 
 .notif-head h2 {
-  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.2em;
@@ -63,7 +62,6 @@
 
 .notif-desktop {
   flex-shrink: 0;
-  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -100,7 +98,6 @@ span.notif-desktop {
 
 .notif-seg-btn {
   padding: 6px 14px;
-  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -129,7 +126,6 @@ span.notif-desktop {
   background: transparent;
   color: var(--fg);
   font-size: 12.5px;
-  font-family: var(--font-sans);
   outline: none;
 }
 
@@ -146,7 +142,6 @@ span.notif-desktop {
 
 .notif-compose-toggle {
   flex-shrink: 0;
-  font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
@@ -205,7 +200,6 @@ span.notif-desktop {
 }
 
 .notif-stats-src {
-  font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
   overflow: hidden;
@@ -259,7 +253,6 @@ span.notif-desktop {
   resize: vertical;
   min-height: 64px;
   line-height: 1.5;
-  font-family: var(--font);
 }
 
 .notif-compose-adv {
@@ -376,7 +369,6 @@ span.notif-desktop {
 }
 
 .notif-src {
-  font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
   overflow: hidden;
@@ -474,7 +466,6 @@ span.notif-desktop {
 }
 
 .notif-md code {
-  font-family: var(--font-mono);
   font-size: 12.5px;
   background: var(--surface-2);
   padding: 1px 5px;

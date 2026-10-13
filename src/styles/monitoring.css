@@ -22,7 +22,6 @@
 
 /* 公开「应用中心」页不使用 antd，标题仍走这里的 h2 样式 */
 .system-head h2 {
-  font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.2em;

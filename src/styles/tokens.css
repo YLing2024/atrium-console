@@ -33,18 +33,6 @@
   --hairline: var(--line-soft);
   --bg-2: var(--surface-2);
 
-  /* Type: Inter Tight Variable (chrome / display) · Inter (body) ·
-     JetBrains Mono (labels / numerals). Latin subsets self-hosted in
-     /fonts; CJK content falls back to the system stack. */
-  --font-sans: 'Inter Tight', 'Inter', -apple-system, BlinkMacSystemFont,
-    'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
-    'Helvetica Neue', Arial, sans-serif;
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue',
-    Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', SFMono-Regular,
-    Menlo, Monaco, Consolas, monospace;
-
   /* Motion — one curve, ≤150ms for hover, longer only for panels/rows. */
   --ease: cubic-bezier(0.23, 1, 0.32, 1);
 }

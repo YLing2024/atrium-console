@@ -88,7 +88,6 @@ button:not([class*='ant-']) {
   background: transparent;
   color: var(--fg);
   font-size: 14px;
-  font-family: var(--font);
   outline: none;
   transition: border-color 0.14s var(--ease);
 }
