@@ -160,38 +160,24 @@
 }
 
 .cmd-list {
-  list-style: none;
   max-height: 320px;
   overflow-y: auto;
 }
 
+/* List.Item 只保留排布与键盘选中的底色（用 antd 主题变量，深浅色自动跟随）；
+   颜色 / 字体 / 内边距 / 分隔线一律交回 antd 默认。 */
 .cmd-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 10px 12px;
-  color: var(--muted);
-  font-family: var(--font-sans);
-  font-size: 13.5px;
   text-align: left;
-  border-block-end: 0;
   cursor: pointer;
-  transition: color 0.14s var(--ease), background 0.14s var(--ease);
-}
-
-.cmd-item:hover {
-  color: var(--fg);
 }
 
 .cmd-item.selected {
-  background: var(--line-soft);
-  color: var(--fg);
-}
-
-.cmd-item.selected .cmd-label {
-  color: var(--accent-ink);
+  background: var(--ant-control-item-bg-active);
 }
 
 .cmd-hint {
