@@ -157,8 +157,8 @@ export default function Main() {
   );
 
   return (
-    <Layout hasSider className="app">
-      {/* 导航：桌面为左侧常驻侧栏，窄屏改由右侧抽屉承载（不隐藏导航） */}
+    <Layout hasSider={!narrow} className="app">
+      {/* 导航：桌面为左侧常驻侧栏；窄屏不渲染 Sider，改由右侧抽屉承载（不隐藏导航） */}
       {narrow ? (
         <Drawer
           placement="right"
