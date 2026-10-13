@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Form, Input } from 'antd';
+import { Alert, Button, Form, Input, Typography } from 'antd';
 import QRCode from 'qrcode';
 import { login, totpSetup } from '../api';
 import type { ApiError } from '../api';
@@ -95,8 +95,10 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   return (
     <div className="login-wrap">
       <Form className="login-card" onFinish={submit}>
-        <div className="login-logo">Admin</div>
-        <p className="login-sub">管理后台 · 请输入动态验证码</p>
+        <Typography.Title level={3} style={{ margin: 0 }}>
+          Admin
+        </Typography.Title>
+        <Typography.Text type="secondary">管理后台 · 请输入动态验证码</Typography.Text>
 
         {setup && (
           <div className="totp-setup">
@@ -127,7 +129,6 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         )}
 
         <Input
-          className="input"
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
@@ -148,7 +149,6 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         <Button
           type="primary"
           htmlType="submit"
-          size="large"
           disabled={loading || retryLeft > 0 || !code.trim()}
         >
           {loading ? '登录中…' : retryLeft > 0 ? `请等待 ${retryLeft}s` : '登录'}

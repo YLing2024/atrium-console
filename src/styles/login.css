@@ -1,11 +1,13 @@
 /* ============ 登录页 ============ */
+/* 只保留居中布局与间距；Input / Button / Alert 的视觉一律交给 antd 默认。
+   页面底色取 antd 自己的 Layout 底色变量，深浅色随主题，不用旧配色令牌。 */
 .login-wrap {
-  height: 100dvh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: var(--bg);
+  background: var(--ant-color-bg-layout);
 }
 
 .login-card {
@@ -16,34 +18,7 @@
   gap: 16px;
 }
 
-.login-logo {
-  font-family: var(--font-sans);
-  font-size: 38px;
-  font-weight: 300;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  padding-top: 16px;
-  border-top: 1px solid var(--ink);
-}
-
-.login-sub {
-  color: var(--muted);
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  margin-top: -8px;
-}
-
-.login-card .input {
-  margin-top: 6px;
-}
-
-.login-hint {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
-  margin-top: -4px;
-}
-
+/* TOTP 首次绑定：密钥是原生按钮（非 antd 组件），沿用既有展示样式。 */
 .totp-setup {
   display: flex;
   flex-direction: column;
@@ -80,4 +55,3 @@
 .totp-uri:hover {
   border-color: var(--accent);
 }
-
