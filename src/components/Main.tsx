@@ -1,16 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Badge, Button, Drawer, Dropdown, Layout, Menu } from 'antd';
+import { Badge, Button, Drawer, Dropdown, Layout, Menu, Segmented } from 'antd';
 import type { MenuProps } from 'antd';
-import {
-  KeyOutlined,
-  LogoutOutlined,
-  MenuOutlined,
-  MoonOutlined,
-  SunOutlined,
-  UserOutlined
-} from '@ant-design/icons';
+import { KeyOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons';
 import { logout } from '../api';
-import { getTheme, effectiveTheme, toggleTheme } from '../theme';
+import { getTheme, setThemePref, type ThemePref } from '../theme';
 import System from './System';
 import Apps from './Apps';
 import BlogAdmin from './BlogAdmin';
@@ -76,7 +69,7 @@ export default function Main() {
     return saved && TABS.includes(saved) ? saved : 'system';
   });
   const [showReset, setShowReset] = useState(false);
-  const [theme, setTheme] = useState(() => effectiveTheme(getTheme()));
+  const [pref, setPref] = useState<ThemePref>(() => getTheme()); // 三态：auto / light / dark
   const [cmdOpen, setCmdOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // 窄屏：右侧抽屉是否展开
   const [unread, setUnread] = useState(0); // 通知中心未读数（侧栏徽标）
@@ -98,9 +91,12 @@ export default function Main() {
     logout();
   }
 
-  // 主题切换：applyTheme 改 CSS 变量并写入 localStorage，state 用于用户菜单图标
-  function handleToggleTheme() {
-    setTheme(toggleTheme());
+  // 主题三态：显式设置 auto / light / dark，立即生效并写入 localStorage。
+  // 颜色由 antd ConfigProvider 按生效主题切换（main.tsx 订阅 theme.ts）。
+  function handleThemeChange(value: string | number) {
+    const next = value as ThemePref;
+    setThemePref(next);
+    setPref(next);
   }
 
   // 全局 Ctrl+K 弹出命令面板（含 metaKey 兼容 macOS）
@@ -130,21 +126,29 @@ export default function Main() {
   }));
 
   const userItems: MenuProps['items'] = [
-    {
-      key: 'theme',
-      icon: theme === 'dark' ? <SunOutlined /> : <MoonOutlined />,
-      label: theme === 'dark' ? '浅色主题' : '深色主题'
-    },
     { key: 'reset', icon: <KeyOutlined />, label: '重置验证器' },
     { type: 'divider' },
     { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', danger: true }
   ];
 
   function onUserMenuClick({ key }: { key: string }) {
-    if (key === 'theme') handleToggleTheme();
-    else if (key === 'reset') setShowReset(true);
+    if (key === 'reset') setShowReset(true);
     else if (key === 'logout') handleLogout();
   }
+
+  // 主题三态切换器：宽屏内联顶栏，窄屏收进右侧抽屉（同一控件复用）。
+  const themeSwitcher = (
+    <Segmented
+      className="theme-switch"
+      value={pref}
+      onChange={handleThemeChange}
+      options={[
+        { label: '自动', value: 'auto' },
+        { label: '亮色', value: 'light' },
+        { label: '暗色', value: 'dark' }
+      ]}
+    />
+  );
 
   const navMenu = (
     <Menu
@@ -167,6 +171,7 @@ export default function Main() {
           className="sidenav-drawer"
           title={<span className="brand">Admin</span>}
         >
+          <div className="sidenav-theme">{themeSwitcher}</div>
           {navMenu}
         </Drawer>
       ) : (
@@ -188,6 +193,7 @@ export default function Main() {
               目录
             </Button>
           )}
+          {!narrow && themeSwitcher}
           <Dropdown
             menu={{ items: userItems, onClick: onUserMenuClick }}
             trigger={['click']}

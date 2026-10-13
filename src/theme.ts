@@ -1,6 +1,10 @@
 /**
- * 主题：默认跟随系统（prefers-color-scheme），可手动切换浅/深（localStorage key: admin_theme）。
- * 手动选择时给 <html> 设 data-theme 覆盖系统偏好；'auto' 时不设属性，交给 CSS 媒体查询。
+ * 主题：三态可选 —— 自动（跟随系统 prefers-color-scheme）/ 亮色 / 暗色。
+ * localStorage key: admin_theme，写入 'auto' | 'light' | 'dark'。
+ *
+ * 手动选择时给 <html> 设 data-theme 覆盖系统偏好；'auto' 时不设属性，交给系统偏好。
+ * 颜色本身一律由 antd 默认 token 提供（cssVar 模式下的 --ant-* CSS 变量），
+ * 本模块只负责「哪一档主题」与首屏 data-theme / color-scheme 的落定。
  */
 const THEME_KEY = 'admin_theme';
 const MEDIA = '(prefers-color-scheme: dark)';
@@ -9,6 +13,12 @@ const MEDIA = '(prefers-color-scheme: dark)';
 export type Theme = 'light' | 'dark';
 /** 记忆值：'auto' 表示跟随系统 */
 export type ThemePref = Theme | 'auto';
+
+const THEME_PREFS: readonly ThemePref[] = ['auto', 'light', 'dark'];
+
+function isThemePref(value: unknown): value is ThemePref {
+  return typeof value === 'string' && (THEME_PREFS as readonly string[]).includes(value);
+}
 
 export function systemPrefersDark(): boolean {
   return typeof window !== 'undefined' && window.matchMedia
@@ -22,7 +32,9 @@ export function effectiveTheme(theme: ThemePref): Theme {
 }
 
 export function getTheme(): ThemePref {
-  return (localStorage.getItem(THEME_KEY) as ThemePref) || 'auto';
+  if (typeof localStorage === 'undefined') return 'auto';
+  const raw = localStorage.getItem(THEME_KEY);
+  return isThemePref(raw) ? raw : 'auto';
 }
 
 // 生效主题变化的订阅口：框架层（antd ConfigProvider）据此同步深浅色。
@@ -54,7 +66,13 @@ function bindSystemTheme(): void {
   });
 }
 
-// 应用主题到 <html data-theme>，并同步浏览器主题色 meta 与 localStorage
+// 同步浏览器 color-scheme meta（供地址栏 / 状态栏等原生 UI 取色；颜色不写死，交给浏览器）。
+function syncColorSchemeMeta(dark: boolean): void {
+  const meta = document.querySelector('meta[name="color-scheme"]');
+  if (meta) meta.setAttribute('content', dark ? 'dark light' : 'light dark');
+}
+
+// 应用主题到 <html data-theme>，并同步 color-scheme 与 localStorage
 export function applyTheme(theme: ThemePref): void {
   const el = document.documentElement;
   if (theme === 'auto') {
@@ -63,22 +81,18 @@ export function applyTheme(theme: ThemePref): void {
     el.dataset.theme = theme;
   }
   localStorage.setItem(THEME_KEY, theme);
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) {
-    meta.setAttribute('content', effectiveTheme(theme) === 'dark' ? '#13110f' : '#f7f6f3');
-  }
+  syncColorSchemeMeta(effectiveTheme(theme) === 'dark');
   notifyTheme();
+}
+
+// 显式三态设置：'auto' | 'light' | 'dark'，返回生效主题
+export function setThemePref(pref: ThemePref): Theme {
+  applyTheme(pref);
+  return effectiveTheme(pref);
 }
 
 // 启动时调用，避免刷新后闪回
 export function initTheme(): void {
   bindSystemTheme();
   applyTheme(getTheme());
-}
-
-// 切换深浅并返回新主题（明确写入，不再回到 auto）
-export function toggleTheme(): Theme {
-  const next = effectiveTheme(getTheme()) === 'dark' ? 'light' : 'dark';
-  applyTheme(next);
-  return next;
 }
