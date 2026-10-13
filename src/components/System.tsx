@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Alert,
   Badge,
@@ -9,6 +9,7 @@ import {
   Row,
   Segmented,
   Space,
+  Spin,
   Table,
   Typography,
   theme
@@ -19,7 +20,11 @@ import type { LineSeriesOption } from 'echarts/charts';
 import { getSystemMetrics } from '../api';
 import type { CoreUsage, DiskInfo, HistoryPoint, PsiInfo, ServiceInfo, SystemData } from '../api';
 import { clampOffset, fmtBytes, fmtDuration, fmtMB, fmtPct, fmtRate, toneFor } from '../format';
-import Chart, { type EChartsOption } from './Chart';
+import type { EChartsOption } from './Chart';
+
+// ECharts 体积大：图表实现（Chart.tsx + echarts）改为动态 import，
+// 只在系统面板真正要画趋势图时才拉取，主入口与其它面板都不引入。
+const Chart = lazy(() => import('./Chart'));
 
 /** 系统 SSE snapshot 帧结构 */
 interface SystemSnapshot {
@@ -361,7 +366,22 @@ function TrendChart({
           </Button>
         </div>
       )}
-      <Chart option={option} height={220} onReady={onReady} />
+      <Suspense
+        fallback={
+          <div
+            style={{
+              height: 220,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Spin />
+          </div>
+        }
+      >
+        <Chart option={option} height={220} onReady={onReady} />
+      </Suspense>
     </div>
   );
 }
