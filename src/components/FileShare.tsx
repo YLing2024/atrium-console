@@ -1,4 +1,19 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Badge,
+  Button,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Segmented,
+  Select,
+  Space,
+  Table,
+  Typography
+} from 'antd';
+import type { TableProps } from 'antd';
 import { createFileShare, listFileShares, updateFileShare, deleteFileShare } from '../api';
 import type { FileShare, FileShareCreateBody, FileSharePatch } from '../api';
 
@@ -22,6 +37,11 @@ const PRESETS = [
 ];
 
 const STATUS_TEXT = { active: '有效', expired: '已过期', revoked: '已撤销' };
+const STATUS_BADGE: Record<FileShare['status'], 'success' | 'warning' | 'error'> = {
+  active: 'success',
+  expired: 'warning',
+  revoked: 'error'
+};
 
 function pad2(n: number): string {
   return String(n).padStart(2, '0');
@@ -112,8 +132,7 @@ export function ShareCreateModal({
     return { ttlHours: p.hours as number };
   }
 
-  async function submit(e: FormEvent) {
-    if (e) e.preventDefault();
+  async function submit() {
     if (result) return; // 已出结果：回车不再重复创建
     setErr('');
     let body: FileShareCreateBody;
@@ -151,99 +170,89 @@ export function ShareCreateModal({
   }
 
   return (
-    <div className="modal-mask" onClick={() => !busy && onClose()}>
-      <form className="modal fshare-modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h3 className="modal-title">创建临时链接</h3>
-        <div className="fshare-target" title={name}>
-          {name}
-        </div>
-
-        {result ? (
-          <>
-            <label className="fshare-field">
-              <span className="fshare-label">链接</span>
-              <input
-                className="input fshare-url mono"
-                readOnly
-                value={result.url}
-                onFocus={(e) => e.target.select()}
-              />
-            </label>
-            <span className="fshare-hint">
-              {result.expiresAt === 0
-                ? '永久有效，不会自动过期，只能手动撤销。'
-                : `有效期至 ${fmtTime(result.expiresAt)}`}
-            </span>
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={onClose}>
-                完成
-              </button>
-              <button type="button" className="btn-primary" onClick={copy}>
-                {copied ? '已复制' : '复制链接'}
-              </button>
-            </div>
-          </>
+    <Modal
+      title="创建临时链接"
+      open
+      onCancel={() => !busy && onClose()}
+      maskClosable={!busy}
+      destroyOnHidden
+      footer={
+        result ? (
+          <Space>
+            <Button onClick={onClose}>完成</Button>
+            <Button type="primary" onClick={copy}>
+              {copied ? '已复制' : '复制链接'}
+            </Button>
+          </Space>
         ) : (
-          <>
-            <div className="fshare-field">
-              <span className="fshare-label">有效期</span>
-              <div className="fshare-chips">
-                {PRESETS.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    className={'fshare-chip' + (preset === p.key ? ' on' : '')}
-                    onClick={() => setPreset(p.key)}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+          <Space>
+            <Button onClick={onClose} disabled={busy}>
+              取消
+            </Button>
+            <Button type="primary" loading={busy} onClick={submit}>
+              {busy ? '创建中…' : '创建链接'}
+            </Button>
+          </Space>
+        )
+      }
+    >
+      <Typography.Text ellipsis title={name} style={{ display: 'block', marginBottom: 12 }}>
+        {name}
+      </Typography.Text>
 
-            {preset === 'custom' && (
-              <label className="fshare-field">
-                <span className="fshare-label">过期时间（本地时间）</span>
-                <input
-                  type="datetime-local"
-                  className="input"
-                  value={customAt}
-                  onChange={(e) => setCustomAt(e.target.value)}
-                />
-              </label>
-            )}
+      {result ? (
+        <Space direction="vertical" size={8} style={{ width: '100%' }}>
+          <Typography.Text>链接</Typography.Text>
+          <Input
+            readOnly
+            value={result.url}
+            onFocus={(e) => e.target.select()}
+          />
+          <Typography.Text type="secondary">
+            {result.expiresAt === 0
+              ? '永久有效，不会自动过期，只能手动撤销。'
+              : `有效期至 ${fmtTime(result.expiresAt)}`}
+          </Typography.Text>
+        </Space>
+      ) : (
+        <Form layout="vertical" onFinish={submit} style={{ marginTop: 12 }}>
+          <Form.Item label="有效期">
+            <Select
+              value={preset}
+              onChange={setPreset}
+              options={PRESETS.map((p) => ({ value: p.key, label: p.label }))}
+            />
+          </Form.Item>
 
-            <span className="fshare-hint">
-              {preset === 'forever'
-                ? '永久有效，不会自动过期，只能手动撤销。'
-                : '到期后链接自动失效。'}
-            </span>
-
-            <label className="fshare-field">
-              <span className="fshare-label">备注</span>
-              <input
-                className="input"
-                value={note}
-                maxLength={80}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="选填"
+          {preset === 'custom' && (
+            <Form.Item label="过期时间（本地时间）">
+              <Input
+                type="datetime-local"
+                value={customAt}
+                onChange={(e) => setCustomAt(e.target.value)}
               />
-            </label>
+            </Form.Item>
+          )}
 
-            {err && <div className="error">{err}</div>}
+          <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
+            {preset === 'forever'
+              ? '永久有效，不会自动过期，只能手动撤销。'
+              : '到期后链接自动失效。'}
+          </Typography.Paragraph>
 
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>
-                取消
-              </button>
-              <button type="submit" className="btn-primary" disabled={busy}>
-                {busy ? '创建中…' : '创建链接'}
-              </button>
-            </div>
-          </>
-        )}
-      </form>
-    </div>
+          <Form.Item label="备注">
+            <Input
+              value={note}
+              maxLength={80}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="选填"
+            />
+          </Form.Item>
+        </Form>
+      )}
+
+      {err && <Alert type="error" showIcon message={err} />}
+    </Modal>
   );
 }
 
@@ -280,8 +289,7 @@ function ShareScheduleModal({
       : tip;
   }, [absInput, mode, permanent, share.expiresAt]);
 
-  async function submit(e: FormEvent) {
-    if (e) e.preventDefault();
+  async function submit() {
     setErr('');
     if (mode === 'permanent') {
       if (!window.confirm('转为永久有效后不再自动过期，只能手动撤销。确认？')) return;
@@ -317,66 +325,61 @@ function ShareScheduleModal({
   }
 
   return (
-    <div className="modal-mask" onClick={() => !busy && onClose()}>
-      <form className="modal fshare-modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <h3 className="modal-title">改期</h3>
-        <div className="fshare-target" title={share.relPath}>
-          {share.relPath}
-        </div>
+    <Modal
+      title="改期"
+      open
+      onCancel={() => !busy && onClose()}
+      maskClosable={!busy}
+      destroyOnHidden
+      footer={
+        <Space>
+          <Button onClick={onClose} disabled={busy}>
+            取消
+          </Button>
+          <Button type="primary" loading={busy} onClick={submit}>
+            {busy ? '提交中…' : '确定'}
+          </Button>
+        </Space>
+      }
+    >
+      <Typography.Text ellipsis title={share.relPath} style={{ display: 'block', marginBottom: 12 }}>
+        {share.relPath}
+      </Typography.Text>
 
+      <Form layout="vertical">
         {!permanent && (
-          <div className="fshare-field">
-            <span className="fshare-label">方式</span>
-            <div className="fshare-chips">
-              <button
-                type="button"
-                className={'fshare-chip' + (mode === 'finite' ? ' on' : '')}
-                onClick={() => {
-                  setMode('finite');
-                  setAbsInput(toDateTimeLocal(share.expiresAt));
-                }}
-              >
-                指定时刻
-              </button>
-              <button
-                type="button"
-                className={'fshare-chip' + (mode === 'permanent' ? ' on' : '')}
-                onClick={() => setMode('permanent')}
-              >
-                转为永久
-              </button>
-            </div>
-          </div>
+          <Form.Item label="方式">
+            <Segmented
+              value={mode}
+              onChange={(v) => {
+                const next = String(v);
+                setMode(next);
+                if (next === 'finite') setAbsInput(toDateTimeLocal(share.expiresAt));
+              }}
+              options={[
+                { label: '指定时刻', value: 'finite' },
+                { label: '转为永久', value: 'permanent' }
+              ]}
+            />
+          </Form.Item>
         )}
 
-        {mode === 'finite' ? (
-          <label className="fshare-field">
-            <span className="fshare-label">过期时间（本地时间）</span>
-            <input
+        {mode === 'finite' && (
+          <Form.Item label="过期时间（本地时间）">
+            <Input
               type="datetime-local"
-              className="input"
               value={absInput}
               autoFocus
               onChange={(e) => setAbsInput(e.target.value)}
             />
-            {hint && <span className="fshare-hint">{hint}</span>}
-          </label>
-        ) : (
-          <span className="fshare-hint">{hint}</span>
+          </Form.Item>
         )}
 
-        {err && <div className="error">{err}</div>}
+        {hint && <Typography.Paragraph type="secondary">{hint}</Typography.Paragraph>}
+      </Form>
 
-        <div className="modal-actions">
-          <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>
-            取消
-          </button>
-          <button type="submit" className="btn-primary" disabled={busy}>
-            {busy ? '提交中…' : '确定'}
-          </button>
-        </div>
-      </form>
-    </div>
+      {err && <Alert type="error" showIcon message={err} />}
+    </Modal>
   );
 }
 
@@ -423,7 +426,6 @@ export function ShareManageModal({ onClose }: { onClose: () => void }) {
   }
 
   async function revoke(s: FileShare) {
-    if (!window.confirm(`撤销「${s.relPath}」的链接？撤销后不可恢复。`)) return;
     setBusyId(s.id);
     try {
       const data = await updateFileShare(s.id, { revoked: true });
@@ -436,7 +438,6 @@ export function ShareManageModal({ onClose }: { onClose: () => void }) {
   }
 
   async function remove(s: FileShare) {
-    if (!window.confirm(`删除「${s.relPath}」的链接记录？磁盘文件不受影响。`)) return;
     setBusyId(s.id);
     try {
       await deleteFileShare(s.id);
@@ -448,92 +449,135 @@ export function ShareManageModal({ onClose }: { onClose: () => void }) {
     }
   }
 
+  const columns: TableProps<FileShare>['columns'] = [
+    {
+      title: '文件',
+      dataIndex: 'relPath',
+      key: 'relPath',
+      render: (relPath: string) => (
+        <Typography.Text ellipsis title={relPath} style={{ maxWidth: 260 }}>
+          {relPath}
+        </Typography.Text>
+      )
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 100,
+      render: (_value, s) => (
+        <Badge status={STATUS_BADGE[s.status] || 'default'} text={STATUS_TEXT[s.status] || s.status} />
+      )
+    },
+    {
+      title: '有效期',
+      key: 'expiry',
+      width: 150,
+      render: (_value, s) => (
+        <Typography.Text type="secondary" title={s.expiresAt ? fmtTime(s.expiresAt) : ''}>
+          {expiryText(s)}
+        </Typography.Text>
+      )
+    },
+    {
+      title: '下载',
+      dataIndex: 'downloads',
+      key: 'downloads',
+      width: 80,
+      render: (downloads: number | undefined) => downloads || 0
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 160,
+      render: (createdAt: number) => fmtTime(createdAt)
+    },
+    {
+      title: '文件',
+      key: 'fileExists',
+      width: 80,
+      render: (_value, s) => (
+        <Typography.Text type={s.fileExists ? undefined : 'danger'}>
+          {s.fileExists ? '在' : '已删除'}
+        </Typography.Text>
+      )
+    },
+    {
+      title: '',
+      key: 'ops',
+      width: 280,
+      render: (_value, s) => (
+        <Space size={0} wrap={false}>
+          <Button type="link" size="small" onClick={() => copy(s)}>
+            {copiedId === s.id ? '已复制' : '复制链接'}
+          </Button>
+          {s.status === 'active' && (
+            <Button type="link" size="small" onClick={() => setEditing(s)}>
+              改期
+            </Button>
+          )}
+          {s.status === 'active' && (
+            <Popconfirm
+              title={`撤销「${s.relPath}」的链接？撤销后不可恢复。`}
+              okText="撤销"
+              cancelText="取消"
+              okButtonProps={{ danger: true }}
+              onConfirm={() => revoke(s)}
+            >
+              <Button type="link" size="small" danger disabled={busyId === s.id}>
+                撤销
+              </Button>
+            </Popconfirm>
+          )}
+          <Popconfirm
+            title={`删除「${s.relPath}」的链接记录？磁盘文件不受影响。`}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => remove(s)}
+          >
+            <Button type="link" size="small" danger disabled={busyId === s.id}>
+              删除记录
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
+
   return (
     <>
-      <div className="modal-mask" onClick={onClose}>
-        <div className="modal fshare-wide" onClick={(e) => e.stopPropagation()}>
-          <div className="fshare-top">
-            <h3 className="modal-title">临时链接</h3>
-            <button className="link-btn" onClick={load} disabled={loading}>
-              刷新
-            </button>
-          </div>
-
-          {err && <div className="error">{err}</div>}
-
-          {loading ? (
-            <div className="fshare-empty">加载中…</div>
-          ) : shares.length === 0 ? (
-            <div className="fshare-empty">暂无临时链接</div>
-          ) : (
-            <div className="fshare-list">
-              <div className="fshare-row fshare-row-head">
-                <span className="fshare-col">文件</span>
-                <span className="fshare-col">状态</span>
-                <span className="fshare-col">有效期</span>
-                <span className="fshare-col">下载</span>
-                <span className="fshare-col">创建时间</span>
-                <span className="fshare-col">文件</span>
-                <span className="fshare-col fshare-col-ops" />
-              </div>
-              {shares.map((s) => (
-                <div className="fshare-row" key={s.id}>
-                  <span className="fshare-name" title={s.relPath}>
-                    {s.relPath}
-                  </span>
-                  <span className="fshare-status">
-                    <i className={'fshare-dot ' + s.status} />
-                    {STATUS_TEXT[s.status] || s.status}
-                  </span>
-                  <span
-                    className="fshare-expiry mono"
-                    title={s.expiresAt ? fmtTime(s.expiresAt) : ''}
-                  >
-                    {expiryText(s)}
-                  </span>
-                  <span className="fshare-num mono">{s.downloads || 0}</span>
-                  <span className="fshare-num mono">{fmtTime(s.createdAt)}</span>
-                  <span className={'fshare-file' + (s.fileExists ? '' : ' gone')}>
-                    {s.fileExists ? '在' : '已删除'}
-                  </span>
-                  <span className="fshare-ops">
-                    <button className="link-btn" onClick={() => copy(s)}>
-                      {copiedId === s.id ? '已复制' : '复制链接'}
-                    </button>
-                    {s.status === 'active' && (
-                      <button className="link-btn" onClick={() => setEditing(s)}>
-                        改期
-                      </button>
-                    )}
-                    {s.status === 'active' && (
-                      <button
-                        className="link-btn danger"
-                        onClick={() => revoke(s)}
-                        disabled={busyId === s.id}
-                      >
-                        撤销
-                      </button>
-                    )}
-                    <button
-                      className="link-btn danger"
-                      onClick={() => remove(s)}
-                      disabled={busyId === s.id}
-                    >
-                      删除记录
-                    </button>
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="modal-actions">
-            <button className="btn-ghost" onClick={onClose}>
-              关闭
-            </button>
-          </div>
+      <Modal
+        title="临时链接"
+        open
+        width={960}
+        onCancel={onClose}
+        maskClosable
+        destroyOnHidden
+        footer={
+          <Button onClick={onClose}>
+            关闭
+          </Button>
+        }
+      >
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <Button size="small" onClick={load} loading={loading}>
+            刷新
+          </Button>
         </div>
-      </div>
+
+        {err && <Alert type="error" showIcon message={err} style={{ marginBottom: 8 }} />}
+
+        <Table<FileShare>
+          rowKey="id"
+          columns={columns}
+          dataSource={shares}
+          loading={{ spinning: loading, tip: '加载中…' }}
+          pagination={false}
+          locale={{ emptyText: '暂无临时链接' }}
+          scroll={{ x: 'max-content' }}
+        />
+      </Modal>
 
       {editing && (
         <ShareScheduleModal
