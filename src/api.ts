@@ -156,6 +156,8 @@ interface RequestOptions {
   method?: string;
   headers?: Record<string, string>;
   body?: unknown;
+  /** 供调用方（如系统 Tab 切走）立即中止请求 */
+  signal?: AbortSignal;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -172,6 +174,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     method: options.method,
     headers,
     credentials: 'same-origin',
+    signal: options.signal,
     body: body as BodyInit | undefined
   };
 
@@ -297,6 +300,30 @@ export interface ServiceInfo {
   pid?: number;
   name?: string;
   status?: string;
+}
+
+/** 进程树单行（`GET /api/admin/services` 的 processes 项；subtree_* 为该节点含全部后代的和） */
+export interface ProcessInfo {
+  name: string;
+  pid: number;
+  ppid?: number;
+  mem_mb?: number;
+  cpu?: number;
+  subtree_mem_mb?: number;
+  subtree_cpu?: number;
+}
+
+/** 服务状态 + 全量进程树（`GET /api/admin/services`） */
+export interface ServicesResponse {
+  services?: ServiceInfo[];
+  processes?: ProcessInfo[];
+  /** 解析到的进程总数（截断前） */
+  count?: number;
+  truncated?: boolean;
+  /** 全部进程 RSS 之和（MB）；含共享内存重复计算，字段名如实表达 */
+  total_mem_mb?: number;
+  /** 系统总占用（不是列表之和） */
+  total_cpu?: number;
 }
 
 /** 粒度聚合历史（趋势图分钟/小时/天档） */
@@ -591,9 +618,10 @@ export function getSystemMetrics(range: string, step: string): Promise<SystemMet
   );
 }
 
-// 服务状态列表
-export function getServices(): Promise<ServiceInfo[]> {
-  return request<ServiceInfo[]>('/api/admin/services');
+// 服务状态 + 全量进程树（含子树合计）。signal 供系统 Tab 切走时立即中止请求。
+// 返回 { services, processes, count, truncated, total_mem_mb, total_cpu }。
+export function getServices(opts: { signal?: AbortSignal } = {}): Promise<ServicesResponse> {
+  return request<ServicesResponse>('/api/admin/services', { signal: opts.signal });
 }
 
 // 应用面板（只读）：返回 { apps, categories, discovered, generatedAt, cached, notice, ... }
