@@ -1,5 +1,9 @@
-/* 侧栏导航自测：桌面侧栏 / 窄屏右侧抽屉 / 点击切换 / 命令面板 / no 横向滚动
+/* 侧栏导航自测：桌面侧栏 / 窄屏右侧抽屉 / 点击切换 / 命令面板 / 无横向滚动
  * 运行：cd e2e && node sidebar-check.cjs   （node 按脚本目录解析 playwright）
+ *
+ * 2026-10：外壳换成 antd Layout —— 桌面为常驻 Sider（class 仍为 .sidenav），
+ * 菜单项是 antd Menu 的 .ant-menu-item（选中态 .ant-menu-item-selected）；
+ * 窄屏（<900px）导航改由右侧 antd Drawer 承载，.nav-toggle 触发。
  */
 const { chromium } = require('playwright');
 
@@ -45,8 +49,6 @@ async function stubAuthMe(ctx) {
 }
 
 // 新架构：前端不再有 token，身份由 Auth Gateway 的站点会话 cookie 证明。
-// 本自测把所有 /api/** 桩成 200，注入 cookie 只作语义对齐（不依赖它绕过鉴权）；
-// cookie 名与线上一致：__Host-<app>_session（admin 站为 __Host-admin_session）。
 const SITE_SESSION_COOKIE = {
   name: '__Host-admin_session',
   value: 'e2e-fake-session',
@@ -89,7 +91,7 @@ function assert(cond, msg) {
   assert(!toggleHidden, '桌面隐藏菜单按钮');
 
   // 标签文字与顺序
-  const texts = await page.locator('.sidenav-item').allTextContents();
+  const texts = (await page.locator('.sidenav .ant-menu-item').allTextContents()).map((t) => t.trim());
   assert(JSON.stringify(texts) === JSON.stringify(LABELS), '侧栏标签与顺序一致: ' + texts.join('/'));
 
   // 无横向滚动条
@@ -100,14 +102,14 @@ function assert(cond, msg) {
 
   // 默认系统 active
   assert(
-    (await page.locator('.sidenav-item.active').innerText()) === '系统',
+    (await page.locator('.sidenav .ant-menu-item-selected').innerText()).trim() === '系统',
     '默认选中「系统」'
   );
 
   // 点击「博客」→ active + pane 显隐正确 + sessionStorage
-  await page.locator('.sidenav-item', { hasText: '博客' }).click();
+  await page.locator('.sidenav .ant-menu-item', { hasText: '博客' }).click();
   assert(
-    (await page.locator('.sidenav-item.active').innerText()) === '博客',
+    (await page.locator('.sidenav .ant-menu-item-selected').innerText()).trim() === '博客',
     '点击「博客」后高亮跟进'
   );
   const paneState = await page.evaluate(() => {
@@ -122,16 +124,16 @@ function assert(cond, msg) {
   assert(saved === 'blog', 'sessionStorage.admin_tab = blog');
 
   // 终端 pane 挂载后不因切走被卸载
-  await page.locator('.sidenav-item', { hasText: '终端' }).click();
+  await page.locator('.sidenav .ant-menu-item', { hasText: '终端' }).click();
   await page.waitForSelector('.term-gate');
-  await page.locator('.sidenav-item', { hasText: '博客' }).click();
+  await page.locator('.sidenav .ant-menu-item', { hasText: '博客' }).click();
   assert((await page.locator('.term-gate').count()) === 1, '切走后终端 pane 仍在 DOM（未卸载）');
 
   // 刷新后停留在上次 Tab（白名单读取未变）
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.sidenav');
   assert(
-    (await page.locator('.sidenav-item.active').innerText()) === '博客',
+    (await page.locator('.sidenav .ant-menu-item-selected').innerText()).trim() === '博客',
     '刷新后仍停留在「博客」'
   );
 
@@ -139,56 +141,68 @@ function assert(cond, msg) {
   await page.keyboard.press('Control+k');
   await page.waitForSelector('.cmd-palette');
   await page.locator('.cmd-item', { hasText: '打开文件' }).click();
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(200);
   assert(
-    (await page.locator('.sidenav-item.active').innerText()) === '文件',
+    (await page.locator('.sidenav .ant-menu-item-selected').innerText()).trim() === '文件',
     '命令面板切到「文件」仍可用'
   );
 
+  await page.screenshot({ path: '/tmp/sidebar-desktop.png' });
+  await ctx.close();
+
   // ---------- 窄屏 ----------
   console.log('== 窄屏 800x800 ==');
-  await page.setViewportSize({ width: 800, height: 800 });
-  await page.waitForTimeout(350); // 等抽屉归位动画结束
-  const toggleVisible = await page.locator('.nav-toggle').isVisible();
-  assert(toggleVisible, '窄屏菜单按钮可见（导航不被隐藏）');
-  const navBoxNarrow = await page.locator('.sidenav').boundingBox();
-  assert(
-    navBoxNarrow && navBoxNarrow.x + navBoxNarrow.width <= 1,
-    '窄屏侧栏默认收在左侧屏外 (x=' + (navBoxNarrow && navBoxNarrow.x) + ', w=' + (navBoxNarrow && navBoxNarrow.width) + ')'
-  );
-  const noH = await page.evaluate(
+  const ctxN = await browser.newContext({ viewport: { width: 800, height: 800 } });
+  await ctxN.addCookies([SITE_SESSION_COOKIE]);
+  await stubApi(ctxN);
+  await stubAuthMe(ctxN);
+  const pageN = await ctxN.newPage();
+  pageN.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  pageN.on('console', (m) => {
+    if (m.type() === 'error') errors.push('console: ' + m.text());
+  });
+  await pageN.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await pageN.waitForSelector('.nav-toggle');
+
+  assert(await pageN.locator('.nav-toggle').isVisible(), '窄屏菜单按钮可见（导航不被隐藏）');
+  assert((await pageN.locator('.ant-layout-sider').count()) === 0, '窄屏无常驻侧栏');
+
+  const noHN = await pageN.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth
   );
-  assert(noH, '窄屏无横向滚动条');
+  assert(noHN, '窄屏无横向滚动条');
 
-  // 打开抽屉
-  await page.locator('.nav-toggle').click();
-  await page.waitForTimeout(350);
-  const openBox = await page.locator('.sidenav').boundingBox();
-  assert(openBox && openBox.x >= 0 && openBox.x < 800, '点菜单按钮后抽屉滑入 (x=' + (openBox && openBox.x) + ')');
-  assert(await page.locator('.sidenav-backdrop').isVisible(), '抽屉带遮罩');
-  await page.screenshot({ path: '/tmp/sidebar-narrow-open.png' });
+  // 打开抽屉（从右侧滑出）
+  await pageN.locator('.nav-toggle').click();
+  await pageN.waitForSelector('.ant-drawer-open');
+  await pageN.waitForTimeout(350);
+  const openBox = await pageN.locator('.ant-drawer-content').boundingBox();
+  assert(openBox && openBox.x > 300, '点菜单按钮后抽屉从右侧滑入 (x=' + (openBox && openBox.x) + ')');
+  assert(await pageN.locator('.ant-drawer-mask').isVisible(), '抽屉带遮罩');
+  assert(
+    (await pageN.locator('.ant-drawer .ant-menu-item').count()) === LABELS.length,
+    '抽屉内菜单完整'
+  );
+  await pageN.screenshot({ path: '/tmp/sidebar-narrow-open.png' });
 
   // 点条目 → 关闭抽屉
-  await page.locator('.sidenav-item', { hasText: /^管理$/ }).click();
-  await page.waitForTimeout(350);
+  await pageN.locator('.ant-drawer .ant-menu-item', { hasText: /^管理$/ }).click();
+  await pageN.waitForTimeout(400);
   assert(
-    (await page.locator('.sidenav-item.active').innerText()) === '管理',
+    (await pageN.locator('.ant-menu-item-selected').innerText()).trim() === '管理',
     '抽屉内点「管理」切换生效'
   );
-  const closedBox = await page.locator('.sidenav').boundingBox();
-  assert(closedBox && closedBox.x + closedBox.width <= 1, '选中条目后抽屉关闭');
+  assert((await pageN.locator('.ant-drawer-open').count()) === 0, '选中条目后抽屉关闭');
 
-  // 再开 → 点遮罩关闭（抽屉在左，点右侧空白处）
-  await page.locator('.nav-toggle').click();
-  await page.waitForTimeout(350);
-  await page.locator('.sidenav-backdrop').click({ position: { x: 780, y: 400 } });
-  await page.waitForTimeout(350);
-  const maskClosed = await page.locator('.sidenav').boundingBox();
-  assert(maskClosed && maskClosed.x + maskClosed.width <= 1, '点遮罩后抽屉关闭');
+  // 再开 → 点遮罩关闭（抽屉在右，点左侧空白处）
+  await pageN.locator('.nav-toggle').click();
+  await pageN.waitForSelector('.ant-drawer-open');
+  await pageN.locator('.ant-drawer-mask').click({ position: { x: 40, y: 400 } });
+  await pageN.waitForTimeout(400);
+  assert((await pageN.locator('.ant-drawer-open').count()) === 0, '点遮罩后抽屉关闭');
 
-  await page.screenshot({ path: '/tmp/sidebar-narrow.png' });
-  await ctx.close();
+  await pageN.screenshot({ path: '/tmp/sidebar-narrow.png' });
+  await ctxN.close();
 
   // ---------- 白名单回退 ----------
   console.log('== sessionStorage 非法值回退 ==');
@@ -203,7 +217,7 @@ function assert(cond, msg) {
   await page2.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page2.waitForSelector('.sidenav');
   assert(
-    (await page2.locator('.sidenav-item.active').innerText()) === '系统',
+    (await page2.locator('.sidenav .ant-menu-item-selected').innerText()).trim() === '系统',
     "非法值 'browse' 回退到「系统」"
   );
   await page2.screenshot({ path: '/tmp/sidebar-desktop.png' });

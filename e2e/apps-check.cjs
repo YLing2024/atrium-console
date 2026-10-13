@@ -128,7 +128,7 @@ function assert(cond, msg) {
   console.log('== 浅色 1280x900 ==');
   await page.goto(BASE, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.sidenav');
-  await page.locator('.sidenav-item', { hasText: /^应用$/ }).click();
+  await page.locator('.sidenav .ant-menu-item', { hasText: /^应用$/ }).click();
   await page.waitForSelector('.apps-card');
 
   // D8：卡片数量
