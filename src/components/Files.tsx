@@ -4,10 +4,25 @@ import {
   useMemo,
   useRef,
   useState,
-  type ChangeEvent,
-  type DragEvent,
-  type FormEvent
+  type DragEvent
 } from 'react';
+import {
+  Alert,
+  Breadcrumb,
+  Button,
+  Card,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Progress,
+  Space,
+  Table,
+  Typography,
+  Upload
+} from 'antd';
+import type { TableProps, UploadProps } from 'antd';
+import { FileOutlined, FolderOutlined } from '@ant-design/icons';
 import {
   listFiles,
   makeDir,
@@ -23,6 +38,10 @@ import { ShareCreateModal, ShareManageModal } from './FileShare';
 /**
  * 文件区：目录浏览 / 拖拽上传（带进度条）/ 新建文件夹 / 重命名 / 删除 / 下载。
  * 路径均为相对文件区根目录的相对路径，越界由后端拦截。
+ *
+ * 根目录两类保护语义完全由后端负责，前端不做任何额外过滤或禁用：
+ *  · 隐身（protected）的根项后端不返回 → 列表里看不到；
+ *  · 只读（readonly）的根项后端照常返回、可见，写入被后端 403 拒绝 → 前端照原样提示后端错误。
  */
 
 const ROOT = '';
@@ -54,13 +73,12 @@ interface UploadJob {
   target: string;
 }
 
-/** 新建 / 重命名 / 删除 弹窗状态 */
+/** 新建 / 重命名 弹窗状态 */
 interface DialogState {
-  type: 'mkdir' | 'rename' | 'delete';
+  type: 'mkdir' | 'rename';
   target: string;
   value: string;
   title: string;
-  isDir?: boolean;
 }
 
 function fmtTime(ms: number | null | undefined): string {
@@ -124,47 +142,29 @@ async function walkEntry(entry: FileSystemEntry, dir: string, acc: UploadInput[]
   }
 }
 
-function IconFolder() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-      <path d="M1.5 3.5h4.2l1.4 2h7.4v8h-13z" />
-    </svg>
-  );
-}
-
-function IconFile() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden="true">
-      <path d="M3.5 1.5h5.6l3.4 3.4v9.6h-9z" />
-      <path d="M9.1 1.5v3.4h3.4" />
-    </svg>
-  );
-}
-
 export default function Files({ active }: { active: boolean }) {
   const [path, setPath] = useState(ROOT);
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState('');
-  const [notice, setNotice] = useState('');
-  const [dragOver, setDragOver] = useState(false);
   const [sort, setSort] = useState<{ key: 'name' | 'size' | 'time'; dir: number }>({
     key: 'name',
     dir: 1
   });
   const [uploads, setUploads] = useState<UploadItem[]>([]);
-  const [dialog, setDialog] = useState<DialogState | null>(null); // { type: 'mkdir'|'rename'|'delete', target, value, title }
+  const [dialog, setDialog] = useState<DialogState | null>(null);
   const [dialogBusy, setDialogBusy] = useState(false);
   const [dialogErr, setDialogErr] = useState('');
   const [shareTarget, setShareTarget] = useState<{ target: string; name: string } | null>(null); // { target, name } 创建临时链接
   const [sharePanel, setSharePanel] = useState(false); // 临时链接管理面板
 
-  const dragDepth = useRef(0);
   const loadedOnce = useRef(false);
   const pendingRef = useRef<UploadJob[]>([]);
   const runningRef = useRef(false);
   const pathRef = useRef(ROOT);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // 拖拽落入 Dragger 时，rc-upload 会同步读 dataTransfer.files（文件夹会被拍平）；
+  // 用守卫让 beforeUpload 只负责「点选文件」，拖拽一律交给容器的递归展开，避免重复入队。
+  const dropGuardRef = useRef(false);
 
   pathRef.current = path;
 
@@ -191,7 +191,7 @@ export default function Files({ active }: { active: boolean }) {
     }
   }, [active, load]);
 
-  // 拖拽落在 .files 之外时阻止浏览器默认行为（否则会直接打开/下载被拖入的文件）
+  // 拖拽落在文件区之外时阻止浏览器默认行为（否则会直接打开/下载被拖入的文件）
   useEffect(() => {
     if (!active) return undefined;
     const prevent = (e: Event) => e.preventDefault();
@@ -255,7 +255,6 @@ export default function Files({ active }: { active: boolean }) {
     (items: UploadInput[]) => {
       const list = (items || []).filter((x) => x && x.file);
       if (!list.length) return;
-      setNotice('');
       const base = pathRef.current;
       const stamp = Date.now();
       const recs: UploadItem[] = [];
@@ -289,29 +288,22 @@ export default function Files({ active }: { active: boolean }) {
 
   /* ---------------- 拖拽 ---------------- */
 
-  function onDragEnter(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    dragDepth.current += 1;
-    setDragOver(true);
-  }
+  // Dragger 的 beforeUpload：点选文件走这里；拖拽落入由容器 onDrop 递归处理（守卫挡住重复入队）
+  const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+    if (!dropGuardRef.current) enqueue([{ file, dir: '' }]);
+    return Upload.LIST_IGNORE;
+  };
 
-  function onDragOver(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-  }
-
-  function onDragLeave(e: DragEvent<HTMLDivElement>) {
-    e.preventDefault();
-    dragDepth.current -= 1;
-    if (dragDepth.current <= 0) {
-      dragDepth.current = 0;
-      setDragOver(false);
-    }
+  // 拖拽进入 Dragger 时置守卫：rc-upload 的 beforeUpload 会在同一事件里同步读取该值
+  function armDropGuard() {
+    dropGuardRef.current = true;
+    window.setTimeout(() => {
+      dropGuardRef.current = false;
+    }, 0);
   }
 
   function onDrop(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
-    dragDepth.current = 0;
-    setDragOver(false);
     const dt = e.dataTransfer;
     if (!dt) return;
 
@@ -376,46 +368,32 @@ export default function Files({ active }: { active: boolean }) {
     return list;
   }, [entries, sort]);
 
-  function toggleSort(key: 'name' | 'size' | 'time') {
-    setSort((s) => (s.key === key ? { key, dir: -s.dir } : { key, dir: 1 }));
-  }
-
   /* ---------------- 弹窗动作 ---------------- */
 
-  function openDialog(type: 'mkdir' | 'rename' | 'delete', entry?: FileEntry) {
+  function openDialog(type: 'mkdir' | 'rename', entry?: FileEntry) {
     setDialogErr('');
     if (type === 'mkdir') {
       setDialog({ type, title: '新建文件夹', value: '', target: path });
-    } else if (type === 'rename') {
+    } else {
       setDialog({
         type,
         title: '重命名',
         value: entry!.name,
         target: path ? `${path}/${entry!.name}` : entry!.name
       });
-    } else if (type === 'delete') {
-      setDialog({
-        type,
-        title: '删除',
-        value: entry!.name,
-        target: path ? `${path}/${entry!.name}` : entry!.name,
-        isDir: entry!.type === 'dir'
-      });
     }
   }
 
-  async function submitDialog(e?: FormEvent) {
-    if (e) e.preventDefault();
+  async function submitDialog() {
     if (!dialog) return;
+    if (!dialog.value.trim()) return; // 名称为空时不提交（原按钮 disabled 的等价约束）
     setDialogBusy(true);
     setDialogErr('');
     try {
       if (dialog.type === 'mkdir') {
         await makeDir(dialog.target, dialog.value.trim());
-      } else if (dialog.type === 'rename') {
+      } else {
         await renameEntry(dialog.target, dialog.value.trim());
-      } else if (dialog.type === 'delete') {
-        await deleteEntry(dialog.target);
       }
       setDialog(null);
       await load(pathRef.current);
@@ -426,215 +404,243 @@ export default function Files({ active }: { active: boolean }) {
     }
   }
 
+  async function doDelete(entry: FileEntry) {
+    try {
+      await deleteEntry(path ? `${path}/${entry.name}` : entry.name);
+      await load(pathRef.current);
+    } catch (e2) {
+      setErr((e2 as Error).message || '操作失败');
+    }
+  }
+
   const activeUploads = uploads.filter((u) => u.status === 'uploading' || u.status === 'waiting');
   const failedUploads = uploads.filter((u) => u.status === 'error');
 
+  const crumbItems = useMemo(
+    () => [
+      { title: <Typography.Link onClick={() => load(ROOT)}>根目录</Typography.Link> },
+      ...crumbs.map((c) => ({
+        title: <Typography.Link onClick={() => load(c.path)}>{c.name}</Typography.Link>
+      }))
+    ],
+    [crumbs, load]
+  );
+
+  // 排序交给 antd 表头（sorter: true，排序在 shown 里完成，目录恒在前）
+  function onTableChange(
+    _pagination: unknown,
+    _filters: unknown,
+    sorter: { columnKey?: string | number; order?: 'ascend' | 'descend' | null } | Array<unknown>
+  ) {
+    const s = Array.isArray(sorter)
+      ? (sorter[0] as { columnKey?: string | number; order?: 'ascend' | 'descend' | null })
+      : sorter;
+    const key = s && (s.columnKey === 'name' || s.columnKey === 'size' || s.columnKey === 'time')
+      ? s.columnKey
+      : null;
+    if (!key || !s.order) {
+      setSort({ key: 'name', dir: 1 });
+      return;
+    }
+    setSort({ key, dir: s.order === 'ascend' ? 1 : -1 });
+  }
+
+  const columns: TableProps<FileEntry>['columns'] = [
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      sorter: true,
+      sortOrder: sort.key === 'name' ? (sort.dir > 0 ? 'ascend' : 'descend') : null,
+      render: (_value, entry) => (
+        <Space size={8}>
+          {entry.type === 'dir' ? <FolderOutlined /> : <FileOutlined />}
+          {entry.type === 'dir' ? (
+            <Typography.Link title={entry.name} onClick={() => enter(entry)}>
+              {entry.name}
+            </Typography.Link>
+          ) : (
+            <Typography.Text title={entry.name}>{entry.name}</Typography.Text>
+          )}
+          {entry.type === 'file' && extOf(entry.name) && (
+            <Typography.Text type="secondary">{extOf(entry.name)}</Typography.Text>
+          )}
+        </Space>
+      )
+    },
+    {
+      title: '大小',
+      dataIndex: 'size',
+      key: 'size',
+      width: 120,
+      sorter: true,
+      sortOrder: sort.key === 'size' ? (sort.dir > 0 ? 'ascend' : 'descend') : null,
+      render: (_value, entry) => (entry.type === 'dir' ? '—' : fmtSize(entry.size))
+    },
+    {
+      title: '修改时间',
+      dataIndex: 'mtime',
+      key: 'time',
+      width: 180,
+      sorter: true,
+      sortOrder: sort.key === 'time' ? (sort.dir > 0 ? 'ascend' : 'descend') : null,
+      render: (_value, entry) => fmtTime(entry.mtime)
+    },
+    {
+      title: '',
+      key: 'ops',
+      width: 280,
+      render: (_value, entry) => (
+        <Space size={0} wrap={false}>
+          {entry.type === 'file' && (
+            <Button type="link" size="small" href={fileDownloadUrl(path ? `${path}/${entry.name}` : entry.name)}>
+              下载
+            </Button>
+          )}
+          {entry.type === 'file' && (
+            <Button
+              type="link"
+              size="small"
+              onClick={() =>
+                setShareTarget({
+                  target: path ? `${path}/${entry.name}` : entry.name,
+                  name: entry.name
+                })
+              }
+            >
+              链接
+            </Button>
+          )}
+          <Button type="link" size="small" onClick={() => openDialog('rename', entry)}>
+            重命名
+          </Button>
+          <Popconfirm
+            title={
+              entry.type === 'dir'
+                ? `确定删除「${entry.name}」？该目录及其全部内容都会被删除，此操作不可撤销。`
+                : `确定删除「${entry.name}」？此操作不可撤销。`
+            }
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => doDelete(entry)}
+          >
+            <Button type="link" size="small" danger>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+  ];
+
   return (
-    <div
-      className={'files' + (dragOver ? ' is-drag' : '')}
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
-    >
+    <div className="files" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
       {/* 工具栏：面包屑 + 操作 */}
-      <div className="files-bar">
-        <div className="files-crumbs">
-          <button className={'crumb' + (path === '' ? ' current' : '')} onClick={() => load(ROOT)}>
-            根目录
-          </button>
-          {crumbs.map((c, i) => (
-            <span key={c.path} className="crumb-wrap">
-              <span className="crumb-sep">/</span>
-              <button
-                className={'crumb' + (i === crumbs.length - 1 ? ' current' : '')}
-                onClick={() => load(c.path)}
-              >
-                {c.name}
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="files-actions">
-          <button className="btn-ghost" onClick={() => openDialog('mkdir')}>
-            新建文件夹
-          </button>
-          <button className="btn-ghost" onClick={() => setSharePanel(true)}>
-            临时链接
-          </button>
-          <button className="btn-ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()}>
-            选择文件
-          </button>
-          <button className="btn-ghost" onClick={() => load(path)} disabled={loading}>
+      <div className="files-toolbar">
+        <Breadcrumb items={crumbItems} />
+        <Space wrap>
+          <Button onClick={() => openDialog('mkdir')}>新建文件夹</Button>
+          <Button onClick={() => setSharePanel(true)}>临时链接</Button>
+          <Button onClick={() => load(path)} disabled={loading}>
             刷新
-          </button>
-        </div>
+          </Button>
+        </Space>
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        style={{ display: 'none' }}
-        onChange={(e) => {
-          enqueue(Array.from(e.target.files || []).map((f) => ({ file: f, dir: '' })));
-          e.target.value = '';
-        }}
-      />
+      {err && <Alert type="error" showIcon message={err} />}
 
-      {notice && (
-        <div className="files-notice">
-          {notice}
-          <button className="link-btn" onClick={() => setNotice('')}>
-            知道了
-          </button>
-        </div>
-      )}
+      {/* 上传区：拖拽（含整个文件夹）或点选文件 */}
+      <div onDropCapture={armDropGuard}>
+        <Upload.Dragger multiple showUploadList={false} beforeUpload={beforeUpload} height={140}>
+          <Space direction="vertical" size={4}>
+            <Typography.Text type="secondary">把文件或整个文件夹拖到这里即可上传</Typography.Text>
+            <Button>选择文件</Button>
+          </Space>
+        </Upload.Dragger>
+      </div>
 
       {/* 上传队列 */}
       {uploads.length > 0 && (
-        <div className="files-uploads">
-          <div className="files-uploads-head">
-            <span className="files-uploads-title">
+        <Card
+          size="small"
+          title={
+            <>
               上传 {activeUploads.length > 0 ? `中 · 剩余 ${activeUploads.length}` : '完成'}
               {failedUploads.length > 0 ? ` · 失败 ${failedUploads.length}` : ''}
-            </span>
-            <button className="link-btn" onClick={clearFinished}>
+            </>
+          }
+          extra={
+            <Button type="link" size="small" onClick={clearFinished}>
               清除已完成
-            </button>
-          </div>
-          <div className="files-uploads-list">
-            {uploads.slice(0, 12).map((u) => (
-              <div className="up-item" key={u.id}>
-                <div className="up-head">
-                  <span className="up-name" title={u.name}>
-                    {u.name}
-                  </span>
-                  <span className="up-meta mono">{uploadMeta(u)}</span>
-                </div>
-                <div className={'up-bar ' + u.status}>
-                  <div className="up-bar-fill" style={{ width: `${u.status === 'done' ? 100 : u.percent}%` }} />
-                </div>
+            </Button>
+          }
+        >
+          {uploads.slice(0, 12).map((u) => (
+            <div
+              key={u.id}
+              style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}
+            >
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'baseline' }}
+              >
+                <Typography.Text ellipsis title={u.name} style={{ maxWidth: 360 }}>
+                  {u.name}
+                </Typography.Text>
+                <Typography.Text type={u.status === 'error' ? 'danger' : 'secondary'}>
+                  {uploadMeta(u)}
+                </Typography.Text>
               </div>
-            ))}
-          </div>
-        </div>
+              <Progress
+                percent={u.status === 'done' ? 100 : Math.round(u.percent)}
+                size="small"
+                showInfo={false}
+                status={u.status === 'error' ? 'exception' : u.status === 'done' ? 'success' : 'normal'}
+              />
+            </div>
+          ))}
+        </Card>
       )}
 
       {/* 列表 */}
-      <div className="files-body">
-        <div className="files-head">
-          <button className="files-col col-name" onClick={() => toggleSort('name')}>
-            名称 {sort.key === 'name' ? (sort.dir > 0 ? '↑' : '↓') : ''}
-          </button>
-          <button className="files-col col-size" onClick={() => toggleSort('size')}>
-            大小 {sort.key === 'size' ? (sort.dir > 0 ? '↑' : '↓') : ''}
-          </button>
-          <button className="files-col col-time" onClick={() => toggleSort('time')}>
-            修改时间 {sort.key === 'time' ? (sort.dir > 0 ? '↑' : '↓') : ''}
-          </button>
-          <span className="files-col col-ops" />
-        </div>
+      <Table<FileEntry>
+        rowKey="name"
+        columns={columns}
+        dataSource={shown}
+        loading={loading}
+        pagination={false}
+        onChange={onTableChange as TableProps<FileEntry>['onChange']}
+        locale={{ emptyText: '' }}
+        scroll={{ x: 'max-content' }}
+      />
 
-        {err && <div className="files-empty error">{err}</div>}
-
-        {!err && !loading && shown.length === 0 && (
-          <div className="files-empty">
-            把文件或整个文件夹拖到这里即可上传
-          </div>
-        )}
-
-        {!err &&
-          shown.map((entry) => (
-            <div className="files-row" key={entry.name}>
-              <div className="files-col col-name">
-                <span className={'files-icon' + (entry.type === 'dir' ? ' is-dir' : '')}>
-                  {entry.type === 'dir' ? <IconFolder /> : <IconFile />}
-                </span>
-                {entry.type === 'dir' ? (
-                  <button className="files-name is-dir" onClick={() => enter(entry)}>
-                    {entry.name}
-                  </button>
-                ) : (
-                  <span className="files-name" title={entry.name}>
-                    {entry.name}
-                  </span>
-                )}
-                {entry.type === 'file' && extOf(entry.name) && (
-                  <span className="files-ext mono">{extOf(entry.name)}</span>
-                )}
-              </div>
-              <div className="files-col col-size mono">
-                {entry.type === 'dir' ? '—' : fmtSize(entry.size)}
-              </div>
-              <div className="files-col col-time mono">{fmtTime(entry.mtime)}</div>
-              <div className="files-col col-ops">
-                {entry.type === 'file' && (
-                  <a className="link-btn" href={fileDownloadUrl(path ? `${path}/${entry.name}` : entry.name)}>
-                    下载
-                  </a>
-                )}
-                {entry.type === 'file' && (
-                  <button
-                    className="link-btn"
-                    onClick={() =>
-                      setShareTarget({
-                        target: path ? `${path}/${entry.name}` : entry.name,
-                        name: entry.name
-                      })
-                    }
-                  >
-                    链接
-                  </button>
-                )}
-                <button className="link-btn" onClick={() => openDialog('rename', entry)}>
-                  重命名
-                </button>
-                <button className="link-btn danger" onClick={() => openDialog('delete', entry)}>
-                  删除
-                </button>
-              </div>
-            </div>
-          ))}
-      </div>
-
-      {dragOver && <div className="files-dropzone">松开即上传到当前目录</div>}
-
-      {/* 新建 / 重命名 / 删除 弹窗 */}
-      {dialog && (
-        <div className="modal-mask" onClick={() => !dialogBusy && setDialog(null)}>
-          <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submitDialog}>
-            <h3 className="modal-title">{dialog.title}</h3>
-            {dialog.type === 'delete' ? (
-              <p className="muted" style={{ fontSize: 13, lineHeight: 1.6 }}>
-                确定删除「{dialog.value}」？
-                {dialog.isDir ? '该目录及其全部内容都会被删除，' : ''}此操作不可撤销。
-              </p>
-            ) : (
-              <input
-                className="input"
+      {/* 新建 / 重命名 弹窗 */}
+      <Modal
+        title={dialog?.title}
+        open={!!dialog}
+        onOk={submitDialog}
+        onCancel={() => setDialog(null)}
+        okText={dialogBusy ? '处理中…' : '确定'}
+        cancelText="取消"
+        confirmLoading={dialogBusy}
+        maskClosable={false}
+        destroyOnHidden
+        okButtonProps={{ disabled: !dialog?.value.trim() }}
+      >
+        {dialog && (
+          <Form layout="vertical" onFinish={submitDialog}>
+            <Form.Item>
+              <Input
                 autoFocus
                 value={dialog.value}
                 onChange={(e) => setDialog({ ...dialog, value: e.target.value })}
                 placeholder={dialog.type === 'mkdir' ? '文件夹名称' : '新名称'}
               />
-            )}
-            {dialogErr && <div className="error">{dialogErr}</div>}
-            <div className="modal-actions">
-              <button className="btn-ghost" type="button" onClick={() => setDialog(null)} disabled={dialogBusy}>
-                取消
-              </button>
-              <button
-                className="btn-primary"
-                type="submit"
-                disabled={dialogBusy || (dialog.type !== 'delete' && !dialog.value.trim())}
-              >
-                {dialogBusy ? '处理中…' : dialog.type === 'delete' ? '删除' : '确定'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+            </Form.Item>
+          </Form>
+        )}
+        {dialogErr && <Alert type="error" showIcon message={dialogErr} />}
+      </Modal>
 
       {/* 创建临时链接 */}
       {shareTarget && (
