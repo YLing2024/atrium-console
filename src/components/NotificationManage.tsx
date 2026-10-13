@@ -1,4 +1,18 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  App,
+  Button,
+  Col,
+  Form,
+  Input,
+  Popover,
+  Row,
+  Segmented,
+  Select,
+  Space,
+  Typography
+} from 'antd';
 import { createNotification, bulkDeleteNotifications, getNotificationStats } from '../api';
 import type { BulkDeleteFilters } from '../api';
 import { usePushWait, onNotificationPush } from '../notificationPush';
@@ -14,6 +28,12 @@ import PushWaitResult from './PushWaitResult';
 
 const LEVEL_LABELS: Record<string, string> = { urgent: '紧急', normal: '常规', digest: '汇总' };
 
+const LEVEL_OPTIONS = [
+  { value: 'urgent', label: '紧急' },
+  { value: 'normal', label: '常规' },
+  { value: 'digest', label: '汇总' }
+];
+
 /** 通知统计（来源明细用于悬停弹层） */
 interface NotifStats {
   total: number;
@@ -28,6 +48,7 @@ export default function NotificationManage({
   onChanged?: () => void;
   active?: boolean;
 }) {
+  const { modal } = App.useApp();
   const [stats, setStats] = useState<NotifStats>({ total: 0, unread: 0, sources: [] });
   const [showSources, setShowSources] = useState(false);
   const [compose, setCompose] = useState({
@@ -84,8 +105,7 @@ export default function NotificationManage({
   }, []);
 
   // 发通知：POST 成功后清空表单、只显示「已提交、等待推送」；不插入、不重拉、不刷统计
-  async function handleSend(e: FormEvent) {
-    e.preventDefault();
+  async function handleSend() {
     const title = compose.title.trim();
     if (!title) {
       setError('标题不能为空');
@@ -162,18 +182,23 @@ export default function NotificationManage({
       return;
     }
     const scope = describeFilters(f);
-    if (!window.confirm(`将删除${scope ? '当前筛选' + scope : '全部'}共 ${count} 条通知，删除后不可恢复。确定继续？`)) {
-      return;
-    }
-    try {
-      await bulkDeleteNotifications(f);
-      setNotice(`已删除 ${count} 条通知`);
-      refreshStats();
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
-      onChangedRef.current && onChangedRef.current();
-    } catch (e) {
-      setError((e as Error).message || '批量删除失败');
-    }
+    modal.confirm({
+      content: `将删除${scope ? '当前筛选' + scope : '全部'}共 ${count} 条通知，删除后不可恢复。确定继续？`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await bulkDeleteNotifications(f);
+          setNotice(`已删除 ${count} 条通知`);
+          refreshStats();
+          // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
+          onChangedRef.current && onChangedRef.current();
+        } catch (e) {
+          setError((e as Error).message || '批量删除失败');
+        }
+      }
+    });
   }
 
   // 清空已读：全局删除所有已读通知，同样二次确认
@@ -192,155 +217,138 @@ export default function NotificationManage({
       setError('没有已读通知');
       return;
     }
-    if (!window.confirm(`将清空全部已读通知，共 ${count} 条，删除后不可恢复。确定继续？`)) return;
-    try {
-      await bulkDeleteNotifications({ readOnly: true });
-      setNotice(`已清空 ${count} 条已读通知`);
-      refreshStats();
-      // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
-      onChangedRef.current && onChangedRef.current();
-    } catch (e) {
-      setError((e as Error).message || '清空已读失败');
-    }
+    modal.confirm({
+      content: `将清空全部已读通知，共 ${count} 条，删除后不可恢复。确定继续？`,
+      okText: '删除',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await bulkDeleteNotifications({ readOnly: true });
+          setNotice(`已清空 ${count} 条已读通知`);
+          refreshStats();
+          // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- ref.current 短路调用是既有写法，保留行为不变
+          onChangedRef.current && onChangedRef.current();
+        } catch (e) {
+          setError((e as Error).message || '清空已读失败');
+        }
+      }
+    });
   }
 
+  // 来源明细弹层（悬停或点击展开 Top 5）
+  const sourcesContent = (
+    <Space direction="vertical" size={4}>
+      {stats.sources.length === 0 ? (
+        <Typography.Text type="secondary">暂无来源</Typography.Text>
+      ) : (
+        stats.sources.slice(0, 5).map((s) => (
+          <Space key={s.source} size={16} style={{ justifyContent: 'space-between', width: '100%' }}>
+            <Typography.Text>{s.source}</Typography.Text>
+            <Typography.Text type="secondary">{s.count}</Typography.Text>
+          </Space>
+        ))
+      )}
+    </Space>
+  );
+
   return (
-    <div className="notif">
-      <div className="notif-head">
-        <div className="notif-title-row">
-          <h2>通知管理</h2>
-        </div>
-        <div
-          className="notif-stats"
-          onMouseEnter={() => setShowSources(true)}
-          onMouseLeave={() => setShowSources(false)}
+    <div className="system">
+      <div className="system-head">
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          通知管理
+        </Typography.Title>
+        <Popover
+          content={sourcesContent}
+          trigger={['hover', 'click']}
+          open={showSources}
+          onOpenChange={setShowSources}
         >
-          <button
-            type="button"
-            className="notif-stats-line"
-            onClick={() => setShowSources((v) => !v)}
-          >
+          <Button type="text">
             共 {stats.total} 条 · 未读 {stats.unread} · 来源 {stats.sources.length} 个
-          </button>
-          {showSources && (
-            <div className="notif-stats-pop">
-              {stats.sources.length === 0 ? (
-                <div className="notif-stats-row muted">暂无来源</div>
-              ) : (
-                stats.sources.slice(0, 5).map((s) => (
-                  <div className="notif-stats-row" key={s.source}>
-                    <span className="notif-stats-src">{s.source}</span>
-                    <span className="mono">{s.count}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+          </Button>
+        </Popover>
       </div>
 
       {/* 发通知：字段与已验收接口一致，POST /api/admin/notifications */}
-      <form className="notif-compose" onSubmit={handleSend}>
-        <div className="notif-compose-row">
-          <div className="notif-compose-col notif-compose-level">
-            <label className="field-label" htmlFor="nm-c-level">
-              级别
-            </label>
-            <select
-              id="nm-c-level"
-              className="input blog-select"
-              value={compose.level}
-              onChange={(e) => setCompose({ ...compose, level: e.target.value })}
-            >
-              <option value="urgent">紧急</option>
-              <option value="normal">常规</option>
-              <option value="digest">汇总</option>
-            </select>
-          </div>
-          <div className="notif-compose-col notif-compose-source">
-            <label className="field-label" htmlFor="nm-c-source">
-              来源
-            </label>
-            <input
-              id="nm-c-source"
-              className="input"
-              maxLength={40}
-              placeholder="admin"
-              value={compose.source}
-              onChange={(e) => setCompose({ ...compose, source: e.target.value })}
-            />
-          </div>
-          <div className="notif-compose-col notif-compose-title">
-            <label className="field-label" htmlFor="nm-c-title">
-              标题
-            </label>
-            <input
-              id="nm-c-title"
-              className="input"
-              required
-              maxLength={80}
-              placeholder="给你自己看的通知"
-              value={compose.title}
-              onChange={(e) => setCompose({ ...compose, title: e.target.value })}
-            />
-          </div>
-        </div>
-        <div className="notif-compose-col">
-          <label className="field-label" htmlFor="nm-c-body">
-            正文（选填，纯文本）
-          </label>
-          <textarea
-            id="nm-c-body"
-            className="input notif-compose-text"
+      <Form layout="vertical" onFinish={handleSend}>
+        <Row gutter={12}>
+          <Col xs={12} sm={6} md={4}>
+            <Form.Item label="级别">
+              <Select
+                value={compose.level}
+                onChange={(v) => setCompose({ ...compose, level: v })}
+                options={LEVEL_OPTIONS}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={12} sm={8} md={4}>
+            <Form.Item label="来源">
+              <Input
+                maxLength={40}
+                placeholder="admin"
+                value={compose.source}
+                onChange={(e) => setCompose({ ...compose, source: e.target.value })}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={10} md={16}>
+            <Form.Item label="标题">
+              <Input
+                required
+                maxLength={80}
+                placeholder="给你自己看的通知"
+                value={compose.title}
+                onChange={(e) => setCompose({ ...compose, title: e.target.value })}
+              />
+            </Form.Item>
+          </Col>
+        </Row>
+        <Form.Item label="正文（选填，纯文本）">
+          <Input.TextArea
             rows={3}
             value={compose.body}
             onChange={(e) => setCompose({ ...compose, body: e.target.value })}
           />
-        </div>
-        <div className="notif-compose-row">
-          <div className="notif-compose-col notif-compose-title">
-            <label className="field-label" htmlFor="nm-c-link">
-              链接（选填）
-            </label>
-            <input
-              id="nm-c-link"
-              className="input"
-              type="url"
-              placeholder="https://…"
-              value={compose.link}
-              onChange={(e) => setCompose({ ...compose, link: e.target.value })}
-            />
-          </div>
-          <button
-            type="button"
-            className="link-btn notif-compose-adv"
-            onClick={() => setShowAdvanced((v) => !v)}
-          >
-            {showAdvanced ? '收起高级' : '高级'}
-          </button>
-        </div>
+        </Form.Item>
+        <Row gutter={12} align="bottom">
+          <Col xs={24} md={20}>
+            <Form.Item label="链接（选填）">
+              <Input
+                type="url"
+                placeholder="https://…"
+                value={compose.link}
+                onChange={(e) => setCompose({ ...compose, link: e.target.value })}
+              />
+            </Form.Item>
+          </Col>
+          <Col xs={24} md={4}>
+            <Form.Item>
+              <Button type="link" onClick={() => setShowAdvanced((v) => !v)}>
+                {showAdvanced ? '收起高级' : '高级'}
+              </Button>
+            </Form.Item>
+          </Col>
+        </Row>
         {showAdvanced && (
-          <div className="notif-compose-col">
-            <label className="field-label" htmlFor="nm-c-dedup">
-              去重键（选填）
-            </label>
-            <input
-              id="nm-c-dedup"
-              className="input"
+          <Form.Item label="去重键（选填）">
+            <Input
               maxLength={200}
               placeholder="10 分钟内相同去重键只保留一条"
               value={compose.dedupKey}
               onChange={(e) => setCompose({ ...compose, dedupKey: e.target.value })}
             />
-          </div>
+          </Form.Item>
         )}
-        <div className="notif-compose-actions">
-          <span className="notif-compose-hint muted">发送后会同步推送到 App</span>
-          <button type="submit" className="btn-primary" disabled={sending}>
-            {sending ? '发送中…' : '发送'}
-          </button>
-        </div>
-      </form>
+        <Form.Item style={{ marginBottom: 0 }}>
+          <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+            <Typography.Text type="secondary">发送后会同步推送到 App</Typography.Text>
+            <Button type="primary" htmlType="submit" loading={sending}>
+              {sending ? '发送中…' : '发送'}
+            </Button>
+          </Space>
+        </Form.Item>
+      </Form>
 
       {/* 发通知后的推送等待/结果（只经服务器 SSE 进入列表；结果留到下次发送） */}
       <PushWaitResult
@@ -351,53 +359,52 @@ export default function NotificationManage({
       />
 
       {/* 去重键说明（克制一行） */}
-      <p className="manage-desc muted notif-dedup-note">
+      <Typography.Paragraph type="secondary" style={{ marginTop: 10 }}>
         去重键：同一去重键 10 分钟内只保留一条，重复提交会更新原通知内容并重新置为未读。
-      </p>
+      </Typography.Paragraph>
 
-      <div className="notif-bar">
-        <div className="notif-seg">
-          <button
-            className={'notif-seg-btn' + (!mUnread ? ' active' : '')}
-            onClick={() => setMUnread(false)}
-          >
-            全部
-          </button>
-          <button
-            className={'notif-seg-btn' + (mUnread ? ' active' : '')}
-            onClick={() => setMUnread(true)}
-          >
-            未读
-          </button>
-        </div>
-        <div className="notif-selects">
-          <select className="notif-select" value={mLevel} onChange={(e) => setMLevel(e.target.value)}>
-            <option value="">全部级别</option>
-            <option value="urgent">紧急</option>
-            <option value="normal">常规</option>
-            <option value="digest">汇总</option>
-          </select>
-          <select className="notif-select" value={mSource} onChange={(e) => setMSource(e.target.value)}>
-            <option value="">全部来源</option>
-            {stats.sources.map((s) => (
-              <option key={s.source} value={s.source}>
-                {s.source}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="notif-manage">
-          <button className="btn-ghost" onClick={handleClearRead}>
-            清空已读
-          </button>
-          <button className="btn-ghost danger" onClick={handleBulkDelete}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 12,
+          marginBottom: 12
+        }}
+      >
+        <Segmented
+          value={mUnread ? 'unread' : 'all'}
+          onChange={(v) => setMUnread(v === 'unread')}
+          options={[
+            { label: '全部', value: 'all' },
+            { label: '未读', value: 'unread' }
+          ]}
+        />
+        <Select
+          value={mLevel}
+          onChange={setMLevel}
+          options={[{ value: '', label: '全部级别' }, ...LEVEL_OPTIONS]}
+          style={{ minWidth: 120 }}
+        />
+        <Select
+          value={mSource}
+          onChange={setMSource}
+          options={[
+            { value: '', label: '全部来源' },
+            ...stats.sources.map((s) => ({ value: s.source, label: s.source }))
+          ]}
+          style={{ minWidth: 120 }}
+        />
+        <Space style={{ marginLeft: 'auto' }}>
+          <Button onClick={handleClearRead}>清空已读</Button>
+          <Button danger onClick={handleBulkDelete}>
             批量删除
-          </button>
-        </div>
+          </Button>
+        </Space>
       </div>
 
-      {notice && <div className="notif-notice ok">{notice}</div>}
-      {error && <div className="notif-error error">{error}</div>}
+      {notice && <Alert type="success" showIcon message={notice} style={{ marginBottom: 12 }} />}
+      {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 12 }} />}
     </div>
   );
 }
