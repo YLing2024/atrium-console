@@ -311,6 +311,10 @@ export interface ProcessInfo {
   cpu?: number;
   subtree_mem_mb?: number;
   subtree_cpu?: number;
+  /** 含自身的后代进程数（服务端算好，前端不再自己数） */
+  subtree_count?: number;
+  /** 该行是 systemd 单位主进程时该单位 cgroup 真值（MB，含页缓存）；否则 null */
+  cgroup_mem_mb?: number | null;
 }
 
 /** 服务状态 + 全量进程树（`GET /api/admin/services`） */
@@ -324,6 +328,12 @@ export interface ServicesResponse {
   total_mem_mb?: number;
   /** 系统总占用（不是列表之和） */
   total_cpu?: number;
+  /** ps 输出成功解析的行数 */
+  parsed_count?: number;
+  /** 解析失败被丢弃的行数（>0 时界面需提示） */
+  skipped_count?: number;
+  /** system.slice 的 cgroup 真值（MB，含页缓存）；取不到为 null */
+  total_cgroup_mb?: number | null;
 }
 
 /** 粒度聚合历史（趋势图分钟/小时/天档） */

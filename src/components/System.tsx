@@ -1,4 +1,31 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+/**
+ * System —— 「系统」Tab 面板：实时系统指标（SSE）、磁盘/网络趋势图与全量进程树。
+ *
+ * 数据来源：
+ * - 系统指标 / 服务状态 / 秒级 history 走 SSE `/api/admin/system/stream`（Tab 激活时才建连）；
+ * - 进程全量树走 REST `/api/admin/services`，仅 Tab 激活时每 5s 取样（SSE 帧不再携带进程明细）；
+ * - 非秒档趋势走 `/api/admin/system/metrics` 聚合接口。
+ *
+ * 进程树的三处口径（与后端 docs/API.md 一致）：
+ * - 内存列主显示 `subtree_mem_mb`（自身 + 全部后代），次要文字「自身 X」为 `mem_mb`；
+ * - `subtree_count` 由服务端算好，前端不再自己数；
+ * - 合计行并列 `total_mem_mb`（全部 RSS，含共享页重复计算）与 `total_cgroup_mb`（cgroup 真值）。
+ *
+ * 展开行为：拿到第一份进程数据后一次性受控展开全部；此后 5s 轮询刷新不得强制重新展开，
+ * 用户手动折叠的选择保留。
+ */
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Key,
+  type ReactNode
+} from 'react';
 import {
   Alert,
   Badge,
@@ -20,7 +47,7 @@ import type { LineSeriesOption } from 'echarts/charts';
 import { getServices, getSystemMetrics } from '../api';
 import type { CoreUsage, DiskInfo, HistoryPoint, ProcessInfo, PsiInfo, ServiceInfo, SystemData } from '../api';
 import { clampOffset, fmtBytes, fmtDuration, fmtMB, fmtPct, fmtRate, toneFor } from '../format';
-import { buildProcTree, sortProcTree, type ProcSortKey, type ProcTreeNode } from '../procTree';
+import { buildProcTree, collectProcPids, sortProcTree, type ProcSortKey, type ProcTreeNode } from '../procTree';
 import type { EChartsOption } from './Chart';
 
 // ECharts 体积大：图表实现（Chart.tsx + echarts）改为动态 import，
@@ -69,12 +96,20 @@ function clampPct(p?: number | null): number {
   return Math.max(0, Math.min(100, Number(p) || 0));
 }
 
-// 进度条（CPU / 内存 / 磁盘共用）。动态变色规则见 toneFor
+/**
+ * 进度条：CPU / 内存 / 磁盘卡片共用。
+ * @param percent 百分比（0–100，越界自动钳制；`null`/`undefined` 视为 0）
+ * @param color 条色，由调用方按 antd token 给出（如 barColor 的分级结果）
+ */
 function Bar({ percent, color }: { percent?: number | null; color: string }) {
   return <Progress percent={clampPct(percent)} showInfo={false} strokeColor={color} />;
 }
 
-// 每核占用区块：cpu.per_core 缺失或为空时整块不渲染（兼容旧后端）
+/**
+ * 每核占用区块。
+ * @param cores `cpu.per_core`；缺失或为空数组时整块不渲染（兼容旧后端）
+ * @param colorOf 百分比 → 条色（颜色分级规则由调用方给出）
+ */
 function CoreGrid({ cores, colorOf }: { cores?: CoreUsage[]; colorOf: (p: number) => string }) {
   if (!Array.isArray(cores) || cores.length === 0) return null;
   return (
@@ -97,7 +132,12 @@ function CoreGrid({ cores, colorOf }: { cores?: CoreUsage[]; colorOf: (p: number
   );
 }
 
-// 单块磁盘卡片：多盘列表与旧单盘回退共用同一结构
+/**
+ * 单块磁盘卡片：多盘列表与旧单盘回退共用同一结构。
+ * @param title 卡片标题（如「磁盘 /」）
+ * @param disk 磁盘占用信息（`DiskInfo`）
+ * @param colorOf 百分比 → 条色
+ */
 function DiskCard({
   title,
   disk,
@@ -121,7 +161,12 @@ function DiskCard({
   );
 }
 
-// 详情行：键 / 值，值可带颜色（PSI 压力越大越警示）
+/**
+ * 键值详情行（左键右值，值可溢出换行）。
+ * @param k 键（ReactNode）
+ * @param v 值（ReactNode）
+ * @param valueStyle 值的附加样式（如 PSI 压力的警示色）
+ */
 function InfoRow({ k, v, valueStyle }: { k: ReactNode; v: ReactNode; valueStyle?: CSSProperties }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '2px 0' }}>
@@ -135,8 +180,13 @@ function InfoRow({ k, v, valueStyle }: { k: ReactNode; v: ReactNode; valueStyle?
   );
 }
 
-// PSI 行：k=资源名，o=/proc/pressure 解析结果（{ some:{avg10,..}, full:{..} } 或 null）。
-// 显示 some/full 的 avg10；无 PSI 时显示 —。压力越大颜色越警示（some≥50 红、≥30 橙）
+/**
+ * PSI 压力行：显示 some/full 的 avg10，压力越大颜色越警示。
+ * @param k 资源名（内存 / CPU / I/O）
+ * @param o `/proc/pressure` 解析结果；无 PSI 时显示「—」
+ * @param danger some≥50 时使用的警示色
+ * @param warn some≥30 时使用的警示色
+ */
 function PsiRow({
   k,
   o,
@@ -172,11 +222,19 @@ function formatTick(ts: number, granularity: string): string {
   return fmtTime(ts); // 秒档 HH:mm:ss（沿用原函数，行为不变）
 }
 
-// 趋势图：ECharts 折线，多序列共用一个 Y 轴。yMax 固定时（百分比）用 0-100 刻度，
-// 否则按数据动态取整（ECharts 自适应）。
-// - 秒档（granularity='sec'）行为保持原样：窗口 30 点、跟随最新、可平移、回最新按钮。
-// - 分钟/小时/天档（sparse=true）：窗口 60 点；平移位置按档位记忆在内存。
-// - 平移统一走 ECharts dataZoom(type:'inside')，触屏 / 滚轮 / 拖动均可。
+/**
+ * 趋势图：ECharts 折线，多序列共用一个 Y 轴。
+ * - 秒档（granularity='sec'）行为保持原样：窗口 30 点、跟随最新、可平移、回最新按钮。
+ * - 分钟/小时/天档（sparse=true）：窗口 60 点；平移位置按档位记忆在内存。
+ * - 平移统一走 ECharts dataZoom(type:'inside')，触屏 / 滚轮 / 拖动均可。
+ * @param data 采样点（`HistoryPoint[]`）；空或秒档不足 2 点时显示占位文案
+ * @param series 已解析出颜色的序列定义
+ * @param yMax 固定 Y 轴上界（百分比图用 100）；未给时按数据自适应
+ * @param yLabel Y 轴单位后缀（如 '%'）
+ * @param granularity 档位：sec/min/hour/day
+ * @param chartId 图表标识（与 granularity 组成平移位置记忆键）
+ * @param recordedMinutes 非秒档占位文案用的已记录分钟数
+ */
 function TrendChart({
   data,
   series,
@@ -378,7 +436,11 @@ function TrendChart({
   );
 }
 
-// 图例：色块 + 名称 + 最新值
+/**
+ * 趋势图例：色块 + 名称 + 最新值。
+ * @param series 已解析出颜色的序列定义
+ * @param data 采样点；取最后一个点的各序列值展示
+ */
 function Legend({ series, data }: { series: ChartSeries[]; data: HistoryPoint[] }) {
   const last = data && data.length ? data[data.length - 1] : null;
   return (
@@ -446,6 +508,11 @@ function readGranularity(): string {
   return 'sec';
 }
 
+/**
+ * 「系统」Tab 面板组件。
+ * @param active 该 Tab 是否激活：为 true 时才建 SSE 连接并按 5s 取样进程树；切走即断开、零残留。
+ *   注意：面板在 Main 里常驻挂载（仅切换显隐），故 active 由父级显式传入、不用挂载/卸载控制取数。
+ */
 export default function System({ active }: { active: boolean }) {
   const [data, setData] = useState<SystemData | null>(null);
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -455,6 +522,13 @@ export default function System({ active }: { active: boolean }) {
   const [procTotalCount, setProcTotalCount] = useState<number | null>(null);
   const [procTotalMemMb, setProcTotalMemMb] = useState<number | null>(null);
   const [totalCpu, setTotalCpu] = useState<number | null>(null);
+  // 进程总量口径（来自 REST /services）：截断标记、解析失败行数、cgroup 真值，供合计行与提示
+  const [procTruncated, setProcTruncated] = useState(false);
+  const [procSkippedCount, setProcSkippedCount] = useState(0);
+  const [procTotalCgroupMb, setProcTotalCgroupMb] = useState<number | null>(null);
+  // 受控展开：拿到第一份进程数据后一次性展开全部；此后保留用户手动折叠的选择
+  const [expandedRowKeys, setExpandedRowKeys] = useState<Key[]>([]);
+  const autoExpandedRef = useRef(false);
   const [procSort, setProcSort] = useState('mem');
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState<Date | null>(null);
@@ -558,6 +632,9 @@ export default function System({ active }: { active: boolean }) {
         if (Array.isArray(d.processes)) setProcesses(d.processes);
         if (d.count != null) setProcTotalCount(Number(d.count));
         if (d.total_mem_mb != null) setProcTotalMemMb(Number(d.total_mem_mb));
+        setProcTruncated(d.truncated === true);
+        setProcSkippedCount(d.skipped_count != null ? Number(d.skipped_count) : 0);
+        setProcTotalCgroupMb(d.total_cgroup_mb != null ? Number(d.total_cgroup_mb) : null);
       } catch (e) {
         // 拉取失败 / 主动中止：保留上次数据
       }
@@ -648,6 +725,14 @@ export default function System({ active }: { active: boolean }) {
     [processes, procSort]
   );
 
+  // 拿到第一份进程数据后一次性受控展开全部（antd 的 defaultExpandAllRows 在数据异步到达时
+  // 不生效，故改受控）。autoExpandedRef 保证 5s 轮询刷新不再强制展开，保留用户手动折叠。
+  useEffect(() => {
+    if (autoExpandedRef.current || processes.length === 0) return;
+    autoExpandedRef.current = true;
+    setExpandedRowKeys(collectProcPids(processTree));
+  }, [processes, processTree]);
+
   if (!data) {
     return (
       <div className="system">
@@ -693,7 +778,7 @@ export default function System({ active }: { active: boolean }) {
             {p.name}
             {kids > 0 && (
               <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
-                {p.subtree_count} 个进程 · {fmtMB(p.subtree_mem_mb)} · {(Number(p.subtree_cpu) || 0).toFixed(1)}%
+                {p.subtree_count} 个进程 · {(Number(p.subtree_cpu) || 0).toFixed(1)}%
               </Typography.Text>
             )}
           </span>
@@ -702,11 +787,18 @@ export default function System({ active }: { active: boolean }) {
     },
     { title: 'PID', dataIndex: 'pid', width: 96, align: 'right' },
     {
-      title: '内存',
-      dataIndex: 'mem_mb',
-      width: 104,
+      title: '内存（含子进程）',
+      dataIndex: 'subtree_mem_mb',
+      width: 180,
       align: 'right',
-      render: (v: number | undefined) => fmtMB(v)
+      render: (v: number | undefined, p: ProcTreeNode<ProcessInfo>) => (
+        <span>
+          {fmtMB(v)}
+          <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+            自身 {fmtMB(p.mem_mb)}
+          </Typography.Text>
+        </span>
+      )
     },
     {
       title: 'CPU',
@@ -879,13 +971,24 @@ export default function System({ active }: { active: boolean }) {
               ]}
             />
           </div>
+          {(procTruncated || procSkippedCount > 0) && (
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+              {procTruncated ? '进程数超过上限，列表已按内存截断' : ''}
+              {procTruncated && procSkippedCount > 0 ? '；' : ''}
+              {procSkippedCount > 0 ? `ps 有 ${procSkippedCount} 行未能解析` : ''}
+            </Typography.Text>
+          )}
           <Table<ProcTreeNode<ProcessInfo>>
             rowKey="pid"
             size="small"
             columns={processColumns}
             dataSource={processTree}
             pagination={false}
-            expandable={{ defaultExpandAllRows: true, expandIconColumnIndex: 1 }}
+            expandable={{
+              expandedRowKeys,
+              onExpandedRowsChange: (keys) => setExpandedRowKeys([...keys]),
+              expandIconColumnIndex: 1
+            }}
             scroll={{ x: 'max-content', y: '60vh' }}
             summary={() => (
               <Table.Summary.Row>
@@ -895,7 +998,15 @@ export default function System({ active }: { active: boolean }) {
                   {procTotalCount == null ? '—' : `${procTotalCount} 个`}
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={3} align="right">
-                  {procTotalMemMb == null ? '—' : fmtMB(procTotalMemMb)}
+                  <span>{procTotalMemMb == null ? '—' : fmtMB(procTotalMemMb)}</span>
+                  <Typography.Text type="secondary" style={{ display: 'block' }}>
+                    RSS 合计，含共享页重复计算
+                  </Typography.Text>
+                  {procTotalCgroupMb != null && (
+                    <Typography.Text type="secondary" style={{ display: 'block' }}>
+                      cgroup 真值 {fmtMB(procTotalCgroupMb)}
+                    </Typography.Text>
+                  )}
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={4} align="right">
                   {totalCpu == null ? '—' : Number(totalCpu).toFixed(1) + '%'}
