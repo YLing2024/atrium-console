@@ -18,6 +18,7 @@ export interface ProcRow {
   subtree_cpu?: number;
   subtree_count?: number;
   cgroup_mem_mb?: number | null;
+  thread_count?: number | null;
 }
 
 /** 组树后的节点：原字段 + children（子进程）；子树字段沿用后端返回值 */
@@ -25,15 +26,20 @@ export type ProcTreeNode<T extends ProcRow> = T & {
   children?: ProcTreeNode<T>[];
 };
 
-export type ProcSortKey = 'name' | 'mem' | 'cpu';
+/** 排序口径：name 名称 / mem 含子进程合计 / own 自身 RSS / cpu CPU */
+export type ProcSortKey = 'name' | 'mem' | 'own' | 'cpu';
 
-// 同级排序：名称升序（localeCompare('zh')）/ 内存 / CPU 降序。
-// 内存排序按「含子进程合计」（subtree_mem_mb，缺省回退自身 mem_mb），与内存列主显示口径一致。
+// 同级排序：名称升序（localeCompare('zh')）/ 含子进程合计 / 自身 / CPU 降序。
+// mem 按 subtree_mem_mb（缺省回退自身 mem_mb），与「内存（含子进程）」列主显示口径一致；
+// own 按自身 mem_mb，与「自身」列口径一致——两个内存口径都各自可排、不互相顶替。
 export function procSortCompare(a: ProcRow, b: ProcRow, key: ProcSortKey): number {
   if (key === 'name') return String(a.name ?? '').localeCompare(String(b.name ?? ''), 'zh');
-  const av = Number(key === 'mem' ? a.subtree_mem_mb ?? a.mem_mb : a.cpu) || 0;
-  const bv = Number(key === 'mem' ? b.subtree_mem_mb ?? b.mem_mb : b.cpu) || 0;
-  return bv - av;
+  const pick = (r: ProcRow): number => {
+    if (key === 'own') return Number(r.mem_mb) || 0;
+    if (key === 'cpu') return Number(r.cpu) || 0;
+    return Number(r.subtree_mem_mb ?? r.mem_mb) || 0;
+  };
+  return pick(b) - pick(a);
 }
 
 // 按 pid/ppid 组树，返回根节点数组。节点数恒等于输入条数（环只断边、不丢节点）。

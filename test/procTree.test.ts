@@ -110,6 +110,21 @@ test('sortProcTree：subtree_mem_mb 缺失时回退自身 mem_mb', () => {
   );
 });
 
+test('sortProcTree：own 按自身 mem_mb 排，不被 subtree_mem_mb 顶替', () => {
+  // pid2 自身小但子树大（若误按 subtree 排会排到前面）
+  const tree = sortProcTree(
+    buildProcTree([
+      { pid: 1, ppid: 0, name: 'big-own', mem_mb: 50, subtree_mem_mb: 50 },
+      { pid: 2, ppid: 0, name: 'small-own-big-subtree', mem_mb: 5, subtree_mem_mb: 900 }
+    ]),
+    'own'
+  );
+  assert.deepEqual(
+    tree.map((n) => n.pid),
+    [1, 2]
+  );
+});
+
 test('sortProcTree：名称按 localeCompare zh 升序', () => {
   const tree = sortProcTree(
     buildProcTree([

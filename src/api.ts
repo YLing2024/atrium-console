@@ -315,6 +315,8 @@ export interface ProcessInfo {
   subtree_count?: number;
   /** 该行是 systemd 单位主进程时该单位 cgroup 真值（MB，含页缓存）；否则 null */
   cgroup_mem_mb?: number | null;
+  /** 该进程线程数（读 /proc/<pid>/task）；进程已退出/读不到为 null */
+  thread_count?: number | null;
 }
 
 /** 服务状态 + 全量进程树（`GET /api/admin/services`） */
@@ -334,6 +336,8 @@ export interface ServicesResponse {
   skipped_count?: number;
   /** system.slice 的 cgroup 真值（MB，含页缓存）；取不到为 null */
   total_cgroup_mb?: number | null;
+  /** 全部进程线程数之和（截断前口径）；与 count 为两个口径，不得混算 */
+  total_threads?: number;
 }
 
 /** 粒度聚合历史（趋势图分钟/小时/天档） */
