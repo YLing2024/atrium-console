@@ -7,9 +7,12 @@
  * - 非秒档趋势走 `/api/admin/system/metrics` 聚合接口。
  *
  * 进程树的三处口径（与后端 docs/API.md 一致）：
- * - 内存列主显示 `subtree_mem_mb`（自身 + 全部后代），次要文字「自身 X」为 `mem_mb`；
+ * - 内存拆两列：「内存（含子进程）」= `subtree_mem_mb`，「自身」= `mem_mb`，两者各自可排；
  * - `subtree_count` 由服务端算好，前端不再自己数；
- * - 合计行并列 `total_mem_mb`（全部 RSS，含共享页重复计算）与 `total_cgroup_mb`（cgroup 真值）。
+ * - 合计行并列 `total_mem_mb`（全部 RSS，含共享页重复计算）与 `total_cgroup_mb`（cgroup 真值），
+ *   进程数与线程数为两个口径，并列显示、不得混算。
+ *
+ * 「含线程」开关默认关闭；开启后在进程名后显示该进程 `thread_count`（读不到为 null 时不显示）。
  *
  * 展开行为：拿到第一份进程数据后一次性受控展开全部；此后 5s 轮询刷新不得强制重新展开，
  * 用户手动折叠的选择保留。
@@ -37,6 +40,7 @@ import {
   Segmented,
   Space,
   Spin,
+  Switch,
   Table,
   Typography,
   theme
@@ -522,10 +526,13 @@ export default function System({ active }: { active: boolean }) {
   const [procTotalCount, setProcTotalCount] = useState<number | null>(null);
   const [procTotalMemMb, setProcTotalMemMb] = useState<number | null>(null);
   const [totalCpu, setTotalCpu] = useState<number | null>(null);
-  // 进程总量口径（来自 REST /services）：截断标记、解析失败行数、cgroup 真值，供合计行与提示
+  // 进程总量口径（来自 REST /services）：截断标记、解析失败行数、cgroup 真值、线程总数，供合计行与提示
   const [procTruncated, setProcTruncated] = useState(false);
   const [procSkippedCount, setProcSkippedCount] = useState(0);
   const [procTotalCgroupMb, setProcTotalCgroupMb] = useState<number | null>(null);
+  const [procTotalThreads, setProcTotalThreads] = useState<number | null>(null);
+  // 「含线程」开关：默认关闭；开启后在进程名后显示各进程线程数（不改动其它列/合计口径）
+  const [showThreads, setShowThreads] = useState(false);
   // 受控展开：拿到第一份进程数据后一次性展开全部；此后保留用户手动折叠的选择
   const [expandedRowKeys, setExpandedRowKeys] = useState<Key[]>([]);
   const autoExpandedRef = useRef(false);
@@ -635,6 +642,7 @@ export default function System({ active }: { active: boolean }) {
         setProcTruncated(d.truncated === true);
         setProcSkippedCount(d.skipped_count != null ? Number(d.skipped_count) : 0);
         setProcTotalCgroupMb(d.total_cgroup_mb != null ? Number(d.total_cgroup_mb) : null);
+        setProcTotalThreads(d.total_threads != null ? Number(d.total_threads) : null);
       } catch (e) {
         // 拉取失败 / 主动中止：保留上次数据
       }
@@ -776,6 +784,11 @@ export default function System({ active }: { active: boolean }) {
         return (
           <span>
             {p.name}
+            {showThreads && p.thread_count != null && (
+              <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
+                {p.thread_count} 线程
+              </Typography.Text>
+            )}
             {kids > 0 && (
               <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
                 {p.subtree_count} 个进程 · {(Number(p.subtree_cpu) || 0).toFixed(1)}%
@@ -789,16 +802,16 @@ export default function System({ active }: { active: boolean }) {
     {
       title: '内存（含子进程）',
       dataIndex: 'subtree_mem_mb',
-      width: 180,
+      width: 160,
       align: 'right',
-      render: (v: number | undefined, p: ProcTreeNode<ProcessInfo>) => (
-        <span>
-          {fmtMB(v)}
-          <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
-            自身 {fmtMB(p.mem_mb)}
-          </Typography.Text>
-        </span>
-      )
+      render: (v: number | undefined) => fmtMB(v)
+    },
+    {
+      title: '自身',
+      dataIndex: 'mem_mb',
+      width: 120,
+      align: 'right',
+      render: (v: number | undefined) => fmtMB(v)
     },
     {
       title: 'CPU',
@@ -960,16 +973,23 @@ export default function System({ active }: { active: boolean }) {
             <Typography.Title level={5} style={{ margin: 0 }}>
               进程排行
             </Typography.Title>
-            <Segmented
-              size="small"
-              value={procSort}
-              onChange={(v) => setProcSort(String(v))}
-              options={[
-                { label: '按名称', value: 'name' },
-                { label: '按内存', value: 'mem' },
-                { label: '按 CPU', value: 'cpu' }
-              ]}
-            />
+            <Space size={16} wrap>
+              <Space size={6}>
+                <Typography.Text type="secondary">含线程</Typography.Text>
+                <Switch size="small" checked={showThreads} onChange={setShowThreads} />
+              </Space>
+              <Segmented
+                size="small"
+                value={procSort}
+                onChange={(v) => setProcSort(String(v))}
+                options={[
+                  { label: '按名称', value: 'name' },
+                  { label: '内存（含子进程）', value: 'mem' },
+                  { label: '按自身', value: 'own' },
+                  { label: '按 CPU', value: 'cpu' }
+                ]}
+              />
+            </Space>
           </div>
           {(procTruncated || procSkippedCount > 0) && (
             <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
@@ -995,7 +1015,8 @@ export default function System({ active }: { active: boolean }) {
                 <Table.Summary.Cell index={0} />
                 <Table.Summary.Cell index={1}>合计（全部进程）</Table.Summary.Cell>
                 <Table.Summary.Cell index={2} align="right">
-                  {procTotalCount == null ? '—' : `${procTotalCount} 个`}
+                  {procTotalCount == null ? '—' : `${procTotalCount} 个进程`}
+                  {procTotalThreads != null ? ` · ${procTotalThreads} 个线程` : ''}
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={3} align="right">
                   <span>{procTotalMemMb == null ? '—' : fmtMB(procTotalMemMb)}</span>
@@ -1009,6 +1030,9 @@ export default function System({ active }: { active: boolean }) {
                   )}
                 </Table.Summary.Cell>
                 <Table.Summary.Cell index={4} align="right">
+                  {procTotalMemMb == null ? '—' : fmtMB(procTotalMemMb)}
+                </Table.Summary.Cell>
+                <Table.Summary.Cell index={5} align="right">
                   {totalCpu == null ? '—' : Number(totalCpu).toFixed(1) + '%'}
                 </Table.Summary.Cell>
               </Table.Summary.Row>

@@ -12,7 +12,7 @@
 
 | 组件 | 用途 | 关键 props / 事件 | 最小示例 | 注意事项 |
 |---|---|---|---|---|
-| `System` | 「系统」Tab 面板：实时系统指标（SSE）、磁盘/网络趋势图、全量进程树 | `active: boolean`（必填，无默认）——该 Tab 是否激活；无对外事件 | `<System active={tab === 'system'} />` | 面板在 `Main` 里常驻挂载（仅切换显隐），取数由 `active` 控制；进程树仅激活时每 5s 取样。进程内存列主显示「含子进程」合计、次要显示「自身」。 |
+| `System` | 「系统」Tab 面板：实时系统指标（SSE）、磁盘/网络趋势图、全量进程树 | `active: boolean`（必填，无默认）——该 Tab 是否激活；无对外事件 | `<System active={tab === 'system'} />` | 面板在 `Main` 里常驻挂载（仅切换显隐），取数由 `active` 控制；进程树仅激活时每 5s 取样。进程内存拆两列「内存（含子进程）」（`subtree_mem_mb`）与「自身」（`mem_mb`），各自可排；工具条「含线程」开关默认关闭，开启后在进程名后显示 `thread_count`。 |
 | `TrendChart`（System.tsx 内） | ECharts 折线趋势图（秒/分/时/天档共用） | `data: HistoryPoint[]`；`series: ChartSeries[]`；`yMax?: number`；`yLabel?: string`；`granularity: string`；`chartId: string`；`recordedMinutes?: number \| null`；`onReady` 由内部处理 | `<TrendChart data={trend} series={memSeries} yMax={100} yLabel="%" granularity={granularity} chartId="mem" />` | `Chart`（echarts）为动态 import，仅本面板引入；秒档 <2 点、其它档为空时显示占位文案；平移位置按档位记忆在内存。 |
 | `Legend`（System.tsx 内） | 趋势图例：色块 + 名称 + 最新值 | `series: ChartSeries[]`；`data: HistoryPoint[]` | `<Legend series={memSeries} data={trend} />` | 颜色必须来自 `series[].color`（antd token 解析结果），不写死色值。 |
 | `Bar`（System.tsx 内） | 进度条（CPU / 内存 / 磁盘共用） | `percent?: number \| null`（默认按 0）；`color: string` | `<Bar percent={memory.percent} color={barColor(memory.percent)} />` | 百分比自动钳制到 0–100；颜色由调用方按 `barColor`（`toneFor` 分级）给出。 |
@@ -26,6 +26,8 @@
 - `System` 的进程表用的是 antd `Table` 的树形展开：展开/折叠图标可键盘聚焦、`Enter`/`Space` 触发，
   收展状态由 `expandedRowKeys` 受控（拿到第一份进程数据后一次性展开全部，用户手动折叠的选择在 5s
   轮询刷新间保留）。不要退回 `defaultExpandAllRows`（数据异步到达时不生效）。
+- 进程表工具条「含线程」用 antd `Switch`（`role="switch"`，可 `Tab` 聚焦、`Enter`/`Space` 切换），
+  旁附文字标签「含线程」；开关状态只影响进程列文案，不改变任何数值口径。
 - 表内数值（内存 / CPU / 进程数）为纯文本，深浅主题对比度由 antd `Table` 默认 token 保证；
   次要文字用 `Typography.Text type="secondary"`（`--ant-color-text-secondary`）。
 - 趋势图为 canvas 渲染（ECharts）：`aria` 支持有限，图表旁一律保留同名 `Legend` 文本摘要作为等价信息。
@@ -35,5 +37,5 @@
 
 | 模块 | 用途 | 说明 |
 |---|---|---|
-| `src/procTree.ts` | 进程树组树 / 排序 / 收集展开键 | 纯函数：`buildProcTree`（防环）、`sortProcTree`（内存按「含子进程合计」）、`collectProcPids`（一次性展开键）、`procSortCompare`。子树字段沿用后端返回值，前端不自己数。 |
+| `src/procTree.ts` | 进程树组树 / 排序 / 收集展开键 | 纯函数：`buildProcTree`（防环）、`sortProcTree`（排序键 `name`/`mem` 含子进程合计/`own` 自身/`cpu`）、`collectProcPids`（一次性展开键）、`procSortCompare`。子树字段沿用后端返回值，前端不自己数。 |
 | `src/format.ts` | 数值 / 时间 / 体积格式化 | `fmtMB` / `fmtBytes` / `fmtRate` / `fmtDuration` / `toneFor` 等，纯函数。 |
