@@ -26,8 +26,10 @@ import MarkdownBody from './MarkdownBody';
  *   未读徽标与桌面通知在任意 Tab 都能工作。
  * - 实时流走全站单例 notificationStream.js（/api/admin/notifications/stream），绝不复用系统指标 SSE；
  *   顶部状态点展示已连接 / 重连中 / 已断开，重连成功后自动重拉一次对齐数据。
- * - 附件：列表行在 `hasImage` 为真时显示图片标记；展开后正文下方渲染附件——图片用 antd Image
- *   （点击放大），其余给下载链接。附件 url 是后端返回的同源相对路径，直接使用、不拼域名。
+ * - 附件：列表行在 `hasImage` 为真时显示图片标记；展开后正文下方渲染附件——`text/html`
+ *   归档网页用受限 iframe 内嵌（`sandbox=""`，禁止脚本与同源身份），下方给「在新标签打开」；
+ *   图片用 antd Image（点击放大），其余给下载链接。附件 url 是后端返回的同源相对路径，
+ *   直接使用、不拼域名。
  * - 发通知 / 批量删除 / 清空已读 / 统计 / 接口说明都在「通知管理」「调试」两页，本页不做。
  */
 
@@ -444,8 +446,12 @@ export default function NotificationCenter({
         renderItem={(item) => {
           const view = detail && detail.id === item.id ? detail : item;
           const files = Array.isArray(view.attachments) ? view.attachments : [];
+          // 归档网页（text/html）单独成一类内嵌；图片照旧放大预览；其余给下载链接。
+          const htmlAttachments = files.filter((a) => a.mime === 'text/html');
           const imageAttachments = files.filter((a) => a.mime.startsWith('image/'));
-          const otherAttachments = files.filter((a) => !a.mime.startsWith('image/'));
+          const otherAttachments = files.filter(
+            (a) => !a.mime.startsWith('image/') && a.mime !== 'text/html'
+          );
           return (
           <List.Item key={item.id}>
             <div id={'notif-' + item.id} style={{ width: '100%' }}>
@@ -499,8 +505,30 @@ export default function NotificationCenter({
                   ) : (
                     <Typography.Paragraph type="secondary">（无正文）</Typography.Paragraph>
                   )}
-                  {(imageAttachments.length > 0 || otherAttachments.length > 0) && (
+                  {(htmlAttachments.length > 0 ||
+                    imageAttachments.length > 0 ||
+                    otherAttachments.length > 0) && (
                     <Space direction="vertical" size={12} style={{ width: '100%', marginTop: 12 }}>
+                      {htmlAttachments.map((a) => (
+                        <div key={a.name}>
+                          <iframe
+                            src={a.url}
+                            sandbox=""
+                            title={a.name}
+                            style={{
+                              width: '100%',
+                              height: 'min(70vh, 900px)',
+                              border: '1px solid var(--ant-color-border)',
+                              background: '#fff'
+                            }}
+                          />
+                          <div style={{ marginTop: 4 }}>
+                            <a href={a.url} target="_blank" rel="noopener noreferrer">
+                              在新标签打开
+                            </a>
+                          </div>
+                        </div>
+                      ))}
                       {imageAttachments.map((a) => (
                         <Image key={a.name} src={a.url} alt={a.name} style={{ maxWidth: '100%' }} />
                       ))}

@@ -20,6 +20,7 @@
 | `DiskCard`（System.tsx 内） | 单块磁盘卡片 | `title: string`；`disk: DiskInfo`；`colorOf: (p: number) => string` | `<DiskCard title="磁盘 /" disk={d} colorOf={barColor} />` | 多盘列表与旧单盘回退共用同一结构。 |
 | `InfoRow`（System.tsx 内） | 键值详情行 | `k: ReactNode`；`v: ReactNode`；`valueStyle?: CSSProperties` | `<InfoRow k="可用" v={fmtBytes(memory.available)} />` | 值可换行；颜色走 `token.*`，不写死色值。 |
 | `PsiRow`（System.tsx 内） | PSI 压力行（some/full 的 avg10） | `k: string`；`o?: PsiInfo \| null`；`danger: string`；`warn: string` | `<PsiRow k="内存" o={psi.memory} danger={token.colorError} warn={token.colorWarning} />` | 无 PSI 数据时显示「—」；阈值 some≥50 用 `danger`、≥30 用 `warn`。 |
+| `NotificationCenter` | 「通知」Tab 展示 / 阅读页：列表 + 筛选（级别 / 类别 / 来源 / 未读）+ 单条已读 / 删除 + 桌面通知开关 + SSE 状态点 | `onUnreadChange: (n: number) => void`（必填）；`onOpen: () => void`（必填）；`refreshTick?: number`（默认 `0`，变更即重拉） | `<NotificationCenter onUnreadChange={setUnread} onOpen={openNotices} refreshTick={tick} />` | 在 `Main` 里常驻挂载（仅切显隐），SSE 走全站单例 `notificationStream`。展开区附件按 mime 分流：`text/html` 归档网页用 `sandbox=""` 的 iframe 内嵌（禁止脚本与同源身份）并在下方给「在新标签打开」；图片用 antd `Image`（点击放大）；其余给下载链接。附件 `url` 为后端返回的同源相对路径，直接使用、不拼域名。 |
 
 ## 可访问性要点
 
