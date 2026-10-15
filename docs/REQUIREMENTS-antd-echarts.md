@@ -236,5 +236,3 @@ grep -rnE "<域名关键字>|223\.254|24\.233|sk-[A-Za-z0-9]{10,}" src/ public/ 
 
 - 更新 `AGENTS.md`：把"样式：手写 CSS"改成"Ant Design 组件 + 设计令牌",补充 ECharts 图表约定与
   `Chart.tsx` 入口、公开页不引 antd 的约束；把已失效的旧约定删掉（不要留"已废弃"堆积）。
-- 更新 `PROJECT_MEMORY.md`：记录主题映射位置、`Chart.tsx` 契约、e2e 选择器变化、
-  以及任何被推翻的旧结论。
