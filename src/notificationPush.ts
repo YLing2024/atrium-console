@@ -7,7 +7,7 @@ import type { NotificationItem } from './api';
  * 铁律（2026-09-21 需求）：新通知只能由服务器 SSE 推送进入列表；发送方（通知管理页 / 调试页）
  * 在 POST 成功后一律不得本地插入、不得主动重拉来让这条出现——那会掩盖实时通道已断的事实。
  * 本模块让发送方「只观察推送是否到达」：
- *   - NotificationCenter / NotificationDebug 的 SSE 收到 event: notification 后 emitNotificationPush(item)；
+ *   - Notifications / NotificationDebug 的 SSE 收到 event: notification 后 emitNotificationPush(item)；
  *   - 发送方 usePushWait().beginPushWait(target) 匹配 id 得到到达耗时，或 10 秒超时。
  *
  * 为什么要历史缓冲：服务端先 broadcast 再回 HTTP 响应，SSE 帧完全可能在 fetch 的 await 恢复之前

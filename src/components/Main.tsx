@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Badge, Button, Drawer, Dropdown, Layout, Menu, Segmented } from 'antd';
 import type { MenuProps } from 'antd';
 import { KeyOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons';
-import { logout } from '../api';
+import { getNotificationStats, logout } from '../api';
 import { getTheme, setThemePref, type ThemePref } from '../theme';
 import System from './System';
 import Apps from './Apps';
@@ -13,7 +13,7 @@ import CommandPalette from './CommandPalette';
 import Manage from './Manage';
 import Terminal from './Terminal';
 import Files from './Files';
-import NotificationCenter from './NotificationCenter';
+import Notifications from './Notifications';
 import NotificationManage from './NotificationManage';
 import Debug from './Debug';
 import Hermes from './Hermes';
@@ -22,26 +22,26 @@ import Hermes from './Hermes';
 const TABS = [
   'system',
   'apps',
+  'notifications',
   'version',
   'blog',
   'manage',
   'terminal',
   'files',
-  'notifications',
   'notification-manage',
   'debug',
   'hermes'
 ];
-// 标签文字与顺序：原有六项相对顺序不变，其后依次追加「通知 / 通知管理 / 调试 / Hermes」
+// 标签文字与顺序：原有各项相对顺序不变，「通知」紧随「应用」之后
 const TAB_LABELS: Record<string, string> = {
   system: '系统',
   apps: '应用',
+  notifications: '通知',
   version: '版本',
   blog: '博客',
   manage: '管理',
   terminal: '终端',
   files: '文件',
-  notifications: '通知',
   'notification-manage': '通知管理',
   debug: '调试',
   hermes: 'Hermes'
@@ -65,6 +65,8 @@ const { Header, Sider, Content } = Layout;
 
 export default function Main() {
   const [tab, setTab] = useState(() => {
+    // 通知详情深链 `#/notifications/<id>` 优先落到通知 Tab（刷新后仍能打开）
+    if (/^#\/notifications\/\d+$/.test(window.location.hash)) return 'notifications';
     const saved = sessionStorage.getItem('admin_tab');
     return saved && TABS.includes(saved) ? saved : 'system';
   });
@@ -109,6 +111,21 @@ export default function Main() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // 侧栏未读徽标：应用启动时拉一次（页内动作由通知 Tab 通过 onUnreadChange 更新）
+  useEffect(() => {
+    let alive = true;
+    getNotificationStats()
+      .then((s) => {
+        if (alive) setUnread(Number(s.unread) || 0);
+      })
+      .catch(() => {
+        // 拉取失败不打扰页面
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   // 未读徽标：使用 antd 默认色，不做自定义配色。
@@ -229,10 +246,10 @@ export default function Main() {
             <Files active={tab === 'files'} />
           </div>
           <div className="pane" hidden={tab !== 'notifications'}>
-            <NotificationCenter
-              refreshTick={notifRefreshTick}
+            <Notifications
+              active={tab === 'notifications'}
               onUnreadChange={setUnread}
-              onOpen={() => switchTab('notifications')}
+              refreshTick={notifRefreshTick}
             />
           </div>
           <div className="pane" hidden={tab !== 'notification-manage'}>
