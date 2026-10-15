@@ -3,6 +3,7 @@ import {
   Alert,
   Badge,
   Button,
+  Image,
   List,
   Popconfirm,
   Segmented,
@@ -12,7 +13,8 @@ import {
   Tooltip,
   Typography
 } from 'antd';
-import { getNotifications, getNotificationTypes, markNotificationRead, deleteNotification } from '../api';
+import { PictureOutlined } from '@ant-design/icons';
+import { getNotifications, getNotification, getNotificationTypes, markNotificationRead, deleteNotification } from '../api';
 import type { NotificationItem, NotificationParams, NotificationType } from '../api';
 import { useNotificationStream } from '../notificationStream';
 import type { NotificationStreamStatus } from '../notificationStream';
@@ -24,6 +26,8 @@ import MarkdownBody from './MarkdownBody';
  *   未读徽标与桌面通知在任意 Tab 都能工作。
  * - 实时流走全站单例 notificationStream.js（/api/admin/notifications/stream），绝不复用系统指标 SSE；
  *   顶部状态点展示已连接 / 重连中 / 已断开，重连成功后自动重拉一次对齐数据。
+ * - 附件：列表行在 `hasImage` 为真时显示图片标记；展开后正文下方渲染附件——图片用 antd Image
+ *   （点击放大），其余给下载链接。附件 url 是后端返回的同源相对路径，直接使用、不拼域名。
  * - 发通知 / 批量删除 / 清空已读 / 统计 / 接口说明都在「通知管理」「调试」两页，本页不做。
  */
 
@@ -105,6 +109,8 @@ export default function NotificationCenter({
   const [filterSource, setFilterSource] = useState('');
   const [filterType, setFilterType] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  // 展开行的单条详情：正文与附件以详情接口为准；未到达时先用列表数据渲染。
+  const [detail, setDetail] = useState<NotificationItem | null>(null);
   const [highlightId, setHighlightId] = useState<number | null>(null);
   const [permission, setPermission] = useState(() =>
     typeof window !== 'undefined' && 'Notification' in window ? window.Notification.permission : 'unsupported'
@@ -279,6 +285,25 @@ export default function NotificationCenter({
     return () => clearTimeout(t);
   }, [highlightId]);
 
+  // 展开/收起一条通知：展开时取单条详情，正文与附件以详情为准确源
+  // （列表数据已带正文与附件元信息，详情到达前/失败时直接用它，不阻塞阅读）。
+  function toggleExpand(id: number): void {
+    if (expandedId === id) {
+      setExpandedId(null);
+      setDetail(null);
+      return;
+    }
+    setExpandedId(id);
+    setDetail(null);
+    getNotification(id)
+      .then((d) => {
+        if (d && d.item) setDetail(d.item);
+      })
+      .catch(() => {
+        // 详情拉取失败时退回列表数据，不打扰页面
+      });
+  }
+
   async function handleRead(id: number) {
     try {
       await markNotificationRead(id);
@@ -416,18 +441,23 @@ export default function NotificationCenter({
             </div>
           ) : null
         }
-        renderItem={(item) => (
+        renderItem={(item) => {
+          const view = detail && detail.id === item.id ? detail : item;
+          const files = Array.isArray(view.attachments) ? view.attachments : [];
+          const imageAttachments = files.filter((a) => a.mime.startsWith('image/'));
+          const otherAttachments = files.filter((a) => !a.mime.startsWith('image/'));
+          return (
           <List.Item key={item.id}>
             <div id={'notif-' + item.id} style={{ width: '100%' }}>
               <div
                 role="button"
                 tabIndex={0}
                 aria-expanded={expandedId === item.id}
-                onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                onClick={() => toggleExpand(item.id)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    setExpandedId(expandedId === item.id ? null : item.id);
+                    toggleExpand(item.id);
                   }
                 }}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
@@ -450,6 +480,11 @@ export default function NotificationCenter({
                     </Typography.Paragraph>
                   )}
                 </div>
+                {item.hasImage && (
+                  <Tooltip title="含图片">
+                    <PictureOutlined aria-label="含图片" />
+                  </Tooltip>
+                )}
                 <Typography.Text type="secondary">
                   {typeLabel(item.type || item.source)}
                 </Typography.Text>
@@ -459,31 +494,43 @@ export default function NotificationCenter({
 
               {expandedId === item.id && (
                 <div style={{ paddingTop: 12 }}>
-                  {item.body ? (
-                    <MarkdownBody text={item.body} />
+                  {view.body ? (
+                    <MarkdownBody text={view.body} />
                   ) : (
                     <Typography.Paragraph type="secondary">（无正文）</Typography.Paragraph>
                   )}
-                  <Space size={16} wrap style={{ marginBottom: 12 }}>
+                  {(imageAttachments.length > 0 || otherAttachments.length > 0) && (
+                    <Space direction="vertical" size={12} style={{ width: '100%', marginTop: 12 }}>
+                      {imageAttachments.map((a) => (
+                        <Image key={a.name} src={a.url} alt={a.name} style={{ maxWidth: '100%' }} />
+                      ))}
+                      {otherAttachments.map((a) => (
+                        <a key={a.name} href={a.url} target="_blank" rel="noopener noreferrer">
+                          {a.name}
+                        </a>
+                      ))}
+                    </Space>
+                  )}
+                  <Space size={16} wrap style={{ marginTop: 12, marginBottom: 12 }}>
                     <span>
-                      类别 <Typography.Text>{typeLabel(item.type || item.source) || '—'}</Typography.Text>
+                      类别 <Typography.Text>{typeLabel(view.type || view.source) || '—'}</Typography.Text>
                     </span>
                     <span>
                       级别{' '}
                       <Typography.Text>
-                        {LEVEL_LABELS[item.level as string] || item.level || '—'}
+                        {LEVEL_LABELS[view.level as string] || view.level || '—'}
                       </Typography.Text>
                     </span>
                     <span>
-                      来源 <Typography.Text>{item.source || '—'}</Typography.Text>
+                      来源 <Typography.Text>{view.source || '—'}</Typography.Text>
                     </span>
                     <span>
-                      时间 <Typography.Text>{fmtTimeFull(item.ts) || '—'}</Typography.Text>
+                      时间 <Typography.Text>{fmtTimeFull(view.ts) || '—'}</Typography.Text>
                     </span>
                   </Space>
                   <Space size={0}>
-                    {item.link && (
-                      <Button type="link" size="small" onClick={() => openLink(item.link as string)}>
+                    {view.link && (
+                      <Button type="link" size="small" onClick={() => openLink(view.link as string)}>
                         打开链接
                       </Button>
                     )}
@@ -507,7 +554,8 @@ export default function NotificationCenter({
               )}
             </div>
           </List.Item>
-        )}
+          );
+        }}
       />
     </div>
   );
