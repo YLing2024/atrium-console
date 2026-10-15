@@ -602,7 +602,6 @@ export interface NotificationPayload {
 export interface BulkDeleteFilters {
   level?: string;
   source?: string;
-  type?: string;
   unreadOnly?: boolean;
   readOnly?: boolean;
   dryRun?: boolean;
@@ -978,7 +977,7 @@ export function createNotification(
   return request('/api/admin/notifications', { method: 'POST', body: payload });
 }
 
-// 批量删除：filters { level?, source?, type?, unreadOnly?, readOnly?, dryRun? } → { ok, count }
+// 批量删除：filters { level?, source?, unreadOnly?, readOnly?, dryRun? } → { ok, count }
 // dryRun=true 只统计不删除（用于二次确认时展示准确条数）
 export function bulkDeleteNotifications(
   filters: BulkDeleteFilters = {}
@@ -986,7 +985,6 @@ export function bulkDeleteNotifications(
   const body: BulkDeleteFilters = {};
   if (filters.level) body.level = filters.level;
   if (filters.source) body.source = filters.source;
-  if (filters.type) body.type = filters.type;
   if (filters.unreadOnly) body.unreadOnly = true;
   if (filters.readOnly) body.readOnly = true;
   if (filters.dryRun) body.dryRun = true;
