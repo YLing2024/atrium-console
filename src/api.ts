@@ -533,6 +533,14 @@ export interface UploadHandlers {
   onError?: (e: Error) => void;
 }
 
+/** 通知附件元信息（size 为解码后字节数；url 为同源相对路径，直接使用不要再拼） */
+export interface NotificationAttachment {
+  name: string;
+  mime: string;
+  size: number;
+  url: string;
+}
+
 /** 通知条目（ts / readAt 为 epoch 秒） */
 export interface NotificationItem {
   id: number;
@@ -545,6 +553,8 @@ export interface NotificationItem {
   link?: string;
   readAt?: number | null;
   dedupKey?: string;
+  attachments?: NotificationAttachment[];
+  hasImage?: boolean;
 }
 
 export interface NotificationParams {
@@ -592,6 +602,7 @@ export interface NotificationPayload {
 export interface BulkDeleteFilters {
   level?: string;
   source?: string;
+  type?: string;
   unreadOnly?: boolean;
   readOnly?: boolean;
   dryRun?: boolean;
@@ -940,6 +951,11 @@ export function getNotificationTypes(): Promise<{ types?: NotificationType[] }> 
   return request('/api/admin/notifications/types');
 }
 
+// 单条详情 → { item }（含 attachments / hasImage）；不存在抛 404
+export function getNotification(id: number): Promise<{ item?: NotificationItem }> {
+  return request(`/api/admin/notifications/${encodeURIComponent(id)}`);
+}
+
 // 单条已读
 export function markNotificationRead(id: number): Promise<unknown> {
   return request(`/api/admin/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' });
@@ -962,7 +978,7 @@ export function createNotification(
   return request('/api/admin/notifications', { method: 'POST', body: payload });
 }
 
-// 批量删除：filters { level?, source?, unreadOnly?, readOnly?, dryRun? } → { ok, count }
+// 批量删除：filters { level?, source?, type?, unreadOnly?, readOnly?, dryRun? } → { ok, count }
 // dryRun=true 只统计不删除（用于二次确认时展示准确条数）
 export function bulkDeleteNotifications(
   filters: BulkDeleteFilters = {}
@@ -970,6 +986,7 @@ export function bulkDeleteNotifications(
   const body: BulkDeleteFilters = {};
   if (filters.level) body.level = filters.level;
   if (filters.source) body.source = filters.source;
+  if (filters.type) body.type = filters.type;
   if (filters.unreadOnly) body.unreadOnly = true;
   if (filters.readOnly) body.readOnly = true;
   if (filters.dryRun) body.dryRun = true;
