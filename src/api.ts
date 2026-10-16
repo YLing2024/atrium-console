@@ -210,13 +210,24 @@ export interface CoreUsage {
   usage_percent?: number | string;
 }
 
-/** 磁盘占用 */
+/** 磁盘占用与按盘 I/O */
 export interface DiskInfo {
   mount?: string;
+  filesystem?: string;
+  /** 基础设备名（与 /proc/diskstats 对齐，如 vda / nvme0n1） */
+  device?: string;
   used?: number;
   total?: number;
   free?: number;
   percent?: number;
+  /** 该设备读速率（字节/秒） */
+  read_rate?: number;
+  /** 该设备写速率（字节/秒） */
+  write_rate?: number;
+  /** 该设备累计读字节 */
+  read_bytes?: number;
+  /** 该设备累计写字节 */
+  write_bytes?: number;
 }
 
 /** PSI 单档（some / full）的 avg10 等 */
