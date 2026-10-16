@@ -1,0 +1,62 @@
+/* ==========================================================================
+   数据库页（admin「数据库」Tab）—— 同源内嵌 DBGate，iframe 铺满，无双层滚动条
+   ========================================================================== */
+
+.pane--db {
+  padding: 0;
+  overflow: hidden;
+}
+
+.db {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.db-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ant-color-border-secondary);
+}
+
+.db-bar h2 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ant-color-text);
+}
+
+/* 窄屏才提示：宽屏隐藏 */
+.db-hint {
+  display: none;
+  font-size: 12px;
+}
+
+.db-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.db-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.db-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--ant-color-bg-layout);
+}
+
+@media (max-width: 900px) {
+  .db-hint {
+    display: inline;
+  }
+}
