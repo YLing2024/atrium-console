@@ -41,3 +41,4 @@
 |---|---|---|
 | `src/procTree.ts` | 进程树组树 / 排序 / 收集展开键 | 纯函数：`buildProcTree`（防环）、`sortProcTree`（排序键 `name`/`mem` 含子进程合计/`own` 自身/`cpu`）、`collectProcPids`（一次性展开键）、`procSortCompare`。子树字段沿用后端返回值，前端不自己数。 |
 | `src/format.ts` | 数值 / 时间 / 体积格式化 | `fmtMB` / `fmtBytes` / `fmtRate` / `fmtDuration` / `toneFor` 等，纯函数。 |
+| `src/dbTab.ts` | 数据库 Tab 的首次激活粘滞标记 | `latchActivated(activated, active)`：一旦为 `true` 便保持 `true`，纯函数。 |
