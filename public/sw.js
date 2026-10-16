@@ -14,7 +14,7 @@
  * 一律不写入（认证/敏感响应不进缓存），导航与静态两个分支共用同一守卫。
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `admin-web-${CACHE_VERSION}`;
 
 const OFFLINE_URL = '/offline.html';
@@ -161,12 +161,14 @@ self.addEventListener('fetch', (event) => {
   // 跨域请求一律不接管，直接放行。
   if (url.origin !== self.location.origin) return;
 
-  // 动态接口、认证路径、终端 / 临时链接：network-only，绝不缓存、绝不拦截。
+  // 动态接口、认证路径、终端 / 数据库 / 临时链接：network-only，绝不缓存、绝不拦截。
   // /_auth/ 是网关认证端点（含 set-cookie / 未登录 401），任何形态（含 navigation）都直接放行。
+  // /db/ 是 DBGate 页面及其请求，一律直连网络。
   if (
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/_auth/') ||
     url.pathname.startsWith('/term/') ||
+    url.pathname.startsWith('/db/') ||
     url.pathname.startsWith('/s/')
   ) {
     return;
