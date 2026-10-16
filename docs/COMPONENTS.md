@@ -21,6 +21,7 @@
 | `InfoRow`（System.tsx 内） | 键值详情行 | `k: ReactNode`；`v: ReactNode`；`valueStyle?: CSSProperties` | `<InfoRow k="可用" v={fmtBytes(memory.available)} />` | 值可换行；颜色走 `token.*`，不写死色值。 |
 | `PsiRow`（System.tsx 内） | PSI 压力行（some/full 的 avg10） | `k: string`；`o?: PsiInfo \| null`；`danger: string`；`warn: string` | `<PsiRow k="内存" o={psi.memory} danger={token.colorError} warn={token.colorWarning} />` | 无 PSI 数据时显示「—」；阈值 some≥50 用 `danger`、≥30 用 `warn`。 |
 | `NotificationCenter` | 「通知」Tab 展示 / 阅读页：列表 + 筛选（级别 / 类别 / 来源 / 未读）+ 单条已读 / 删除 + 桌面通知开关 + SSE 状态点 | `onUnreadChange: (n: number) => void`（必填）；`onOpen: () => void`（必填）；`refreshTick?: number`（默认 `0`，变更即重拉） | `<NotificationCenter onUnreadChange={setUnread} onOpen={openNotices} refreshTick={tick} />` | 在 `Main` 里常驻挂载（仅切显隐），SSE 走全站单例 `notificationStream`。展开区附件按 mime 分流：`text/html` 归档网页用 `sandbox=""` 的 iframe 内嵌（禁止脚本与同源身份）并在下方给「在新标签打开」；图片用 antd `Image`（点击放大）；其余给下载链接。附件 `url` 为后端返回的同源相对路径，直接使用、不拼域名。 |
+| `Database` | 「数据库」Tab 面板：iframe 同源内嵌 DBGate（`/db/`），打开即用、无二次登录 | `active: boolean`（必填，无默认值）——该 Tab 是否激活；无对外事件 | `<Database active={tab === 'db'} />` | 面板在 `Main` 里常驻挂载（仅切显隐），故等 `active` 首次为 `true` 才渲染 iframe 并保持挂载（切走不卸载，避免丢失正在浏览的表 / 查询状态）；`src` 用同源相对路径 `/db/`，与终端 `/term/` 同一套接线，鉴权由前置网关负责，组件不碰凭据 / token。 |
 
 ## 可访问性要点
 

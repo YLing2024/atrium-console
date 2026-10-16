@@ -15,6 +15,7 @@
 | 管理 | `Manage.tsx` | 服务状态、API Token、TOTP 重置 |
 | 终端 | `Terminal.tsx` | 浏览器内连服务器终端（ttyd + tmux，多标签、口令二次验证） |
 | 文件 | `Files.tsx` | 资源管理器式文件区：目录导航 / 拖拽上传（进度条）/ 新建 / 重命名 / 删除 / 下载 |
+| 数据库 | `Database.tsx` | iframe 同源内嵌 DBGate（`/db/`），打开即用、无二次登录 |
 
 后端是 `../admin-server`，博客数据在 `../blog/server`。
 
@@ -48,7 +49,8 @@ src/
     ├── AppCard.tsx / PublicApps.tsx  # 共用应用卡片 / 公开只读「应用中心」页
     ├── LoginPage.tsx       # 自带账号登录页（builtin 模式，TOTP 动态码）
     ├── Terminal.tsx        # 终端 Tab（ttyd iframe、多标签、口令门）
-    └── Files.tsx           # 文件 Tab（资源管理器：目录导航/拖拽上传/进度条/增删改）
+    ├── Files.tsx           # 文件 Tab（资源管理器：目录导航/拖拽上传/进度条/增删改）
+    └── Database.tsx        # 数据库 Tab（iframe 内嵌 /db/，同源、无二次登录）
 e2e/                        # Playwright 端到端（独立 package.json）
 test/                       # 单测
 ```
