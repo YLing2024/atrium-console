@@ -17,6 +17,7 @@ import NotificationCenter from './NotificationCenter';
 import NotificationManage from './NotificationManage';
 import Debug from './Debug';
 import Hermes from './Hermes';
+import Database from './Database';
 
 // 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat'）一律回退到首个 Tab
 const TABS = [
@@ -30,9 +31,10 @@ const TABS = [
   'notifications',
   'notification-manage',
   'debug',
-  'hermes'
+  'hermes',
+  'db'
 ];
-// 标签文字与顺序：原有六项相对顺序不变，其后依次追加「通知 / 通知管理 / 调试 / Hermes」
+// 标签文字与顺序：原有六项相对顺序不变，其后依次追加「通知 / 通知管理 / 调试 / Hermes / 数据库」
 const TAB_LABELS: Record<string, string> = {
   system: '系统',
   apps: '应用',
@@ -44,7 +46,8 @@ const TAB_LABELS: Record<string, string> = {
   notifications: '通知',
   'notification-manage': '通知管理',
   debug: '调试',
-  hermes: 'Hermes'
+  hermes: 'Hermes',
+  db: '数据库'
 };
 
 // 窄屏判定（< 900px）：此时侧栏改由右侧抽屉承载
@@ -246,6 +249,9 @@ export default function Main() {
           </div>
           <div className="pane pane--hermes" hidden={tab !== 'hermes'}>
             <Hermes />
+          </div>
+          <div className="pane pane--db" hidden={tab !== 'db'}>
+            <Database active={tab === 'db'} />
           </div>
         </Content>
       </Layout>
