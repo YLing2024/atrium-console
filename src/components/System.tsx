@@ -69,7 +69,7 @@ interface SystemSnapshot {
 }
 
 /** 序列语义色：只给 antd 主题 token 的用途名，颜色在组件内按 token 解析 */
-type SeriesTone = 'primary' | 'secondary' | 'success' | 'error';
+type SeriesTone = 'primary' | 'secondary' | 'success' | 'warning' | 'error';
 
 /** 趋势图序列定义（颜色由 SeriesTone 解析，不写死色值） */
 interface SeriesSpec {
@@ -138,8 +138,9 @@ function CoreGrid({ cores, colorOf }: { cores?: CoreUsage[]; colorOf: (p: number
 
 /**
  * 单块磁盘卡片：多盘列表与旧单盘回退共用同一结构。
+ * 展示挂载占用，以及该盘自己的读写速率与累计读写（`device` 缺失时显示 `—`）。
  * @param title 卡片标题（如「磁盘 /」）
- * @param disk 磁盘占用信息（`DiskInfo`）
+ * @param disk 磁盘占用与按盘 I/O 信息（`DiskInfo`）
  * @param colorOf 百分比 → 条色
  */
 function DiskCard({
@@ -161,6 +162,19 @@ function DiskCard({
       </div>
       <Bar percent={disk.percent} color={colorOf(clampPct(disk.percent))} />
       <InfoRow k="剩余 / 总" v={`${fmtBytes(disk.free)} / ${fmtBytes(disk.total)}`} />
+      <InfoRow k="设备" v={disk.device ? disk.device : '—'} />
+      <InfoRow
+        k="读 / 写"
+        v={`${disk.read_rate == null ? '—' : fmtRate(disk.read_rate)} / ${
+          disk.write_rate == null ? '—' : fmtRate(disk.write_rate)
+        }`}
+      />
+      <InfoRow
+        k="累计读 / 累计写"
+        v={`${disk.read_bytes == null ? '—' : fmtBytes(disk.read_bytes)} / ${
+          disk.write_bytes == null ? '—' : fmtBytes(disk.write_bytes)
+        }`}
+      />
     </Card>
   );
 }
@@ -479,10 +493,52 @@ const NET_SPECS: SeriesSpec[] = [
   { key: 'net_rx_rate', label: '↓ 下载', tone: 'primary', format: fmtRate },
   { key: 'net_tx_rate', label: '↑ 上传', tone: 'secondary', format: fmtRate }
 ];
-const IO_SPECS: SeriesSpec[] = [
-  { key: 'disk_io_read', label: '读', tone: 'primary', format: fmtRate },
-  { key: 'disk_io_write', label: '写', tone: 'secondary', format: fmtRate }
-];
+
+// 按盘趋势用的四色（antd 默认语义 token，深浅色自动适配；两盘读/写四线不撞色）。
+const DISK_IO_TONES: SeriesTone[] = ['primary', 'success', 'warning', 'error'];
+
+/**
+ * 磁盘 I/O 趋势序列（按盘分色）。
+ * 从数据点的键里还原设备名（`disk_io_<dev>_read|write`），每盘读、写各一条线；
+ * 若数据里没有任何按盘列（老数据或单盘环境），回退为合计两条线，不允许空白图。
+ * @param data 趋势采样点
+ */
+function diskIoSeriesSpecs(data: HistoryPoint[]): SeriesSpec[] {
+  const devs: string[] = [];
+  const seen = new Set<string>();
+  for (const point of data) {
+    for (const key of Object.keys(point)) {
+      const m = /^disk_io_(.+)_(read|write)$/.exec(key);
+      if (m && !seen.has(m[1])) {
+        seen.add(m[1]);
+        devs.push(m[1]);
+      }
+    }
+  }
+  if (devs.length === 0) {
+    return [
+      { key: 'disk_io_read', label: '读', tone: 'primary', format: fmtRate },
+      { key: 'disk_io_write', label: '写', tone: 'secondary', format: fmtRate }
+    ];
+  }
+  devs.sort();
+  const specs: SeriesSpec[] = [];
+  devs.forEach((dev, i) => {
+    specs.push({
+      key: `disk_io_${dev}_read`,
+      label: `${dev} 读`,
+      tone: DISK_IO_TONES[(i * 2) % DISK_IO_TONES.length],
+      format: fmtRate
+    });
+    specs.push({
+      key: `disk_io_${dev}_write`,
+      label: `${dev} 写`,
+      tone: DISK_IO_TONES[(i * 2 + 1) % DISK_IO_TONES.length],
+      format: fmtRate
+    });
+  });
+  return specs;
+}
 
 // 趋势粒度：秒 = 现有 SSE 实时流（默认，行为不变）；其它档位改用历史聚合接口。
 // 选择存 sessionStorage，刷新后保持；首次访问默认「秒」。
@@ -718,7 +774,9 @@ export default function System({ active }: { active: boolean }) {
         ? token.colorSuccess
         : tone === 'error'
           ? token.colorError
-          : token.colorTextTertiary;
+          : tone === 'warning'
+            ? token.colorWarning
+            : token.colorTextTertiary;
   const resolveSeries = (specs: SeriesSpec[]): ChartSeries[] =>
     specs.map((s) => ({ key: s.key, label: s.label, color: toneColor(s.tone), format: s.format }));
   // 占用率分级颜色（>80 红 / 60-80 橙 / <60 绿），颜色取自 antd 主题 token
@@ -753,7 +811,6 @@ export default function System({ active }: { active: boolean }) {
   const memory = data.memory || {};
   const disk = data.disk || null;
   const network = data.network || null;
-  const disk_io = data.disk_io || null;
   const { uptime, os, hostname } = data;
   const swap = memory.swapTotal ? memory : null;
   const zram = memory.zram || null;
@@ -827,7 +884,7 @@ export default function System({ active }: { active: boolean }) {
   const memSeries = resolveSeries(MEM_SPECS);
   const psiSeries = resolveSeries(PSI_SPECS);
   const netSeries = resolveSeries(NET_SPECS);
-  const ioSeries = resolveSeries(IO_SPECS);
+  const ioSeries = resolveSeries(diskIoSeriesSpecs(trend));
 
   return (
     <div className="system">
@@ -928,15 +985,6 @@ export default function System({ active }: { active: boolean }) {
             <InfoRow k="↑ 上传" v={network ? fmtRate(network.tx_rate) : '—'} />
             <InfoRow k="累计下载" v={network ? fmtBytes(network.rx_bytes) : '—'} />
             <InfoRow k="累计上传" v={network ? fmtBytes(network.tx_bytes) : '—'} />
-          </Card>
-        </Col>
-
-        <Col xs={24} sm={12} lg={8}>
-          <Card title="磁盘 I/O">
-            <InfoRow k="读" v={disk_io ? fmtRate(disk_io.read_rate) : '—'} />
-            <InfoRow k="写" v={disk_io ? fmtRate(disk_io.write_rate) : '—'} />
-            <InfoRow k="累计读" v={disk_io ? fmtBytes(disk_io.read_bytes) : '—'} />
-            <InfoRow k="累计写" v={disk_io ? fmtBytes(disk_io.write_bytes) : '—'} />
           </Card>
         </Col>
       </Row>
@@ -1103,7 +1151,7 @@ export default function System({ active }: { active: boolean }) {
             </Card>
           </Col>
           <Col span={24}>
-            <Card title="磁盘 I/O（/s）">
+            <Card title="磁盘 I/O（/s，按盘）">
               <Legend series={ioSeries} data={trend} />
               <TrendChart
                 data={trend}
