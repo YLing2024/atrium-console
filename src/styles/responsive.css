@@ -54,6 +54,29 @@
     margin-left: 8px;
   }
 
+  /* 开关：窄屏撑到 ≥32px 命中区（含小号开关；桌面不受影响） */
+  .ant-switch,
+  .ant-switch.ant-switch-small {
+    min-width: 52px;
+    min-height: 32px;
+  }
+
+  .ant-switch .ant-switch-handle {
+    width: 26px;
+    height: 26px;
+    top: 3px;
+  }
+
+  .ant-switch.ant-switch-small .ant-switch-handle {
+    width: 26px;
+    height: 26px;
+    top: 3px;
+  }
+
+  .ant-switch.ant-switch-small.ant-switch-checked .ant-switch-handle {
+    inset-inline-start: calc(100% - 29px);
+  }
+
   /* ---- 2. 字号下限：可见文本 ≥12px（正文 / 表格沿用 antd 默认） ---- */
   .debug-head h2,
   .ndbg-title,
