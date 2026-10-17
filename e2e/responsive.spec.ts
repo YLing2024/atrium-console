@@ -12,6 +12,8 @@
  *   1) 无文档级横向溢出（documentElement.scrollWidth <= clientWidth + 1）；
  *   2) 每个可见表格：要么 table.width <= viewport，要么存在可横滑祖先，禁止被裁；
  *   3) 可见交互元素命中区：主要操作 ≥40px、次要图标（白名单）≥32px；
+ *   3') 表单控件（input/select/textarea/日期/数字输入/勾选框）命中区 ≥44px，
+ *       且其字号 ≥16px（需求书 §5，防 iOS 聚焦缩放）；
  *   4) 可见文本字号 ≥12px；
  *   5) 关键页面元素出现，且无 pageerror / 控制台错误。
  * 断言失败会打印 页面名 + 元素文本 + 实际尺寸，便于定位。
@@ -191,7 +193,8 @@ const VIEWPORTS = [
 ];
 
 // 「次要」交互元素白名单：命中门槛 32px，其余可见交互元素按主要操作 40px 判定。
-// 开关 / 复选框属于紧凑型控件，采用 32px 档（窄屏下已由响应式样式撑到 ≥32px）。
+// 开关属于紧凑型控件，采用 32px 档（窄屏下已由响应式样式撑到 ≥32px）。
+// 复选框不再列在此处：表单控件（含勾选框命中区）统一由 FORM_CONTROL_SELECTOR 按 ≥44px 判定。
 const SECONDARY_SELECTOR = [
   '.ant-btn-icon-only',
   '.dev-rename-btn',
@@ -200,8 +203,31 @@ const SECONDARY_SELECTOR = [
   'a.ant-typography',
   '.ant-table-cell a',
   '.link-btn',
-  '.ant-switch',
-  'input[type=checkbox]'
+  '.ant-switch'
+].join(',');
+
+// 表单控件（需求书 §5）：命中区 ≥44px，不再沿用次要 32px 阈值。
+// 命中区取控件本身或最外层包装（affix 包装内的 input 会因嵌套被跳过）。
+const FORM_CONTROL_SELECTOR = [
+  'input.ant-input',
+  'textarea.ant-input',
+  '.ant-input-affix-wrapper',
+  '.ant-input-number',
+  '.ant-picker',
+  '.ant-select-single .ant-select-selector',
+  '.ant-select-multiple .ant-select-selector',
+  '.ant-checkbox'
+].join(',');
+
+// 表单控件内承载文本 / 输入的节点：字号必须 ≥16px。
+const FORM_TEXT_SELECTOR = [
+  'input.ant-input',
+  'textarea.ant-input',
+  '.ant-input-number-input',
+  '.ant-picker-input > input',
+  '.ant-select .ant-select-selection-item',
+  '.ant-select .ant-select-selection-placeholder',
+  '.ant-select .ant-select-selection-search-input'
 ].join(',');
 
 // ------------------------------------------------------------------ helpers
@@ -221,8 +247,8 @@ function checkViewport(page, tab) {
   // 3) 触摸目标
   // 4) 字号
   return page.evaluate(
-    ({ secondarySelector, tabLabel }) => {
-      const problems = { overflow: null, tables: [], targets: [], fonts: [] };
+    ({ secondarySelector, formControlSelector, formTextSelector, tabLabel }) => {
+      const problems = { overflow: null, tables: [], targets: [], formControls: [], formFonts: [], fonts: [] };
       const de = document.documentElement;
       const vw = window.innerWidth;
       const visible = (el) => {
@@ -258,7 +284,7 @@ function checkViewport(page, tab) {
       }
 
       // 3) 触摸目标
-      for (const el of document.querySelectorAll('button, a, [role=button], input[type=checkbox], .ant-switch')) {
+      for (const el of document.querySelectorAll('button, a, [role=button], .ant-switch')) {
         if (!visible(el)) continue;
         const r = el.getBoundingClientRect();
         const min = el.matches(secondarySelector) ? 32 : 40;
@@ -272,6 +298,38 @@ function checkViewport(page, tab) {
             min
           });
         }
+      }
+
+      // 3') 表单控件命中区 ≥44px（测量最外层控件，跳过嵌套的包装内 input）
+      for (const el of document.querySelectorAll(formControlSelector)) {
+        if (!visible(el)) continue;
+        if (el.parentElement && el.parentElement.closest(formControlSelector)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width < 44 || r.height < 44) {
+          problems.formControls.push({
+            label: tabLabel,
+            cls: (el.className || '').toString().split(' ')[0],
+            w: Math.round(r.width),
+            h: Math.round(r.height)
+          });
+        }
+      }
+
+      // 3'') 表单控件字号 ≥16px
+      const seenFormFonts = new Set();
+      for (const el of document.querySelectorAll(formTextSelector)) {
+        if (!visible(el)) continue;
+        const fs = parseFloat(getComputedStyle(el).fontSize);
+        if (fs >= 16) continue;
+        const key = el.tagName + '|' + fs.toFixed(1);
+        if (seenFormFonts.has(key)) continue;
+        seenFormFonts.add(key);
+        problems.formFonts.push({
+          label: tabLabel,
+          tag: el.tagName,
+          cls: (el.className || '').toString().split(' ')[0],
+          fs
+        });
       }
 
       // 4) 字号
@@ -288,7 +346,12 @@ function checkViewport(page, tab) {
       }
       return problems;
     },
-    { secondarySelector: SECONDARY_SELECTOR, tabLabel: tab.label }
+    {
+      secondarySelector: SECONDARY_SELECTOR,
+      formControlSelector: FORM_CONTROL_SELECTOR,
+      formTextSelector: FORM_TEXT_SELECTOR,
+      tabLabel: tab.label
+    }
   );
 }
 
@@ -348,6 +411,20 @@ async function runViewport(browser, vp) {
         check(false, `[${tab.label}] 触摸目标偏小「${t.text}」.${t.cls} ${t.w}x${t.h} < ${t.min}`);
       }
     }
+    if (res.formControls.length === 0) {
+      check(true, `[${tab.label}] 表单控件命中区全部 ≥44px`);
+    } else {
+      for (const f of res.formControls) {
+        check(false, `[${tab.label}] 表单控件命中区偏小 .${f.cls} ${f.w}x${f.h} < 44`);
+      }
+    }
+    if (res.formFonts.length === 0) {
+      check(true, `[${tab.label}] 表单控件字号全部 ≥16px`);
+    } else {
+      for (const f of res.formFonts) {
+        check(false, `[${tab.label}] 表单控件字号偏小 <${f.tag} class="${f.cls}"> ${f.fs}px < 16`);
+      }
+    }
     if (res.fonts.length === 0) {
       check(true, `[${tab.label}] 可见文本字号均 ≥12px`);
     } else {
@@ -384,6 +461,29 @@ async function runDesktopSentinel(browser) {
   });
   check(!metrics.docOverflow, '[桌面] 无文档级横向溢出');
   check(metrics.topBtnHeight !== null && metrics.topBtnHeight <= 40, `[桌面] 顶栏按钮仍为默认尺寸（height=${metrics.topBtnHeight}px）`);
+
+  // 表单控件隔离哨兵：切到通知管理页（有 input/select），桌面鼠标环境必须仍是 antd 默认（32px / 14px），
+  // 证明 §5 的 ≥44px / ≥16px 规则只在窄屏 / coarse pointer 生效。
+  await page.evaluate(() => sessionStorage.setItem('admin_tab', 'notification-manage'));
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.pane:not([hidden]) input.ant-input', { timeout: 10000 });
+  await page.waitForTimeout(800);
+  const formMetrics = await page.evaluate(() => {
+    const pick = (sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { h: Math.round(r.height), fs: parseFloat(getComputedStyle(el).fontSize) };
+    };
+    return {
+      input: pick('.pane:not([hidden]) input.ant-input'),
+      select: pick('.pane:not([hidden]) .ant-select-selector'),
+      docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+    };
+  });
+  check(!formMetrics.docOverflow, '[桌面] 通知管理页无文档级横向溢出');
+  check(formMetrics.input && formMetrics.input.h <= 40 && formMetrics.input.fs < 16, `[桌面] 输入框仍是 antd 默认（${formMetrics.input ? formMetrics.input.h + 'px / ' + formMetrics.input.fs + 'px' : 'n/a'}）`);
+  check(formMetrics.select && formMetrics.select.h <= 40 && formMetrics.select.fs < 16, `[桌面] 选择器仍是 antd 默认（${formMetrics.select ? formMetrics.select.h + 'px / ' + formMetrics.select.fs + 'px' : 'n/a'}）`);
   await ctx.close();
 }
 
