@@ -137,6 +137,12 @@
     font-size: 16px;
   }
 
+  /* 单选择器内聚焦的搜索输入在 antd 里被单独写成固定字号，需更高特异性覆盖，
+     否则 iOS 聚焦时仍会按 <16px 放大整页。 */
+  .ant-select.ant-select-single .ant-select-selector input.ant-select-selection-search-input {
+    font-size: 16px;
+  }
+
   /* 勾选框：扩大可点热区到 ≥44px，内框视觉尺寸不变、居中显示 */
   .ant-checkbox-wrapper {
     min-height: 44px;
