@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { unlockRequiredOf } from '../termGate';
 
 /**
  * 服务器终端（多窗口 / 类似浏览器标签页）+ 二次验证
@@ -8,6 +9,8 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
  *   2. 终端口令 —— 通过 POST /api/admin/term/unlock 换一张 12 小时票据，
  *      票据随 iframe 一起传给服务端 wrapper，wrapper 起 shell 前向 admin-server 校验；
  *      票据无效/缺失就拒绝起 shell（ttyd 只监听 127.0.0.1，绕不过 wrapper）
+ *      该口令门可由后端 `ADMIN_TERM_UNLOCK=off` 关闭：进入前先探测 GET /api/admin/term/mode，
+ *      `unlockRequired === false` 时跳过口令表单、直接拿票；探测失败按需要口令兜底。
  *
  * 每个标签 = 一个独立 shell 会话：
  *   - iframe src = /term/?arg=<会话名>&arg=<票据>（登录态由网关 cookie 证明）
@@ -20,6 +23,21 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 const STORE_KEY = 'admin_term_tabs';
 const TICKET_KEY = 'admin_term_ticket';
 const POLL_MS = 6000;
+
+/**
+ * 探测终端口令门是否开启。任何失败（网络错 / 404 旧后端 / 响应不可解析）都按
+ * 「需要口令」兜底，走现有口令表单；判定细节见 `unlockRequiredOf`。
+ */
+async function probeUnlockRequired(): Promise<boolean> {
+  try {
+    const r = await fetch('/api/admin/term/mode');
+    if (!r.ok) return true;
+    const d: unknown = await r.json().catch(() => null);
+    return unlockRequiredOf(d);
+  } catch {
+    return true;
+  }
+}
 
 /** 终端标签（id 即 tmux 会话名） */
 interface TermTab {
@@ -96,6 +114,8 @@ export default function Terminal({ active }: { active: boolean }) {
   const [current, setCurrent] = useState<string | null>(() => (loadTabs()[0] || {}).id || null);
   const [alive, setAlive] = useState<Set<string>>(() => new Set());
   const [nonce, setNonce] = useState(0);
+  // null = 尚未探测出口令门模式（探测中，不渲染口令表单）；true/false = 探测结果
+  const [needPw, setNeedPw] = useState<boolean | null>(null);
   const inited = useRef(false);
   const tabsRef = useRef(tabs);
 
@@ -177,9 +197,8 @@ export default function Terminal({ active }: { active: boolean }) {
     }
   }, []);
 
-  async function unlock(e: FormEvent) {
-    e.preventDefault();
-    if (busy) return;
+  // 提交口令换票据（口令表单与免口令自动取票共用同一路径）
+  const submitUnlock = useCallback(async (password: string): Promise<boolean> => {
     setBusy(true);
     setErr('');
     try {
@@ -188,7 +207,7 @@ export default function Terminal({ active }: { active: boolean }) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ password: pw })
+        body: JSON.stringify({ password })
       });
       const d: { ticket?: string; retryAfter?: number; error?: string } = await r
         .json()
@@ -199,17 +218,43 @@ export default function Terminal({ active }: { active: boolean }) {
             ? `尝试过多，请 ${d.retryAfter || 600} 秒后再试`
             : d.error || '口令不正确'
         );
-        setPw('');
-        return;
+        return false;
       }
       setTicket(d.ticket);
       setTicketState(d.ticket);
-      setPw('');
-    } catch (err2) {
+      return true;
+    } catch {
       setErr('网络异常，请重试');
+      return false;
     } finally {
       setBusy(false);
     }
+  }, []);
+
+  // 进入终端流程前探测口令门模式：与 Tab 激活解耦（每次进入无票据状态探测一次，
+  // 失败下次激活可重探）。off 时自动取票；探测失败按需要口令兜底，不白屏。
+  useEffect(() => {
+    if (!active || ticket) return;
+    let cancelled = false;
+    probeUnlockRequired().then((required) => {
+      if (cancelled) return;
+      setNeedPw(required);
+      if (required) return;
+      // 免口令：直接取票进入；失败则回退口令表单，给一次重试入口（不白屏）
+      submitUnlock('').then((ok) => {
+        if (!ok && !cancelled) setNeedPw(true);
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [active, ticket, submitUnlock]);
+
+  async function unlock(e: FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    await submitUnlock(pw);
+    setPw('');
   }
 
   async function lock() {
@@ -244,6 +289,15 @@ export default function Terminal({ active }: { active: boolean }) {
 
   // ---- 二次验证门 ----
   if (!ticket) {
+    // 尚未探测出口令门模式：不渲染口令表单（避免 off 模式一闪），也不白屏
+    if (needPw === null) {
+      return <div className="term-gate" />;
+    }
+    // off 模式：正在自动取票（失败时的错误文案沿用既有样式）
+    if (!needPw) {
+      return <div className="term-gate">{err ? <div className="term-gate-err">{err}</div> : null}</div>;
+    }
+    // password 模式：完全按现状
     return (
       <div className="term-gate">
         <form className="term-gate-form" onSubmit={unlock}>
