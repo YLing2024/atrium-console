@@ -35,7 +35,7 @@ const FIX = {
         isCurrent: true,
         userAgent:
           'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36',
-        ip: '192.168.1.23',
+        ip: '192.0.2.23',
         isLocal: true,
         createdAt: now - 3600000,
         lastSeenAt: now - 60000,
@@ -45,7 +45,7 @@ const FIX = {
         id: 's2',
         deviceName: 'iPhone',
         userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)',
-        ip: '10.0.0.5',
+        ip: '198.51.100.5',
         location: '局域网',
         createdAt: now - 7200000,
         lastSeenAt: now - 120000,
