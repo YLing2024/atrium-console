@@ -15,3 +15,72 @@
 .ant-table-content {
   overflow-x: auto;
 }
+
+@media (max-width: 1024px) {
+  /* ---- 1. 触摸目标：主要操作命中区 ≥44px；相邻操作间距 ≥8px ---- */
+  .ant-btn,
+  .btn-ghost,
+  .btn-primary,
+  .debug-tool,
+  .term-gate-btn,
+  .term-add,
+  .term-tab,
+  .dev-rename-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* 表格行内图标按钮（展开/关闭/编辑等次要图标）：命中区 ≥32px（这里一并撑到 44px） */
+  .ant-btn-icon-only,
+  .ant-table-row-expand-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* 文本链接（面包屑 / 表格内链接 / 行内操作）：窄屏可点高度 ≥32px */
+  .ant-breadcrumb a,
+  a.ant-typography,
+  .ant-table-cell a,
+  .link-btn,
+  .ndbg a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+  }
+
+  /* 行内操作相邻间距，避免误触 */
+  .ant-table .ant-btn + .ant-btn,
+  .ant-table-cell .ant-space-item + .ant-space-item {
+    margin-left: 8px;
+  }
+
+  /* ---- 2. 字号下限：可见文本 ≥12px（正文 / 表格沿用 antd 默认） ---- */
+  .debug-head h2,
+  .ndbg-title,
+  .ndbg-table th,
+  .ndbg-curl,
+  .ndbg-result-body,
+  .ndbg-src-hint,
+  .hermes-bar h2,
+  .db-bar h2,
+  .system-head h2,
+  .apps-updated,
+  .dev-badge,
+  .dev-ua,
+  .field-label,
+  .curl-display,
+  .usage-code,
+  .blog-table th,
+  .blog-status,
+  .blog-statusbar,
+  .cmd-title,
+  .cmd-hint,
+  .cmd-foot,
+  .modal-title,
+  code,
+  .ant-typography code,
+  kbd,
+  samp {
+    font-size: 12px;
+  }
+}
