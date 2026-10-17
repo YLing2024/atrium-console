@@ -109,6 +109,49 @@
   }
 }
 
+/* ==========================================================================
+   表单控件（需求书 §5 追加）：窄屏 / 触屏下命中区 ≥44px，
+   输入框 / 选择器字号 ≥16px —— iOS Safari 在 <16px 的输入框聚焦时会
+   自动放大整页，这是移动端最烦人的一类问题。
+   只在 §5 指定的媒体查询内生效，桌面鼠标环境逐像素不变。
+   用 min-height（而非 height）覆盖 antd 的固定高度，视觉尺寸变化最小。
+   ========================================================================== */
+@media (max-width: 991.98px), (pointer: coarse) {
+  .ant-input,
+  textarea.ant-input,
+  .ant-input-affix-wrapper,
+  .ant-input-number,
+  .ant-picker,
+  .ant-select-single .ant-select-selector,
+  .ant-select-multiple .ant-select-selector {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  /* 选择器 / 数字框 / 日期框内部承载文本与输入的子节点，显式补齐字号 */
+  .ant-select .ant-select-selection-item,
+  .ant-select .ant-select-selection-placeholder,
+  .ant-select .ant-select-selection-search-input,
+  .ant-input-number .ant-input-number-input,
+  .ant-picker .ant-picker-input > input {
+    font-size: 16px;
+  }
+
+  /* 勾选框：扩大可点热区到 ≥44px，内框视觉尺寸不变、居中显示 */
+  .ant-checkbox-wrapper {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .ant-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 768px) {
   /* 调试页竖排后：子面板拉满整宽，表格在卡片内横滑，而不是撑破页面宽度 */
   .debug-body {
