@@ -18,3 +18,8 @@
   flex-wrap: wrap;
   gap: 12px;
 }
+
+/* 名称列：不截断为省略号，长文件名随表格横滑完整可见（标题另有 title 悬浮） */
+.files-name-col {
+  white-space: nowrap;
+}

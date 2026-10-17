@@ -63,6 +63,7 @@ export default function VersionPanel({ active }: { active: boolean }) {
         pagination={false}
         size="small"
         locale={{ emptyText: error ? ' ' : '加载中…' }}
+        scroll={{ x: 'max-content' }}
       />
     </div>
   );

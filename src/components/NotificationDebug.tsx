@@ -268,6 +268,7 @@ export default function NotificationDebug() {
           dataSource={FIELD_ROWS}
           pagination={false}
           size="small"
+          scroll={{ x: 'max-content' }}
         />
         <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
           鉴权：网关登录会话（浏览器内自动带 cookie）或可写 API Token（见「管理」页）。

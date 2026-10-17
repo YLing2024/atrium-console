@@ -450,6 +450,7 @@ export default function Files({ active }: { active: boolean }) {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
+      className: 'files-name-col',
       sorter: true,
       sortOrder: sort.key === 'name' ? (sort.dir > 0 ? 'ascend' : 'descend') : null,
       render: (_value, entry) => (
