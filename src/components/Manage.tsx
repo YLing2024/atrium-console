@@ -515,7 +515,7 @@ export default function Manage() {
         接口令牌用于第三方工具调用 Admin 接口。调用时在请求头携带{' '}
         <Typography.Text code>Authorization: Bearer &lt;令牌&gt;</Typography.Text> 即可。
         令牌与登录设备相互独立，不占用设备登录。请妥善保管令牌，泄露可随时吊销。
-        标记为「只读」的令牌只能读取；需要调用写入接口（如发通知）请在创建时勾选「允许写入」。
+        标记为「只读」的令牌只能读取；需要调用写入接口请在创建时勾选「允许写入」。
       </Typography.Paragraph>
 
       {apiError && <Alert type="error" showIcon message={apiError} style={{ marginBottom: 16 }} />}
@@ -588,7 +588,7 @@ export default function Manage() {
               checked={createCanWrite}
               onChange={(e) => setCreateCanWrite(e.target.checked)}
             >
-              允许写入（可调用发通知等写入接口）
+              允许写入（可调用写入接口）
             </Checkbox>
           </Form.Item>
         </Form>
@@ -662,7 +662,7 @@ export default function Manage() {
           </Form.Item>
           <Form.Item>
             <Checkbox checked={editCanWrite} onChange={(e) => setEditCanWrite(e.target.checked)}>
-              允许写入（可调用发通知等写入接口）
+              允许写入（可调用写入接口）
             </Checkbox>
           </Form.Item>
         </Form>

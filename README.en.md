@@ -16,7 +16,6 @@ The sidebar has 11 pages in total; panels stay mounted and only toggle visibilit
 - **Manage**: login device sessions, API tokens (the plaintext is shown only once at creation), reset authenticator
 - **Terminal**: connect to the server terminal in the browser (ttyd + tmux), with multiple tabs; beyond the site login, a separate terminal password is verified, and the ticket is passed to the server-side wrapper via the iframe for validation
 - **Files**: an explorer-style file area — directory browsing, drag-and-drop upload (with progress), create / rename / delete / download, and time-limited temporary links
-- **Notifications**: notification center (server-sent events push), notification management (send, batch delete, statistics), debug
 - **Hermes**: embedded in an iframe at an address injected at build time
 
 `Ctrl/⌘ + K` opens the command palette, which can switch pages, reset the authenticator and log out. On narrow screens (<1024px) the sidebar collapses into a left-side slide-out drawer, and the top menu button is always visible.

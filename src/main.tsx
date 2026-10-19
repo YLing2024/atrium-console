@@ -13,7 +13,7 @@ initTheme(); // 应用 localStorage 记忆的主题（亮/暗），避免刷新�
 initPwa(); // 生产环境注册 Service Worker；开发态注销，避免缓存干扰
 
 // 后台入口根：ConfigProvider 承载 antd 主题与中文文案，深浅色跟随 theme.ts。
-// antd 的 message/notification 统一由外层 App 上下文提供（业务不再自绘 toast）。
+// antd 的全局提示（message 等）统一由外层 App 上下文提供（业务不再自绘 toast）。
 function Root() {
   const [mode, setMode] = useState<Theme>(() => effectiveTheme(getTheme()));
 

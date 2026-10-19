@@ -32,14 +32,7 @@ export default function CommandPalette({
       { id: 'manage', label: '跳到管理页', hint: '管理已登录设备', run: () => propsRef.current.onSwitchTab('manage') },
       { id: 'terminal', label: '打开终端', hint: '服务器 Web 终端', run: () => propsRef.current.onSwitchTab('terminal') },
       { id: 'files', label: '打开文件', hint: '上传 / 下载文件', run: () => propsRef.current.onSwitchTab('files') },
-      { id: 'notifications', label: '打开通知', hint: '通知中心与未读', run: () => propsRef.current.onSwitchTab('notifications') },
-      {
-        id: 'notification-manage',
-        label: '打开通知管理',
-        hint: '发通知与批量管理',
-        run: () => propsRef.current.onSwitchTab('notification-manage')
-      },
-      { id: 'debug', label: '打开调试', hint: '通知调试等工具', run: () => propsRef.current.onSwitchTab('debug') },
+      { id: 'debug', label: '打开调试', hint: '调试工具', run: () => propsRef.current.onSwitchTab('debug') },
       { id: 'hermes', label: '打开 Hermes', hint: 'Hermes 控制台', run: () => propsRef.current.onSwitchTab('hermes') },
       { id: 'db', label: '打开数据库', hint: '云 MySQL 管理与查询', run: () => propsRef.current.onSwitchTab('db') },
       { id: 'pwd', label: '重置验证器', hint: '更换 TOTP 验证器', run: () => propsRef.current.onShowReset() },

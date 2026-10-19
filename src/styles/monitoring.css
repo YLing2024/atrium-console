@@ -1,6 +1,6 @@
 /* ============ 系统监控 ============ */
 /* 面板主体与标题行：布局 glue（标题字号/字距由 antd 组件承担）。
-   .system 与 .system-head 被 System / 通知 / 版本 / 管理 / 公开应用中心共用，勿删。 */
+   .system 与 .system-head 被 System / 版本 / 管理 / 公开应用中心共用，勿删。 */
 .system {
   padding: 24px;
   overflow-y: auto;

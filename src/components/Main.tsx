@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Badge, Button, Drawer, Dropdown, Layout, Menu, Segmented } from 'antd';
+import { Button, Drawer, Dropdown, Layout, Menu, Segmented } from 'antd';
 import type { MenuProps } from 'antd';
 import { KeyOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons';
 import { logout } from '../api';
@@ -13,13 +13,11 @@ import CommandPalette from './CommandPalette';
 import Manage from './Manage';
 import Terminal from './Terminal';
 import Files from './Files';
-import NotificationCenter from './NotificationCenter';
-import NotificationManage from './NotificationManage';
 import Debug from './Debug';
 import Hermes from './Hermes';
 import Database from './Database';
 
-// 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat'）一律回退到首个 Tab
+// 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat' / 已下线的通知页）一律回退到首个 Tab
 const TABS = [
   'system',
   'apps',
@@ -28,13 +26,11 @@ const TABS = [
   'manage',
   'terminal',
   'files',
-  'notifications',
-  'notification-manage',
   'debug',
   'hermes',
   'db'
 ];
-// 标签文字与顺序：原有六项相对顺序不变，其后依次追加「通知 / 通知管理 / 调试 / Hermes / 数据库」
+// 标签文字与顺序：原有六项相对顺序不变，其后依次追加「调试 / Hermes / 数据库」
 const TAB_LABELS: Record<string, string> = {
   system: '系统',
   apps: '应用',
@@ -43,8 +39,6 @@ const TAB_LABELS: Record<string, string> = {
   manage: '管理',
   terminal: '终端',
   files: '文件',
-  notifications: '通知',
-  'notification-manage': '通知管理',
   debug: '调试',
   hermes: 'Hermes',
   db: '数据库'
@@ -75,8 +69,6 @@ export default function Main() {
   const [pref, setPref] = useState<ThemePref>(() => getTheme()); // 三态：auto / light / dark
   const [cmdOpen, setCmdOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // 窄屏：右侧抽屉是否展开
-  const [unread, setUnread] = useState(0); // 通知中心未读数（侧栏徽标）
-  const [notifRefreshTick, setNotifRefreshTick] = useState(0); // 管理页操作后触发展示页刷新
   const narrow = useIsNarrow();
 
   function switchTab(t: string) {
@@ -114,18 +106,10 @@ export default function Main() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // 未读徽标：使用 antd 默认色，不做自定义配色。
+  // 侧栏导航项：Tab 一律用与 id 对应的中文标签。
   const navItems: MenuProps['items'] = TABS.map((id) => ({
     key: id,
-    label:
-      id === 'notifications' ? (
-        <span className="nav-item-label">
-          {TAB_LABELS[id]}
-          {unread > 0 && <Badge count={unread} overflowCount={99} />}
-        </span>
-      ) : (
-        TAB_LABELS[id]
-      )
+    label: TAB_LABELS[id]
   }));
 
   const userItems: MenuProps['items'] = [
@@ -230,19 +214,6 @@ export default function Main() {
           </div>
           <div className="pane" hidden={tab !== 'files'}>
             <Files active={tab === 'files'} />
-          </div>
-          <div className="pane" hidden={tab !== 'notifications'}>
-            <NotificationCenter
-              refreshTick={notifRefreshTick}
-              onUnreadChange={setUnread}
-              onOpen={() => switchTab('notifications')}
-            />
-          </div>
-          <div className="pane" hidden={tab !== 'notification-manage'}>
-            <NotificationManage
-              active={tab === 'notification-manage'}
-              onChanged={() => setNotifRefreshTick((t) => t + 1)}
-            />
           </div>
           <div className="pane" hidden={tab !== 'debug'}>
             <Debug />
