@@ -5,41 +5,23 @@ import { KeyOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-de
 import { logout } from '../api';
 import { getTheme, setThemePref, type ThemePref } from '../theme';
 import System from './System';
-import Apps from './Apps';
 import BlogAdmin from './BlogAdmin';
-import VersionPanel from './VersionPanel';
 import ResetTotp from './ResetTotp';
 import CommandPalette from './CommandPalette';
 import Manage from './Manage';
 import Terminal from './Terminal';
-import Files from './Files';
-import Debug from './Debug';
 import Hermes from './Hermes';
 import Database from './Database';
 
-// 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat' / 已下线的通知页）一律回退到首个 Tab
-const TABS = [
-  'system',
-  'apps',
-  'version',
-  'blog',
-  'manage',
-  'terminal',
-  'files',
-  'debug',
-  'hermes',
-  'db'
-];
-// 标签文字与顺序：原有六项相对顺序不变，其后依次追加「调试 / Hermes / 数据库」
+// 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat' / 已下线的通知页 / 应用 / 版本 /
+// 文件 / 调试）一律回退到首个 Tab
+const TABS = ['system', 'blog', 'manage', 'terminal', 'hermes', 'db'];
+// 标签文字与顺序
 const TAB_LABELS: Record<string, string> = {
   system: '系统',
-  apps: '应用',
-  version: '版本',
   blog: '博客',
   manage: '管理',
   terminal: '终端',
-  files: '文件',
-  debug: '调试',
   hermes: 'Hermes',
   db: '数据库'
 };
@@ -197,12 +179,6 @@ export default function Main() {
           <div className="pane" hidden={tab !== 'system'}>
             <System active={tab === 'system'} />
           </div>
-          <div className="pane" hidden={tab !== 'apps'}>
-            <Apps active={tab === 'apps'} />
-          </div>
-          <div className="pane" hidden={tab !== 'version'}>
-            <VersionPanel active={tab === 'version'} />
-          </div>
           <div className="pane" hidden={tab !== 'blog'}>
             <BlogAdmin />
           </div>
@@ -211,12 +187,6 @@ export default function Main() {
           </div>
           <div className="pane pane--term" hidden={tab !== 'terminal'}>
             <Terminal active={tab === 'terminal'} />
-          </div>
-          <div className="pane" hidden={tab !== 'files'}>
-            <Files active={tab === 'files'} />
-          </div>
-          <div className="pane" hidden={tab !== 'debug'}>
-            <Debug />
           </div>
           <div className="pane pane--hermes" hidden={tab !== 'hermes'}>
             <Hermes />

@@ -22,7 +22,6 @@
   .ant-btn,
   .btn-ghost,
   .btn-primary,
-  .debug-tool,
   .term-gate-btn,
   .term-add,
   .term-tab,
@@ -79,7 +78,6 @@
   }
 
   /* ---- 2. 字号下限：可见文本 ≥12px（正文 / 表格沿用 antd 默认） ---- */
-  .debug-head h2,
   .ndbg-title,
   .ndbg-table th,
   .ndbg-curl,
@@ -88,7 +86,6 @@
   .hermes-bar h2,
   .db-bar h2,
   .system-head h2,
-  .apps-updated,
   .dev-badge,
   .dev-ua,
   .field-label,
@@ -155,34 +152,5 @@
     justify-content: center;
     min-width: 44px;
     min-height: 44px;
-  }
-}
-
-@media (max-width: 768px) {
-  /* 调试页竖排后：子面板拉满整宽，表格在卡片内横滑，而不是撑破页面宽度 */
-  .debug-body {
-    align-items: stretch;
-  }
-
-  .debug-panel {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .debug-panel .ant-space,
-  .debug-panel .ant-space-item,
-  .debug-panel .ant-card,
-  .debug-panel .ant-card-body {
-    min-width: 0;
-  }
-
-  /* 文件页工具栏：面包屑与操作按钮各占一行，避免挤在一行互相误触 */
-  .files-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .files-toolbar > .ant-space {
-    width: 100%;
   }
 }

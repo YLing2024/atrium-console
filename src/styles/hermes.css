@@ -62,20 +62,6 @@
 }
 
 @media (max-width: 768px) {
-  .debug {
-    padding: 16px;
-  }
-
-  .debug-body {
-    flex-direction: column;
-  }
-
-  .debug-tools {
-    width: 100%;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
   .ndbg-send-level {
     width: 100%;
   }

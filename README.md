@@ -2,20 +2,16 @@
 
 # atrium-console
 
-个人网站的管理后台前端：在浏览器里查看服务器、管理文件与博客、连接终端。
+个人网站的管理后台前端：在浏览器里查看服务器、管理博客、连接终端。
 
 ## 它能做什么
 
-侧栏共 11 个页面，面板常驻挂载、只切换显隐，会话内记住上次停留的页面（`sessionStorage.admin_tab`）。
+侧栏共 6 个页面，面板常驻挂载、只切换显隐，会话内记住上次停留的页面（`sessionStorage.admin_tab`）。
 
 - **系统**：CPU / 内存 / 磁盘 / 网络的实时读数与历史趋势；实时走流式采样，趋势可按秒 / 分 / 时 / 天切换粒度
-- **应用**：按分类的只读卡片网格，内联单色 SVG 图标（未命中回退首字）；状态分正常 / 需登录 / 响应慢 / 异常 / 休眠 / 未知，其中「休眠」表示按需唤醒的应用当前未运行，不计入异常；进入后每 30s 自动刷新，页面隐藏时暂停
-- **公开应用中心**：第二个构建入口 `public.html`（`src/publicApps.tsx` → `src/components/PublicApps.tsx`），完全公开、不需要登录：只有标题「应用中心」+ 按分类的卡片网格 + 顶部更新时间，30s 自动刷新；只请求 `/api/public/apps`（同源相对路径），复用 `AppCard` / `AppIcon` / `appStatus`，无登录页 / 侧栏 / 管理入口
-- **版本**：软件版本列表，进入该页时加载一次
 - **博客**：文章与合集管理，走 `/api/blog/admin/*`；正文用 CodeMirror 6 编辑，文章 / 合集以雪花 `public_id` 标识，副标题（`subtitle`）与摘要（`excerpt`）是相互独立的字段
 - **管理**：登录设备会话、接口令牌（明文仅在生成时展示一次）、重置验证器
 - **终端**：浏览器内连服务器终端（ttyd + tmux），多标签；站点登录之外再验一次终端口令，票据随 iframe 传给服务端 wrapper 校验
-- **文件**：资源管理器式文件区——目录浏览、拖拽上传（带进度）、新建 / 重命名 / 删除 / 下载，以及限时临时链接
 - **Hermes**：以 iframe 嵌入构建期注入的地址
 
 `Ctrl/⌘ + K` 打开命令面板，可切页、重置验证器、退出登录。窄屏（<1024px）侧栏收为左侧滑出抽屉，顶部菜单按钮常驻。
@@ -46,9 +42,8 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test
 ## 部署
 
 - 构建产物是纯静态文件（目录由 `vite.config.ts` 的 `build.outDir` 指定，当前为 `/var/www/admin`；`emptyOutDir: true` 会在构建时清空该目录），交给自己的 Web 服务器托管，无 Node 进程常驻。
-- 同源接口 `/api/*` 反代到后端；终端 `/term/` 反代到 ttyd；文件临时链接是后端返回的公开地址（同源 `/s/` 前缀，不加鉴权），由 Web 服务器直接放行。
+- 同源接口 `/api/*` 反代到后端；终端 `/term/` 反代到 ttyd。
 - 环境变量在构建期注入，改动后需重新构建。
-- `vite.config.ts` 的 `build.rollupOptions.input` 是**多入口**：`index.html`（后台）与 `public.html`（公开「应用中心」，入口 `src/publicApps.tsx`，独立子域根用它）。公开页**只请求 `/api/public/apps`**（不碰 `/api/admin/*`、无鉴权逻辑），复用 `src/components/AppCard.tsx`（后台 `Apps.tsx` 同一组件，不得改动其类名与渲染结构）。
 
 ## PWA
 
@@ -56,9 +51,9 @@ npm run check    # typecheck + lint + lint:css + check:tokens + test
 
 - **入口文件**：`public/manifest.webmanifest`、`public/sw.js`、`public/offline.html`、`public/icons/*.png`；`index.html` 里挂 `manifest` 与 `apple-touch-icon`。
 - **缓存策略**（在 `sw.js` 内按请求类型判定，不看响应头）：
-  - 导航请求 network-first；失败回退同路径缓存，后台入口（`/`、`/index.html`）再回退缓存的 `index.html`；其他路径（含 `public.html`）回退 `offline.html`，公开页不被后台外壳污染。
+  - 导航请求 network-first；失败回退同路径缓存，后台入口（`/`、`/index.html`）再回退缓存的 `index.html`；其他路径回退 `offline.html`。
   - `/assets/*`（Vite 带 hash）cache-first。
-  - `/api/*`、`/_auth/*`、`/term/*`、`/s/*` network-only（不缓存、不拦截；认证相关路径永不缓存）。
+  - `/api/*`、`/_auth/*`、`/term/*` network-only（不缓存、不拦截；认证相关路径永不缓存）。
   - 其余同源静态资源（字体、图片）stale-while-revalidate。
   - 跨域请求不接管。
   - 安装时只预缓存 `offline.html` + 图标等极小清单，其余按需缓存。

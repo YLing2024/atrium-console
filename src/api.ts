@@ -359,46 +359,6 @@ export interface SystemMetricsResponse {
   meta?: { recordedSeconds?: number; [key: string]: unknown };
 }
 
-/** 应用面板单项 */
-export interface AppInfo {
-  id: string;
-  name: string;
-  icon?: string;
-  desc?: string;
-  url?: string;
-  status: string;
-  category?: string;
-  port?: number | string | null;
-  latencyMs?: number | string | null;
-}
-
-export interface AppCategory {
-  id: string;
-  name: string;
-}
-
-/** 未登记监听项 */
-export interface DiscoveredApp {
-  port?: number | string | null;
-  process?: string;
-}
-
-export interface AppsResponse {
-  apps?: AppInfo[];
-  categories?: AppCategory[];
-  discovered?: DiscoveredApp[];
-  generatedAt?: string | number;
-  cached?: boolean;
-  notice?: string;
-}
-
-export interface VersionInfo {
-  name: string;
-  category?: string;
-  version?: string;
-  ok?: boolean;
-}
-
 /** 博客文章（后台列表 / 详情） */
 export interface BlogPost {
   id: number;
@@ -484,66 +444,6 @@ export interface UpdateApiTokenInput {
   canWrite?: boolean;
 }
 
-/** 文件区目录项 */
-export interface FileEntry {
-  name: string;
-  type: 'dir' | 'file';
-  size: number;
-  mtime: number;
-}
-
-export interface DirListing {
-  path?: string;
-  parent?: string;
-  entries?: FileEntry[];
-}
-
-/** 文件临时链接（下载分享） */
-export interface FileShare {
-  id: string;
-  relPath: string;
-  url: string;
-  status: 'active' | 'expired' | 'revoked';
-  expiresAt: number;
-  createdAt: number;
-  remainingMs: number;
-  downloads?: number;
-  fileExists?: boolean;
-  note?: string;
-  revokedAt?: number;
-}
-
-/** 创建 / 改期接口按约定返回 share 本体；历史实现也兼容 { share } 包裹，故同时允许 share 字段。 */
-export type FileShareResponse = FileShare & { share?: FileShare };
-
-/** 列表接口按约定返回 { shares }；历史实现也兼容裸数组。 */
-export type FileShareList = FileShare[] & { shares?: FileShare[] };
-
-export interface FileShareCreateBody {
-  expiresAt?: number;
-  ttlHours?: number;
-  note?: string;
-}
-
-export interface FileSharePatch {
-  expiresAt?: number;
-  note?: string;
-  revoked?: boolean;
-}
-
-/** 上传进度回调载荷 */
-export interface UploadProgress {
-  loaded: number;
-  total: number;
-  percent: number;
-}
-
-export interface UploadHandlers {
-  onProgress?: (p: UploadProgress) => void;
-  onDone?: (data: Record<string, unknown>) => void;
-  onError?: (e: Error) => void;
-}
-
 /* ============ 系统 ============ */
 
 // TOTP 首次设置（仅未配置时可用），返回 { secret, otpauthUri }
@@ -585,24 +485,6 @@ export function getServices(opts: { signal?: AbortSignal } = {}): Promise<Servic
   return request<ServicesResponse>('/api/admin/services', { signal: opts.signal });
 }
 
-// 应用面板（只读）：返回 { apps, categories, discovered, generatedAt, cached, notice, ... }
-// refresh=true 时带 refresh=1 绕过后端 10s 缓存；卡片 url 直接用返回值，前端不拼域名。
-export function getApps({ refresh = false }: { refresh?: boolean } = {}): Promise<AppsResponse> {
-  return request<AppsResponse>(`/api/admin/apps${refresh ? '?refresh=1' : ''}`);
-}
-
-// 软件版本监控（仅本地当前版本，秒回）
-export function getVersions(): Promise<{ list?: VersionInfo[] }> {
-  return request('/api/admin/versions');
-}
-
-// 上传文件，返回 { path: 绝对路径 }
-export function uploadFile(file: File): Promise<{ path: string }> {
-  const fd = new FormData();
-  fd.append('file', file);
-  return request('/api/admin/upload', { method: 'POST', body: fd });
-}
-
 // 修改密码
 export function changePassword(old_password: string, new_password: string): Promise<unknown> {
   return request('/api/admin/password', {
@@ -616,9 +498,6 @@ export function uploadBlogImage(file: File): Promise<{ url: string }> {
   const fd = new FormData();
   fd.append('image', file);
   return request('/api/blog/admin/upload', { method: 'POST', body: fd });
-}
-export function downloadUrl(filePath: string): string {
-  return `/api/admin/download?path=${encodeURIComponent(filePath)}`;
 }
 
 // ============ 博客接口 ============
@@ -752,116 +631,4 @@ export function getHistoryMessages(id: string): Promise<{
   messages?: { role?: string; content?: string; ts?: number | string }[];
 }> {
   return request('/api/admin/history/' + encodeURIComponent(id));
-}
-
-// ============ 文件区（目录浏览 / 上传 / 下载 / 新建 / 重命名 / 删除） ============
-// path 均为相对文件区根目录的路径，根目录为 ''（后端做越界校验）
-
-// 列目录，返回 { path, parent, entries: [{ name, type: 'dir'|'file', size, mtime }] }
-export function listFiles(path = ''): Promise<DirListing> {
-  return request<DirListing>(`/api/admin/files?path=${encodeURIComponent(path)}`);
-}
-
-// 新建文件夹
-export function makeDir(path: string, name: string): Promise<unknown> {
-  return request('/api/admin/files/mkdir', { method: 'POST', body: { path, name } });
-}
-
-// 重命名文件或目录（path 为完整相对路径，name 为新名称）
-export function renameEntry(path: string, name: string): Promise<unknown> {
-  return request('/api/admin/files/rename', { method: 'POST', body: { path, name } });
-}
-
-// 删除文件或目录（目录递归）
-export function deleteEntry(path: string): Promise<unknown> {
-  return request(`/api/admin/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
-}
-
-// 下载地址：<a>/window.open 无法带自定义头。身份由同源会话 cookie 证明，
-// 路径里不再拼 token（网关会剥掉客户端伪造的凭证头，cookie 已在同源请求里）。
-export function fileDownloadUrl(path: string): string {
-  return `/api/admin/files/download?path=${encodeURIComponent(path)}`;
-}
-
-// 上传单个文件（必须用 XHR：fetch 拿不到上传进度）
-// onProgress({ loaded, total, percent }) · onDone(data) · onError(err)；返回 xhr 供调用方 abort()
-export function uploadFileTo(
-  path: string,
-  file: File,
-  { onProgress, onDone, onError }: UploadHandlers = {}
-): XMLHttpRequest {
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', `/api/admin/files/upload?path=${encodeURIComponent(path)}`);
-  xhr.withCredentials = true; // 同源会话 cookie
-
-  xhr.upload.onprogress = (e) => {
-    if (onProgress && e.lengthComputable) {
-      onProgress({
-        loaded: e.loaded,
-        total: e.total,
-        percent: e.total ? (e.loaded / e.total) * 100 : 0
-      });
-    }
-  };
-  xhr.onload = () => {
-    let data: ApiEnvelope = {};
-    try {
-      data = JSON.parse(xhr.responseText || '{}');
-    } catch (e) {
-      data = {};
-    }
-    if (xhr.status === 401) {
-      handleUnauthorized(); // 凭证失效：按模式回登录页 / 跳网关
-      return;
-    }
-    if (xhr.status >= 200 && xhr.status < 300) {
-      if (onDone) onDone(data);
-    } else if (onError) {
-      onError(new Error(data.error || `HTTP ${xhr.status}`));
-    }
-  };
-  xhr.onerror = () => onError && onError(new Error('网络错误，上传中断'));
-  xhr.onabort = () => onError && onError(new Error('已取消'));
-
-  const fd = new FormData();
-  fd.append('file', file);
-  xhr.send(fd);
-  return xhr;
-}
-
-// ============ 文件临时链接（限时分享） ============
-// 语义与 v2link 对齐：expiresAt === 0 表示永久有效；status 由后端按
-// revokedAt / expiresAt 推导。链接地址一律用后端返回的 url，前端不拼域名。
-
-// 创建临时链接：path 为文件区相对路径；data 可含 { expiresAt }（ms，0 = 永久）
-// 或 { ttlHours }（二选一，同时给以 expiresAt 为准），以及可选 note。
-export function createFileShare(
-  path: string,
-  data: FileShareCreateBody = {}
-): Promise<FileShareResponse> {
-  return request<FileShareResponse>('/api/admin/files/shares', {
-    method: 'POST',
-    body: { path, ...data }
-  });
-}
-
-// 临时链接列表（按 createdAt 倒序），返回 { shares: [...] }
-// 每项含计算字段：url / status / remainingMs / fileExists
-export function listFileShares(): Promise<FileShareList> {
-  return request<FileShareList>('/api/admin/files/shares');
-}
-
-// 改期 / 转永久（expiresAt: 0）/ 改备注 / 撤销（revoked: true，不可逆）
-export function updateFileShare(id: string, patch: FileSharePatch): Promise<FileShareResponse> {
-  return request<FileShareResponse>(`/api/admin/files/shares/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: patch
-  });
-}
-
-// 删除链接记录（不动磁盘文件）
-export function deleteFileShare(id: string): Promise<unknown> {
-  return request(`/api/admin/files/shares/${encodeURIComponent(id)}`, {
-    method: 'DELETE'
-  });
 }

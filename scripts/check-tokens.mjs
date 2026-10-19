@@ -34,7 +34,7 @@ const LEGACY_RGBA =
   /rgba?\(\s*(?:23\s*,\s*21\s*,\s*18|239\s*,\s*234\s*,\s*227|160\s*,\s*91\s*,\s*12|199\s*,\s*124\s*,\s*31)/gi;
 
 const SCAN_DIRS = ['src', 'public'];
-const SCAN_FILES = ['index.html', 'public.html'];
+const SCAN_FILES = ['index.html'];
 const EXTS = new Set(['.css', '.ts', '.tsx', '.html', '.webmanifest']);
 
 function collect(dir, out) {

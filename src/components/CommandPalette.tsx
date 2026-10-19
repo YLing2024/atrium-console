@@ -27,12 +27,9 @@ export default function CommandPalette({
   const items = useMemo(
     () => [
       { id: 'system', label: '跳到系统页', hint: '打开系统监控', run: () => propsRef.current.onSwitchTab('system') },
-      { id: 'version', label: '跳到版本页', hint: '查看软件版本', run: () => propsRef.current.onSwitchTab('version') },
       { id: 'blog', label: '跳到博客页', hint: '管理博客文章', run: () => propsRef.current.onSwitchTab('blog') },
       { id: 'manage', label: '跳到管理页', hint: '管理已登录设备', run: () => propsRef.current.onSwitchTab('manage') },
       { id: 'terminal', label: '打开终端', hint: '服务器 Web 终端', run: () => propsRef.current.onSwitchTab('terminal') },
-      { id: 'files', label: '打开文件', hint: '上传 / 下载文件', run: () => propsRef.current.onSwitchTab('files') },
-      { id: 'debug', label: '打开调试', hint: '调试工具', run: () => propsRef.current.onSwitchTab('debug') },
       { id: 'hermes', label: '打开 Hermes', hint: 'Hermes 控制台', run: () => propsRef.current.onSwitchTab('hermes') },
       { id: 'db', label: '打开数据库', hint: '云 MySQL 管理与查询', run: () => propsRef.current.onSwitchTab('db') },
       { id: 'pwd', label: '重置验证器', hint: '更换 TOTP 验证器', run: () => propsRef.current.onShowReset() },

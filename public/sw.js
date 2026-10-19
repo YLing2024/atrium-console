@@ -14,7 +14,7 @@
  * 一律不写入（认证/敏感响应不进缓存），导航与静态两个分支共用同一守卫。
  */
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `admin-web-${CACHE_VERSION}`;
 
 const OFFLINE_URL = '/offline.html';
@@ -99,7 +99,7 @@ async function handleNavigate(request) {
     cacheResponse(cache, request, response);
     return response;
   } catch {
-    // 同路径缓存优先（例如已访问过的 /public.html）。
+    // 同路径缓存优先（例如已访问过的离线页）。
     const cached = await cache.match(request);
     if (cached) return cached;
 
@@ -110,7 +110,7 @@ async function handleNavigate(request) {
       if (shell) return shell;
     }
 
-    // 其余（含 public.html）一律回退离线页，绝不让公开页被后台外壳污染。
+    // 其余一律回退离线页。
     const offline = await caches.match(OFFLINE_URL);
     if (offline) return offline;
     return Response.error();
@@ -161,15 +161,14 @@ self.addEventListener('fetch', (event) => {
   // 跨域请求一律不接管，直接放行。
   if (url.origin !== self.location.origin) return;
 
-  // 动态接口、认证路径、终端 / 数据库 / 临时链接：network-only，绝不缓存、绝不拦截。
+  // 动态接口、认证路径、终端 / 数据库：network-only，绝不缓存、绝不拦截。
   // /_auth/ 是网关认证端点（含 set-cookie / 未登录 401），任何形态（含 navigation）都直接放行。
   // /db/ 是 DBGate 页面及其请求，一律直连网络。
   if (
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/_auth/') ||
     url.pathname.startsWith('/term/') ||
-    url.pathname.startsWith('/db/') ||
-    url.pathname.startsWith('/s/')
+    url.pathname.startsWith('/db/')
   ) {
     return;
   }
