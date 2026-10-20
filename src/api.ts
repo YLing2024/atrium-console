@@ -319,6 +319,24 @@ export interface ProcessCount {
 }
 
 /** /api/admin/system 快照（SSE snapshot 的 system 段同构） */
+/** 一个容器的运行指标（后端 docker 采集，5 秒缓存） */
+export interface ContainerStat {
+  name: string;
+  image?: string;
+  /** running / exited / paused */
+  state?: string;
+  status?: string;
+  cpu_percent?: number;
+  mem_mb?: number;
+  mem_limit_mb?: number;
+  mem_percent?: number;
+  net_rx_mb?: number;
+  net_tx_mb?: number;
+  block_read_mb?: number;
+  block_write_mb?: number;
+  pids?: number;
+}
+
 export interface SystemData {
   cpu?: CpuInfo;
   memory?: MemoryInfo;
@@ -337,6 +355,8 @@ export interface SystemData {
   uptime?: number | string;
   os?: string;
   hostname?: string;
+  /** docker 容器指标（未安装 docker 时为空数组） */
+  containers?: ContainerStat[];
 }
 
 /** 历史采样点（各图表按 key 取列，故保留数字索引签名） */

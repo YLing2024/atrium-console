@@ -39,6 +39,7 @@ import MonitorServiceTable from './MonitorServiceTable';
 import MonitorPortTable from './MonitorPortTable';
 import MonitorDiskTable from './MonitorDiskTable';
 import MonitorAudit from './MonitorAudit';
+import MonitorContainers from './MonitorContainers';
 import MonitorSystemInfo from './MonitorSystemInfo';
 
 /** SSE snapshot 帧结构 */
@@ -565,6 +566,8 @@ export default function System({ active }: { active: boolean }) {
       </section>
 
       <section id="monitor-ports" className="monitor-section">
+        <MonitorContainers containers={data?.containers ?? []} />
+
         <MonitorPortTable
           ports={info?.ports?.items ?? []}
           error={infoError || info?.ports?.error}
