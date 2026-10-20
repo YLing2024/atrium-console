@@ -8,6 +8,11 @@
   height: 100%;
 }
 
+/* 未配置时整卡降饱和：控件本身也已 disabled，这里只补视觉上的「不可用」。 */
+.tool-card--disabled {
+  opacity: 0.65;
+}
+
 .tool-updated {
   display: inline-block;
   margin-left: 8px;

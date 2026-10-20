@@ -107,7 +107,7 @@ export default function BitwardenTool({ tool, onChanged }: ToolCardProps) {
 
   return (
     <Card
-      className="tool-card"
+      className={'tool-card' + (!tool.configured ? ' tool-card--disabled' : '')}
       title={
         <Space size={8}>
           {unlocked ? <UnlockOutlined /> : <LockOutlined />}
