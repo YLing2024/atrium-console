@@ -47,3 +47,397 @@
   /* antd 默认在 th 上画一条分隔线，sticky 时会浮在内容之上，这里去掉 */
   display: none;
 }
+
+/* ============ 监控总览（2026-10-20 视觉重构） ============ */
+/* 8px 栅格：卡间距 16、区块间距 24；卡片圆角 8；数字统一等宽。 */
+.monitor-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.monitor-head {
+  align-items: flex-end;
+  margin-bottom: 0;
+}
+
+.monitor-head-title {
+  min-width: 0;
+}
+
+.monitor-head-sub {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.monitor-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.monitor-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* KPI 带：桌面 5 等分，窄屏两列；grid 的 stretch 保证同一行等高。 */
+.monitor-kpis {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.monitor-card.ant-card {
+  border-radius: var(--ant-border-radius-lg, 8px);
+  min-width: 0;
+}
+
+.monitor-card > .ant-card-head {
+  min-width: 0;
+  padding: 0 16px;
+}
+
+.monitor-card .ant-card-body {
+  min-width: 0;
+  padding: 16px;
+}
+
+.monitor-kpi-card.ant-card {
+  border-radius: var(--ant-border-radius-lg, 8px);
+  min-width: 0;
+}
+
+.monitor-kpi-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-width: 0;
+  padding: 16px;
+}
+
+.monitor-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.monitor-kpi-label {
+  font-size: 12px;
+  line-height: 28px;
+  white-space: nowrap;
+}
+
+.monitor-spark {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 28px;
+  overflow: visible;
+}
+
+.monitor-kpi-value {
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.monitor-kpi-detail {
+  flex: 1;
+  min-height: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ant-color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.monitor-kpi-level {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.monitor-kpi-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: 0 0 6px;
+}
+
+/* 主区与表格区都用 12 栅格，桌面按 8/4 与 7/5 分栏。 */
+.monitor-main,
+.monitor-tables {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  min-width: 0;
+}
+
+.monitor-main > *,
+.monitor-tables > *,
+.monitor-audit > * {
+  min-width: 0;
+}
+
+.monitor-span-8 {
+  grid-column: span 8;
+}
+
+.monitor-span-4 {
+  grid-column: span 4;
+}
+
+.monitor-span-7 {
+  grid-column: span 7;
+}
+
+.monitor-span-5 {
+  grid-column: span 5;
+}
+
+.monitor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.monitor-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+}
+
+.monitor-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.monitor-legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.monitor-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 260px;
+}
+
+.monitor-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ant-color-text-secondary);
+}
+
+.monitor-card-note {
+  display: block;
+  font-size: 12px;
+}
+
+.monitor-psi {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.monitor-psi-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.monitor-psi-track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--ant-color-fill-secondary);
+  overflow: hidden;
+}
+
+.monitor-psi-fill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 150ms ease;
+}
+
+.monitor-load {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--ant-color-border-secondary);
+}
+
+.monitor-load-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.monitor-load-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.monitor-load-label {
+  font-size: 12px;
+}
+
+.monitor-load-value {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.monitor-load-note {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* 底部三块：等宽并排；窄屏纵向堆叠。 */
+.monitor-audit {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  min-width: 0;
+}
+
+.monitor-audit-card .ant-card-body {
+  min-height: 116px;
+}
+
+.monitor-audit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.monitor-audit-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 3px 0;
+  font-size: 13px;
+}
+
+.monitor-audit-main,
+.monitor-audit-mid,
+.monitor-audit-side {
+  min-width: 0;
+}
+
+.monitor-audit-side {
+  text-align: right;
+}
+
+.monitor-audit-zero {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.monitor-audit-count {
+  font-size: 28px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.monitor-audit-note {
+  display: block;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.monitor-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.monitor-boot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .monitor-span-8,
+  .monitor-span-4,
+  .monitor-span-7,
+  .monitor-span-5 {
+    grid-column: span 12;
+  }
+
+  .monitor-audit {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .monitor-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* 两列换行后仍要求五张卡等高：固定行高下限，细节文字只在卡内换行。 */
+  .monitor-kpi-card.ant-card {
+    min-height: 172px;
+  }
+
+  .monitor-head {
+    align-items: flex-start;
+  }
+
+  .monitor-head-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (max-width: 420px) {
+  .monitor-kpi-value {
+    font-size: 24px;
+  }
+
+  .monitor-legend {
+    gap: 12px;
+  }
+}
