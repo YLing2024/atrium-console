@@ -169,22 +169,28 @@ function dispatch(route) {
   if (u.includes('/api/admin/notifications/stats')) return J(FIX.stats);
   if (u.includes('/api/admin/notifications/types')) return J(FIX.types);
   if (u.includes('/api/admin/notifications')) return J(FIX.notifications);
+  if (u.includes('/api/admin/tools/bitwarden/status')) {
+    return J({ configured: true, unlocked: false, updatedAt: null, expiresInSeconds: null });
+  }
+  if (u.includes('/api/admin/tools')) {
+    return J([{ id: 'bitwarden', name: 'Bitwarden 解锁', configured: true, unlocked: false, expiresAt: null }]);
+  }
   if (u.includes('/api/')) return J({});
   if (u.includes('/term/')) return route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>term</body></html>' });
   return route.continue();
 }
 
-// 主页面 + 关键元素（文本或选择器）
+// 主页面 + 关键元素（文本或选择器）；路径即地址栏，直达 / 刷新都应落对页面
 const TABS = [
-  { id: 'system', label: '系统', text: ['系统监控'] },
-  { id: 'apps', label: '应用', selector: '.apps .ant-card' },
-  { id: 'version', label: '版本', text: ['软件版本'] },
-  { id: 'blog', label: '博客', text: ['博客管理'] },
-  { id: 'manage', label: '管理', text: ['设备管理'] },
-  { id: 'terminal', label: '终端', selector: '.term-gate' },
-  { id: 'files', label: '文件', text: ['新建文件夹'] },
-  { id: 'notification-manage', label: '通知管理', text: ['通知管理'] },
-  { id: 'debug', label: '调试', text: ['调试'] }
+  { id: 'system', path: '/system', label: '系统', text: ['系统监控'] },
+  { id: 'blog', path: '/blog', label: '博客', text: ['博客管理'] },
+  { id: 'manage', path: '/manage', label: '管理', text: ['设备管理'] },
+  { id: 'sshkeys', path: '/ssh', label: 'SSH 公钥', text: ['SSH 公钥'] },
+  { id: 'terminal', path: '/terminal', label: '终端', selector: '.term-gate' },
+  { id: 'hermes', path: '/hermes', label: 'Hermes', text: ['HERMES'] },
+  { id: 'db', path: '/database', label: '数据库', selector: '.db-bar' },
+  { id: 'tools', path: '/tools', label: '工具', selector: '.tool-nav-item' },
+  { id: 'tool-bitwarden', path: '/tools/bitwarden', label: 'Bitwarden 解锁', selector: '.tool-page' }
 ];
 
 const VIEWPORTS = [
@@ -374,10 +380,22 @@ async function runViewport(browser, vp) {
 
   for (const tab of TABS) {
     console.log(`\n--- ${tab.label} (${tab.id}) ---`);
-    await page.evaluate((t) => sessionStorage.setItem('admin_tab', t), tab.id);
-    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.goto(new URL(tab.path, BASE).href, { waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.sidenav, .nav-toggle', { timeout: 15000 });
+    check(
+      new URL(page.url()).pathname === tab.path,
+      `[${tab.label}] 直达 ${tab.path} 未被重定向`
+    );
     if (tab.selector) {
       await page.waitForSelector(tab.selector, { timeout: 10000 });
+    }
+    if (tab.id === 'tools') {
+      const passwordInputs = await page.locator('input[type=password]').count();
+      check(passwordInputs === 0, '[工具] 导航页密码输入框数量为 0');
+    }
+    if (tab.id === 'tool-bitwarden') {
+      const passwordInputs = await page.locator('input[type=password]').count();
+      check(passwordInputs === 1, '[Bitwarden 解锁] 独立页有且仅有 1 个密码输入框');
     }
     await page.waitForTimeout(1400);
 
@@ -462,10 +480,11 @@ async function runDesktopSentinel(browser) {
   check(!metrics.docOverflow, '[桌面] 无文档级横向溢出');
   check(metrics.topBtnHeight !== null && metrics.topBtnHeight <= 40, `[桌面] 顶栏按钮仍为默认尺寸（height=${metrics.topBtnHeight}px）`);
 
-  // 表单控件隔离哨兵：切到通知管理页（有 input/select），桌面鼠标环境必须仍是 antd 默认（32px / 14px），
+  // 表单控件隔离哨兵：打开博客编辑器（有 input/select），桌面鼠标环境必须仍是 antd 默认（32px / 14px），
   // 证明 §5 的 ≥44px / ≥16px 规则只在窄屏 / coarse pointer 生效。
-  await page.evaluate(() => sessionStorage.setItem('admin_tab', 'notification-manage'));
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.goto(new URL('/blog', BASE).href, { waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('.pane:not([hidden]) button', { timeout: 15000 });
+  await page.locator('.pane:not([hidden]) button', { hasText: '新建文章' }).first().click();
   await page.waitForSelector('.pane:not([hidden]) input.ant-input', { timeout: 10000 });
   await page.waitForTimeout(800);
   const formMetrics = await page.evaluate(() => {
@@ -481,7 +500,7 @@ async function runDesktopSentinel(browser) {
       docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
     };
   });
-  check(!formMetrics.docOverflow, '[桌面] 通知管理页无文档级横向溢出');
+  check(!formMetrics.docOverflow, '[桌面] 博客编辑器无文档级横向溢出');
   check(formMetrics.input && formMetrics.input.h <= 40 && formMetrics.input.fs < 16, `[桌面] 输入框仍是 antd 默认（${formMetrics.input ? formMetrics.input.h + 'px / ' + formMetrics.input.fs + 'px' : 'n/a'}）`);
   check(formMetrics.select && formMetrics.select.h <= 40 && formMetrics.select.fs < 16, `[桌面] 选择器仍是 antd 默认（${formMetrics.select ? formMetrics.select.h + 'px / ' + formMetrics.select.fs + 'px' : 'n/a'}）`);
   await ctx.close();
