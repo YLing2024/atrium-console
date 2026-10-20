@@ -283,9 +283,9 @@ export default function SystemInfo({ active }: { active: boolean }) {
       title: '端口 / 服务',
       primary: `${portTotal} 个监听 · ${failed.length} 个失败单元`,
       secondary: info?.ports?.error
-        ? `端口采集失败：${info.ports.error}`
+        ? '端口或服务信息暂不可用'
         : info?.systemd?.error
-          ? `失败单元采集失败：${info.systemd.error}`
+          ? '失败单元信息暂不可用'
           : '点击查看监听与失败单元明细'
     }
   ];
@@ -379,8 +379,12 @@ export default function SystemInfo({ active }: { active: boolean }) {
                 失败单元
               </Typography.Title>
               {info?.systemd?.error && (
-                <Typography.Text type="warning" style={{ display: 'block', marginBottom: 8 }}>
-                  {info.systemd.error}
+                <Typography.Text
+                  type="warning"
+                  title={info.systemd.error}
+                  style={{ display: 'block', marginBottom: 8 }}
+                >
+                  失败单元采集失败
                 </Typography.Text>
               )}
               {failed.length ? (
@@ -399,8 +403,12 @@ export default function SystemInfo({ active }: { active: boolean }) {
                 最近登录
               </Typography.Title>
               {info?.logins?.error && (
-                <Typography.Text type="warning" style={{ display: 'block', marginBottom: 8 }}>
-                  {info.logins.error}
+                <Typography.Text
+                  type="warning"
+                  title={info.logins.error}
+                  style={{ display: 'block', marginBottom: 8 }}
+                >
+                  最近登录采集失败
                 </Typography.Text>
               )}
               {logins.length ? (
@@ -455,7 +463,13 @@ export default function SystemInfo({ active }: { active: boolean }) {
         {detail === 'ports' && (
           <>
             {info?.ports?.error && (
-              <Alert type="warning" showIcon message={info.ports.error} style={{ marginBottom: 12 }} />
+              <Alert
+                type="warning"
+                showIcon
+                message="端口采集失败"
+                description={info.ports.error}
+                style={{ marginBottom: 12 }}
+              />
             )}
             <Table<SystemPortInfo>
               rowKey={(row, i) => `${row.port || 0}-${row.pid || 0}-${i}`}
