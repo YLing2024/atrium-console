@@ -466,7 +466,7 @@ export default function Manage() {
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
       <Table<SessionInfo>
-        sticky={{ offsetHeader: 64 }}
+        sticky
         rowKey="id"
         columns={sessionColumns}
         dataSource={sessions}
@@ -521,7 +521,7 @@ export default function Manage() {
       {apiError && <Alert type="error" showIcon message={apiError} style={{ marginBottom: 16 }} />}
 
       <Table<ApiToken>
-        sticky={{ offsetHeader: 64 }}
+        sticky
         rowKey="id"
         columns={tokenColumns}
         dataSource={apiTokens}

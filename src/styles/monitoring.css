@@ -5,8 +5,10 @@
   padding: 24px;
   overflow-y: auto;
   height: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
+  /* 2026-10-19 用户要求：内容区占满可用宽度（原先锁 1080px，右侧留白过多） */
+  max-width: none;
+  width: 100%;
+  margin: 0;
 }
 
 .system-head {
@@ -27,4 +29,21 @@
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--ant-color-text, CanvasText);
+}
+
+/* 2026-10-19 用户反馈：表格 sticky 表头悬空且半透明，下面的行从缝里透出来。
+   antd 的 offsetHeader 依赖一个并不存在的固定页头，这里直接用 CSS 钉住：
+   - 表头贴容器顶（top: 0）
+   - 给不透明底色，滚动时不会看到下面的行
+   - 层级高于单元格，避免被 hover 行覆盖 */
+.system .ant-table-thead > tr > th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--ant-color-bg-container, Canvas);
+}
+
+.system .ant-table-thead > tr > th::before {
+  /* antd 默认在 th 上画一条分隔线，sticky 时会浮在内容之上，这里去掉 */
+  display: none;
 }
