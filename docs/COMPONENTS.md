@@ -23,6 +23,8 @@
 | `PsiRow`（System.tsx 内） | PSI 压力行（some/full 的 avg10） | `k: string`；`o?: PsiInfo \| null`；`danger: string`；`warn: string` | `<PsiRow k="内存" o={psi.memory} danger={token.colorError} warn={token.colorWarning} />` | 无 PSI 数据时显示「—」；阈值 some≥50 用 `danger`、≥30 用 `warn`。 |
 | `Database` | 「数据库」Tab 面板：iframe 同源内嵌 DBGate（`/db/`），打开即用、无二次登录 | `active: boolean`（必填，无默认值）——该 Tab 是否激活；无对外事件 | `<Database active={tab === 'db'} />` | 面板在 `Main` 里常驻挂载（仅切显隐），故等 `active` 首次为 `true` 才渲染 iframe 并保持挂载（切走不卸载，避免丢失正在浏览的表 / 查询状态）；`src` 用同源相对路径 `/db/`，与终端 `/term/` 同一套接线，鉴权由前置网关负责，组件不碰凭据 / token。 |
 | `SshKeys` | 「SSH 公钥」Tab 面板：公钥白名单的列表 / 新增 / 改标题 / 停用 / 删除 | 无 props；无对外事件——所有操作直接调用 `src/api.ts` 并重新拉取列表 | `<SshKeys />` | 面板在 `Main` 里常驻挂载（仅切显隐）。公钥只接受 `type base64 [comment]` 单行纯公钥，前端校验只是体验，服务端会再次解析并拒绝 `command=` 等前置选项；停用与删除的确认文案必须保留「已建立的连接不受影响」的区分。指纹用 antd `Typography.Text code` + `copyable`，移动端靠表格横向滚动与 `responsive` 列保留全部信息。 |
+| `Tools` | 「工具」Tab 面板：按 `GET /api/admin/tools` 渲染独立工具卡片，当前含 Bitwarden 解锁 | 无 props；无对外事件——拉取清单并在子卡片变更后重拉 | `<Tools />` | 数据驱动：新工具只需实现卡片并登记到 `TOOL_CARDS`。面板在 `Main` 里常驻挂载；未登记的工具暂时不渲染。桌面三列（`xl=8`）、平板两列（`lg=12`）、移动端单列（`xs=24`）。 |
+| `BitwardenTool`（`BitwardenTool.tsx`） | Bitwarden 解锁卡片：主密码换 session、显示剩余有效期、清除会话 | `tool: ToolItem`（必填）——清单项；`onChanged: () => Promise<void>`（必填）——成功后请父级重拉清单 | `<BitwardenTool tool={tool} onChanged={load} />` | 密码只放组件 state，提交后立即清空，不写 localStorage / sessionStorage / URL；失败时同样清空输入。服务端 401 是「密码错误」而非会话失效，由 `src/api.ts` 的 `unauthorizedAsBusinessError` 区分。未配置时禁用输入并提示见运维文档；`autoComplete="off"`。 |
 | `Terminal` | 「终端」Tab 面板：多标签 ttyd + tmux 终端；站点登录之外的口令门换 12h 票据，票据随 iframe 传给服务端 wrapper 校验 | `active: boolean`（必填，无默认值）——该 Tab 是否激活；无对外事件 | `<Terminal active={tab === 'term'} />` | 面板在 `Main` 里常驻挂载（仅切显隐）。进入流程前探测 `GET /api/admin/term/mode`：`unlockRequired === false`（后端 `ADMIN_TERM_UNLOCK=off`）时跳过口令表单直接取票，另外两条路径（口令表单 / 探测失败）均按需要口令兜底，判定见 `src/termGate.ts`。票据存 `sessionStorage`、多标签、6s 存活点轮询、`pagehide` sendBeacon 关窗断连一律保持既有行为。 |
 
 ## 可访问性要点
@@ -39,6 +41,8 @@
   次要文字用 `Typography.Text type="secondary"`（`--ant-color-text-secondary`）。
 - 趋势图为 canvas 渲染（ECharts）：`aria` 支持有限，图表旁一律保留同名 `Legend` 文本摘要作为等价信息。
 - 状态点（`Badge`）不承载唯一语义：`services` 里的状态在 `Manage` 等页面另有文字表达，避免只靠颜色传意。
+- Bitwarden 卡片的状态同时用 `Tag` 与「状态：…」文字表达；密码框有 `aria-label="主密码"`，可用键盘
+  `Tab` 聚焦、`Enter` 提交表单，未配置或请求进行中时表单控件禁用。
 
 ## 相关纯函数模块（非组件）
 
@@ -48,3 +52,4 @@
 | `src/format.ts` | 数值 / 时间 / 体积格式化 | `fmtMB` / `fmtBytes` / `fmtRate` / `fmtDuration` / `toneFor` 等，纯函数。 |
 | `src/dbTab.ts` | 数据库 Tab 的首次激活粘滞标记 | `latchActivated(activated, active)`：一旦为 `true` 便保持 `true`，纯函数。 |
 | `src/termGate.ts` | 终端口令门模式判定 | `unlockRequiredOf(data)`：仅显式 `unlockRequired === false` 返回 `false`，缺字段 / 非布尔 / 非对象（探测失败）一律 `true`，纯函数。 |
+| `src/toolStatus.ts` | Bitwarden 剩余有效期计算 | `remainingFromExpiresAt(expiresAt, now?)` 由 epoch 毫秒推剩余秒数（过去钳制为 0），纯函数；状态文案 `bitwardenStatusText` 在 `src/format.ts`。 |
