@@ -94,14 +94,14 @@ export default function ToolBitwarden() {
     }
   }
 
-  async function clearSession() {
+  async function lockVault() {
     if (!configured || busy) return;
     setLocking(true);
     try {
       await lockBitwarden();
       setPassword('');
       await refreshStatus();
-      message.success('已清除会话');
+      message.success('已锁定');
     } catch (e) {
       message.error((e as Error).message);
     } finally {
@@ -171,9 +171,9 @@ export default function ToolBitwarden() {
                     danger
                     loading={locking}
                     disabled={!configured || busy || !unlocked}
-                    onClick={clearSession}
+                    onClick={lockVault}
                   >
-                    清除会话
+                    锁定
                   </Button>
                 </Space>
               </Space>
