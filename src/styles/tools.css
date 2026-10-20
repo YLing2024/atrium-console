@@ -1,0 +1,19 @@
+/* ============ 工具面板（数据驱动卡片） ============ */
+/* 颜色 / 圆角 / 字体一律由 antd 默认 token 提供，这里只处理排布与长文本换行。 */
+.tools {
+  width: 100%;
+}
+
+.tool-card {
+  height: 100%;
+}
+
+.tool-updated {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.tool-card .ant-typography {
+  word-break: break-word;
+}
