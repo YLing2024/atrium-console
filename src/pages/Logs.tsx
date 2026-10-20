@@ -60,11 +60,22 @@ function levelColor(level: string): string {
   }
 }
 
+// 从 URL 读初始筛选，保证刷新/分享后状态一致。
+function readInitial() {
+  const p = new URLSearchParams(location.search);
+  return {
+    source: p.get('source') || 'system',
+    range: p.get('range') || '24h',
+    q: p.get('q') || ''
+  };
+}
+
 export default function Logs() {
-  const [source, setSource] = useState('system');
-  const [range, setRange] = useState('24h');
-  const [keyword, setKeyword] = useState('');
-  const [applied, setApplied] = useState('');
+  const initial = readInitial();
+  const [source, setSource] = useState(initial.source);
+  const [range, setRange] = useState(initial.range);
+  const [keyword, setKeyword] = useState(initial.q);
+  const [applied, setApplied] = useState(initial.q);
   const [rows, setRows] = useState<LogEntry[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -100,6 +111,15 @@ export default function Logs() {
   useEffect(() => {
     void load(0);
   }, [load]);
+
+  // 筛选变化同步到地址栏（replaceState，不产生历史记录、不触发重新挂载）。
+  useEffect(() => {
+    const p = new URLSearchParams();
+    p.set('source', source);
+    p.set('range', range);
+    if (applied) p.set('q', applied);
+    history.replaceState(null, '', `/logs?${p.toString()}`);
+  }, [source, range, applied]);
 
   const columns: TableColumnsType<LogEntry> = [
     {
