@@ -408,16 +408,37 @@ export interface SystemDiskInfo {
   free?: number;
   /** 容量使用率（%） */
   percent?: number;
+  /** inode 总数（个） */
+  inode_total?: number;
+  /** 已用 inode 数（个） */
+  inode_used?: number;
   /** inode 使用率（%） */
-  inodePercent?: number;
+  inode_percent?: number;
 }
 
-/** 监听端口项（最多 15 条） */
+/** 监听端口项（默认全量；`?ports=15` 时只返回前 15 条） */
 export interface SystemPortInfo {
   port?: number;
+  /** tcp / udp */
+  protocol?: string;
+  /** LISTEN（TCP）/ UNCONN（UDP） */
+  state?: string;
   process?: string;
   pid?: number | null;
   address?: string;
+}
+
+/** 运行中 systemd 单元（`GET /api/admin/system/services`） */
+export interface SystemServiceInfo {
+  unit?: string;
+  /** active / inactive 等（running 状态通常为 active） */
+  active?: string;
+  /** 该单元 cgroup CPU 占整机可用时间百分比 */
+  cpu_percent?: number;
+  /** 该单元 cgroup 内存（MB）；读不到为 null */
+  mem_mb?: number | null;
+  /** 本次启动时间，epoch 秒；读不到为 0 */
+  since?: number;
 }
 
 /** systemd 失败单元 */
@@ -635,6 +656,11 @@ export function getSystemMetrics(range: string, step: string): Promise<SystemMet
 // 返回 { services, processes, count, truncated, total_mem_mb, total_cpu }。
 export function getServices(opts: { signal?: AbortSignal } = {}): Promise<ServicesResponse> {
   return request<ServicesResponse>('/api/admin/services', { signal: opts.signal });
+}
+
+// 全部 running 的 systemd .service 单元（含 cgroup CPU / 内存 / 启动时间）。
+export function getSystemServices(opts: { signal?: AbortSignal } = {}): Promise<SystemServiceInfo[]> {
+  return request<SystemServiceInfo[]>('/api/admin/system/services', { signal: opts.signal });
 }
 
 // 修改密码

@@ -1,17 +1,20 @@
 /**
- * MonitorPressure —— 监控页右侧「压力与负载」：PSI 三条 avg60 压力条 + 1/5/15 分钟负载。
+ * MonitorPressure —— 监控页右侧「压力与负载」：PSI 三条 avg60 压力条 + 1/5/15 分钟负载
+ * + 运行队列 / 阻塞进程 + CPU 温度（有热区时展示）。
  *
- * PSI 值来自系统 SSE 的 `psi`，不单独轮询；宽度按 0–100 映射，颜色按需求书阈值
- * （<20 主色、20–50 warning、>50 error）。数值常驻条右侧，颜色不是唯一语义。
+ * PSI 值来自系统 SSE 的 `psi`，温度来自 `/api/admin/system/info`。宽度按 0–100 映射，
+ * 颜色按需求书阈值（<20 主色、20–50 warning、>50 error）。数值常驻条右侧，颜色不是唯一语义。
  */
 import { Card, Typography, theme } from 'antd';
-import type { PsiInfo, SystemData } from '../api';
+import type { PsiInfo, SystemData, SystemTemperature } from '../api';
 import { pressureTone } from '../monitor';
 import { fmtPct } from '../format';
 
 export interface MonitorPressureProps {
   /** 系统 SSE 快照的 system 段；缺失时各条显示破折号 */
   data?: SystemData | null;
+  /** `/api/admin/system/info` 的热区读数；无热区时省略温度行 */
+  temperatures?: SystemTemperature[];
 }
 
 interface PressureRow {
@@ -32,7 +35,7 @@ function avg60(psi?: PsiInfo): number | null {
  * 压力与负载卡片。
  * @param props 见 {@link MonitorPressureProps}
  */
-export default function MonitorPressure({ data }: MonitorPressureProps) {
+export default function MonitorPressure({ data, temperatures }: MonitorPressureProps) {
   const { token } = theme.useToken();
   const rows: PressureRow[] = [
     { key: 'cpu', label: 'CPU', psi: data?.psi?.cpu },
@@ -104,10 +107,33 @@ export default function MonitorPressure({ data }: MonitorPressureProps) {
         </div>
         <Typography.Text type="secondary" className="monitor-load-note">
           运行队列 {data?.cpu?.run_queue == null ? '—' : data.cpu.run_queue} /{' '}
-          {data?.cpu?.cores == null ? '—' : data.cpu.cores} · 15s 平均{' '}
+          {data?.cpu?.cores == null ? '—' : data.cpu.cores} · 阻塞{' '}
+          {data?.cpu?.blocked == null ? '—' : data.cpu.blocked} · 15s 平均{' '}
           {data?.cpu?.usage_15s == null ? '—' : fmtPct(data.cpu.usage_15s) + '%'}
         </Typography.Text>
       </div>
+
+      {temperatures && temperatures.length > 0 && (
+        <div className="monitor-load monitor-temperature">
+          <Typography.Text type="secondary" className="monitor-card-note">
+            CPU 温度
+          </Typography.Text>
+          <div className="monitor-temperature-list">
+            {temperatures.map((item, index) => (
+              <span className="monitor-temperature-item" key={`${item.zone || 'zone'}-${index}`}>
+                <Typography.Text type="secondary" ellipsis={{ tooltip: item.type || item.zone }}>
+                  {item.type || item.zone || '—'}
+                </Typography.Text>
+                <Typography.Text className="monitor-num">
+                  {item.celsius == null || !Number.isFinite(Number(item.celsius))
+                    ? '—'
+                    : Number(item.celsius).toFixed(1) + ' °C'}
+                </Typography.Text>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

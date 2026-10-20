@@ -507,7 +507,7 @@ async function runDesktopSentinel(browser) {
 }
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ executablePath: require('./chromium-path.cjs') });
   try {
     for (const vp of VIEWPORTS) await runViewport(browser, vp);
     await runDesktopSentinel(browser);

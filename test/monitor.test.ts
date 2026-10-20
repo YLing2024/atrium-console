@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  MONITOR_METRICS,
   buildSparkGeometry,
   columnValues,
   formatTrendTick,
@@ -10,6 +11,7 @@ import {
   pressureTone,
   stallTone,
   thresholdTone,
+  trendMetricSpec,
   withAlpha
 } from '../src/monitor.ts';
 
@@ -25,20 +27,18 @@ test('buildSparkGeometry：尖峰会顶到上边距，且最后一个点靠右',
   assert.equal(points[3][1], 26); // 最小值贴住下边距
 });
 
-test('buildSparkGeometry：恒定值走中线，不产生 NaN', () => {
+test('buildSparkGeometry：恒定值画单点，不产生 NaN', () => {
   const geo = buildSparkGeometry([5, 5, 5]);
   assert.ok(geo);
-  assert.ok(!geo.line.includes('NaN'));
-  for (const pair of geo.line.split(' ')) {
-    assert.equal(Number(pair.split(',')[1]), 14);
-  }
+  assert.equal(geo.line, '');
+  assert.deepEqual(geo.point, { x: 38, y: 14 });
 });
 
 test('buildSparkGeometry：单点 / 空值 / 全非法值', () => {
   const one = buildSparkGeometry([42]);
   assert.ok(one);
   assert.equal(one.line, '');
-  assert.deepEqual(one.point, { x: 20, y: 14 });
+  assert.deepEqual(one.point, { x: 38, y: 14 });
 
   assert.equal(buildSparkGeometry([]), null);
   assert.equal(buildSparkGeometry([null, undefined]), null);
@@ -117,4 +117,16 @@ test('stallTone：档位文案映射语义色', () => {
 
 test('columnValues：缺列保留 null，不把缺失当 0', () => {
   assert.deepEqual(columnValues([{ cpu: 1 }, {}, { cpu: 3 }], 'cpu'), [1, null, 3]);
+});
+
+test('trendMetricSpec：五个指标取列与单位正确，未知值回退 CPU', () => {
+  assert.deepEqual(
+    MONITOR_METRICS.map((item) => item.id),
+    ['cpu', 'mem', 'disk', 'network', 'diskio']
+  );
+  assert.deepEqual(trendMetricSpec('disk').keys, ['disk_percent']);
+  assert.deepEqual(trendMetricSpec('network').keys, ['net_rx_rate', 'net_tx_rate']);
+  assert.equal(trendMetricSpec('diskio').unit, 'rate');
+  // @ts-expect-error 运行时防御：未知值回退 CPU
+  assert.equal(trendMetricSpec('nope').id, 'cpu');
 });

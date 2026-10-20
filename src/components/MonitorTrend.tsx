@@ -1,24 +1,28 @@
 /**
- * MonitorTrend —— 监控页主趋势图：CPU（左轴）与内存（右轴）双系列 + 1h/6h/24h/7d 切换。
+ * MonitorTrend —— 监控页主趋势图：指标切换（CPU / 内存 / 磁盘 / 网络 / 磁盘IO）+
+ * 时间范围切换（1h / 6h / 24h / 7d）。
  *
  * 数据由父级按 `MONITOR_RANGES` 请求 `/api/admin/system/metrics` 后传入；本组件只负责
  * 把点集转成 ECharts option。颜色全部来自 antd token，ECharts 实例在主题切换时由
  * `Chart` 内部重建，因此暗色下文字 / 轴线无需额外处理。
  *
- * 交互：`dataZoom(type: 'inside')` 只保留滚轮 / 拖动平移，不放滑条；图例用页面内的
- * 文本摘要承担（canvas 图表的可访问性有限）。
+ * 磁盘使用率取后端新增的 `disk_percent` 列；网络 / 磁盘 IO 为两个速率系列（B/s），
+ * 缺列时折线断开，不把缺失当成 0。
  */
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense, useMemo, useState } from 'react';
 import { Card, Segmented, Spin, Typography, theme } from 'antd';
 import type { HistoryPoint } from '../api';
 import {
+  MONITOR_METRICS,
   MONITOR_RANGES,
   columnValues,
   formatTrendTick,
+  trendMetricSpec,
   withAlpha,
-  type MonitorRange
+  type MonitorRange,
+  type TrendMetric
 } from '../monitor';
-import { fmtPct } from '../format';
+import { fmtPct, fmtRate, niceMax } from '../format';
 import type { EChartsOption } from './Chart';
 
 // echarts 体积大，保持与旧版一致的动态载入：只有监控页真正画图时才下载。
@@ -59,16 +63,30 @@ function summarize(values: Array<number | null>): { peak: number; avg: number; c
  */
 export default function MonitorTrend({ range, onRangeChange, points, loading }: MonitorTrendProps) {
   const { token } = theme.useToken();
+  const [metric, setMetric] = useState<TrendMetric>('cpu');
+  const spec = trendMetricSpec(metric);
+
+  const seriesValues = useMemo(
+    () => spec.keys.map((key) => columnValues(points, key)),
+    [points, spec.keys]
+  );
 
   const option = useMemo<EChartsOption>(() => {
-    const cpuValues = columnValues(points, 'cpu');
-    const memValues = columnValues(points, 'mem_percent');
     const labels = points.map((point) => formatTrendTick(point.ts, range));
     // 全量点位下固定给 5 个刻度；dataZoom 缩放时不额外增加，避免横轴拥挤。
     const labelInterval = Math.max(0, Math.ceil(points.length / 5) - 1);
-    const cpuColor = token.colorPrimary;
-    const memColor = token.colorSuccess;
+    const colors = [token.colorPrimary, token.colorSuccess];
     const axisLabel = { color: token.colorTextTertiary, fontSize: 11 };
+    const rateMax = Math.max(
+      1,
+      ...seriesValues.flatMap((values) => values.map((v) => (v == null ? 0 : v)))
+    );
+    const yMax = spec.unit === 'percent' ? 100 : niceMax(rateMax);
+    const formatValue = (raw: unknown) => {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return '—';
+      return spec.unit === 'percent' ? fmtPct(n) + '%' : fmtRate(n);
+    };
 
     return {
       animation: false,
@@ -84,11 +102,7 @@ export default function MonitorTrend({ range, onRangeChange, points, loading }: 
           if (!list.length) return '';
           const time = list[0].axisValueLabel || '';
           const rows = list
-            .map((item) => {
-              const n = Number(item.value);
-              const value = Number.isFinite(n) ? fmtPct(n) + '%' : '—';
-              return `${item.marker || ''}${item.seriesName || ''} ${value}`;
-            })
+            .map((item) => `${item.marker || ''}${item.seriesName || ''} ${formatValue(item.value)}`)
             .join('<br/>');
           return `${time}<br/>${rows}`;
         }
@@ -102,24 +116,18 @@ export default function MonitorTrend({ range, onRangeChange, points, loading }: 
         axisLine: { lineStyle: { color: token.colorBorderSecondary } },
         axisLabel: { ...axisLabel, interval: labelInterval, hideOverlap: true }
       },
-      yAxis: [
-        {
-          type: 'value',
-          min: 0,
-          max: 100,
-          splitNumber: 4,
-          axisLabel: { ...axisLabel, formatter: '{value}%' },
-          splitLine: { lineStyle: { color: token.colorBorderSecondary } }
+      yAxis: {
+        type: 'value',
+        min: 0,
+        max: yMax,
+        splitNumber: 4,
+        axisLabel: {
+          ...axisLabel,
+          formatter: (value: number) =>
+            spec.unit === 'percent' ? value + '%' : fmtRate(value)
         },
-        {
-          type: 'value',
-          min: 0,
-          max: 100,
-          splitNumber: 4,
-          axisLabel: { show: false },
-          splitLine: { show: false }
-        }
-      ],
+        splitLine: { lineStyle: { color: token.colorBorderSecondary } }
+      },
       dataZoom: [
         {
           type: 'inside',
@@ -130,84 +138,69 @@ export default function MonitorTrend({ range, onRangeChange, points, loading }: 
           preventDefaultMouseMove: false
         }
       ],
-      series: [
-        {
-          name: 'CPU',
-          type: 'line',
-          yAxisIndex: 0,
+      series: spec.series.map((name, index) => {
+        const color = colors[index] ?? token.colorPrimary;
+        return {
+          name,
+          type: 'line' as const,
           smooth: 0.25,
           showSymbol: false,
           symbol: 'none',
-          sampling: 'lttb',
-          lineStyle: { width: 1.5, color: cpuColor },
-          itemStyle: { color: cpuColor },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: withAlpha(cpuColor, 0.16) },
-                { offset: 1, color: withAlpha(cpuColor, 0) }
-              ]
-            }
-          },
-          data: cpuValues
-        },
-        {
-          name: '内存',
-          type: 'line',
-          yAxisIndex: 1,
-          smooth: 0.25,
-          showSymbol: false,
-          symbol: 'none',
-          sampling: 'lttb',
-          lineStyle: { width: 1.5, color: memColor },
-          itemStyle: { color: memColor },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: withAlpha(memColor, 0.1) },
-                { offset: 1, color: withAlpha(memColor, 0) }
-              ]
-            }
-          },
-          data: memValues
-        }
-      ]
+          sampling: 'lttb' as const,
+          lineStyle: { width: 1.5, color },
+          itemStyle: { color },
+          areaStyle: index === 0
+            ? {
+                color: {
+                  type: 'linear' as const,
+                  x: 0,
+                  y: 0,
+                  x2: 0,
+                  y2: 1,
+                  colorStops: [
+                    { offset: 0, color: withAlpha(color, 0.16) },
+                    { offset: 1, color: withAlpha(color, 0) }
+                  ]
+                }
+              }
+            : undefined,
+          data: seriesValues[index] ?? []
+        };
+      })
     };
-  }, [points, range, token]);
+  }, [points, range, spec, seriesValues, token]);
 
-  const cpuSummary = useMemo(() => summarize(columnValues(points, 'cpu')), [points]);
-  const memSummary = useMemo(() => summarize(columnValues(points, 'mem_percent')), [points]);
+  const summaries = useMemo(
+    () => seriesValues.map((values, index) => ({ name: spec.series[index], summary: summarize(values) })),
+    [seriesValues, spec.series]
+  );
   const isEmpty = points.length === 0;
+  const colors = [token.colorPrimary, token.colorSuccess];
 
   return (
-    <Card className="monitor-card" title="CPU 与内存" style={{ height: '100%' }}>
-      <div className="monitor-toolbar">
-        <div className="monitor-legend" aria-hidden="true">
-          <span className="monitor-legend-item">
-            <i className="monitor-legend-dot" style={{ background: token.colorPrimary }} />
-            CPU
-          </span>
-          <span className="monitor-legend-item">
-            <i className="monitor-legend-dot" style={{ background: token.colorSuccess }} />
-            内存
-          </span>
-        </div>
+    <Card className="monitor-card" title="趋势" style={{ height: '100%' }}>
+      <div className="monitor-toolbar monitor-trend-toolbar">
+        <Segmented
+          size="small"
+          value={metric}
+          onChange={(value) => setMetric(String(value) as TrendMetric)}
+          options={MONITOR_METRICS.map((item) => ({ label: item.label, value: item.id }))}
+        />
         <Segmented
           size="small"
           value={range}
           onChange={(value) => onRangeChange(String(value) as MonitorRange)}
           options={MONITOR_RANGES.map((item) => ({ label: item.label, value: item.id }))}
         />
+      </div>
+
+      <div className="monitor-legend" aria-hidden="true">
+        {spec.series.map((name, index) => (
+          <span className="monitor-legend-item" key={name}>
+            <i className="monitor-legend-dot" style={{ background: colors[index] ?? token.colorPrimary }} />
+            {name}
+          </span>
+        ))}
       </div>
 
       {isEmpty ? (
@@ -227,14 +220,13 @@ export default function MonitorTrend({ range, onRangeChange, points, loading }: 
       )}
 
       <div className="monitor-summary">
-        <span>
-          CPU 峰值 {cpuSummary ? fmtPct(cpuSummary.peak) + '%' : '—'} · 均值{' '}
-          {cpuSummary ? fmtPct(cpuSummary.avg) + '%' : '—'} · 当前{' '}
-          {cpuSummary ? fmtPct(cpuSummary.current) + '%' : '—'}
-        </span>
-        <span>
-          内存当前 {memSummary ? fmtPct(memSummary.current) + '%' : '—'}
-        </span>
+        {summaries.map(({ name, summary }) => (
+          <span key={name}>
+            {name} 峰值 {summary ? (spec.unit === 'percent' ? fmtPct(summary.peak) + '%' : fmtRate(summary.peak)) : '—'} ·
+            均值 {summary ? (spec.unit === 'percent' ? fmtPct(summary.avg) + '%' : fmtRate(summary.avg)) : '—'} · 当前{' '}
+            {summary ? (spec.unit === 'percent' ? fmtPct(summary.current) + '%' : fmtRate(summary.current)) : '—'}
+          </span>
+        ))}
       </div>
     </Card>
   );

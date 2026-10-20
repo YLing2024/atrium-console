@@ -36,6 +36,40 @@ export function monitorRangeSpec(id: MonitorRange): MonitorRangeSpec {
 /** 语义档位：常态 / 预警 / 危险，颜色由调用方翻译成 antd token。 */
 export type ValueTone = 'normal' | 'warning' | 'error';
 
+/** 趋势图可切换的指标标识 */
+export type TrendMetric = 'cpu' | 'mem' | 'disk' | 'network' | 'diskio';
+
+/** 一个趋势指标的取列规则：单系列为百分比，双系列为字节/秒。 */
+export interface TrendMetricSpec {
+  id: TrendMetric;
+  label: string;
+  /** 历史点里的列名（一或两个） */
+  keys: readonly string[];
+  /** 图例名称，与 keys 一一对应 */
+  series: readonly string[];
+  unit: 'percent' | 'rate';
+}
+
+/** 趋势指标顺序即 Segmented 顺序；磁盘用后端新增的 disk_percent 列，不伪造历史。 */
+export const MONITOR_METRICS: readonly TrendMetricSpec[] = [
+  { id: 'cpu', label: 'CPU', keys: ['cpu'], series: ['CPU'], unit: 'percent' },
+  { id: 'mem', label: '内存', keys: ['mem_percent'], series: ['内存'], unit: 'percent' },
+  { id: 'disk', label: '磁盘', keys: ['disk_percent'], series: ['根分区'], unit: 'percent' },
+  { id: 'network', label: '网络', keys: ['net_rx_rate', 'net_tx_rate'], series: ['接收', '发送'], unit: 'rate' },
+  {
+    id: 'diskio',
+    label: '磁盘IO',
+    keys: ['disk_io_read', 'disk_io_write'],
+    series: ['读', '写'],
+    unit: 'rate'
+  }
+];
+
+/** 按 id 取趋势指标；未知值回退 CPU。 */
+export function trendMetricSpec(id: TrendMetric): TrendMetricSpec {
+  return MONITOR_METRICS.find((item) => item.id === id) ?? MONITOR_METRICS[0];
+}
+
 /**
  * 阈值分级：只有越过预警线才变色，避免常态页面出现状态色。
  * @param value 当前值
@@ -114,8 +148,8 @@ export function buildSparkGeometry(
 
   const innerW = Math.max(1, width - pad * 2);
   const innerH = Math.max(1, height - pad * 2);
-  let min = Math.min(...nums);
-  let max = Math.max(...nums);
+  const min = Math.min(...nums);
+  const max = Math.max(...nums);
   if (max - min < 1e-9) {
     // 完全没波动时（如磁盘占用），画一条平线看起来像一条多余的分隔线；
     // 退回单点，视觉上明确「保持不变」。

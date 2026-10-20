@@ -4,6 +4,7 @@
 .system {
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
   height: 100%;
   /* 2026-10-19 用户要求：内容区占满可用宽度（原先锁 1080px，右侧留白过多） */
   max-width: none;
@@ -88,10 +89,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* KPI 带：桌面 5 等分，窄屏两列；grid 的 stretch 保证同一行等高。 */
+/* KPI 带：桌面 6 等分（CPU/内存/磁盘/Swap/卡顿/运行队列），中屏三列、窄屏两列。 */
 .monitor-kpis {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 16px;
   align-items: stretch;
 }
@@ -177,9 +178,8 @@
   flex: 0 0 6px;
 }
 
-/* 主区与表格区都用 12 栅格，桌面按 8/4 与 7/5 分栏。 */
-.monitor-main,
-.monitor-tables {
+/* 主区用 12 栅格，桌面按 8/4 分栏。 */
+.monitor-main {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 16px;
@@ -187,7 +187,6 @@
 }
 
 .monitor-main > *,
-.monitor-tables > *,
 .monitor-audit > * {
   min-width: 0;
 }
@@ -198,14 +197,6 @@
 
 .monitor-span-4 {
   grid-column: span 4;
-}
-
-.monitor-span-7 {
-  grid-column: span 7;
-}
-
-.monitor-span-5 {
-  grid-column: span 5;
 }
 
 .monitor-toolbar {
@@ -330,10 +321,10 @@
   overflow-wrap: anywhere;
 }
 
-/* 底部三块：等宽并排；窄屏纵向堆叠。 */
+/* 审计两块：等宽并排；窄屏纵向堆叠。 */
 .monitor-audit {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   min-width: 0;
 }
@@ -399,11 +390,89 @@
   font-size: 12px;
 }
 
+/* 分区锚点：一行可换行，窄屏不产生横向滚动。 */
+.monitor-anchors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: -8px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.monitor-anchors a {
+  color: var(--ant-color-text-secondary);
+  white-space: nowrap;
+}
+
+.monitor-anchors a:hover {
+  color: var(--ant-color-primary);
+}
+
+.monitor-section {
+  min-width: 0;
+}
+
+/* 表格卡：工具条（搜索 / 过滤 / 列）在窄屏换行，表格自身横滑。 */
+.monitor-table-card .ant-card-body {
+  padding: 12px 16px;
+}
+
+.monitor-table-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  min-width: 0;
+  margin-bottom: 10px;
+}
+
+.monitor-table-search {
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 280px;
+}
+
+.monitor-column-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+
+.monitor-table-empty-tag {
+  margin-top: 8px;
+}
+
+.monitor-trend-toolbar {
+  justify-content: flex-start;
+}
+
+.monitor-temperature-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.monitor-temperature-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .monitor-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .monitor-span-8,
-  .monitor-span-4,
-  .monitor-span-7,
-  .monitor-span-5 {
+  .monitor-span-4 {
     grid-column: span 12;
   }
 
@@ -417,7 +486,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  /* 两列换行后仍要求五张卡等高：固定行高下限，细节文字只在卡内换行。 */
+  /* 两列换行后仍要求卡片等高：固定行高下限，细节文字只在卡内换行。 */
   .monitor-kpi-card.ant-card {
     min-height: 172px;
   }

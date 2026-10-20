@@ -112,7 +112,7 @@ function assert(cond, msg) {
 }
 
 (async () => {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ executablePath: require('./chromium-path.cjs') });
   const errors = [];
 
   // ---------- 浅色 + 桌面 ----------

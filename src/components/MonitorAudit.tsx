@@ -1,14 +1,11 @@
 /**
- * MonitorAudit —— 监控页底部三块并排：失败单元 / 最近登录 / 端口服务。
+ * MonitorAudit —— 监控页「审计」：失败单元与最近登录两块。
  *
- * 数据来自 `GET /api/admin/system/info`（父级 60s 刷新）。
- * 降级规则（需求书验收第 7 条）：
- * - 失败单元为 0 时不显示红色，只显示中性数字与「无失败单元」；
- * - 最近登录采集失败用灰色说明文字，不再用告警色常驻；
- * - 端口采集失败同样降级为灰色说明，不阻塞其它两块。
+ * 数据来自 `GET /api/admin/system/info`（父级 60s 刷新）。端口已独立成全量表，
+ * 这里不再重复。降级规则：失败单元为 0 时不显示红色；最近登录采集失败用灰色说明。
  */
 import { Card, Tag, Typography } from 'antd';
-import type { SystemInfoResponse, SystemLoginInfo, SystemPortInfo } from '../api';
+import type { SystemInfoResponse, SystemLoginInfo } from '../api';
 
 export interface MonitorAuditProps {
   /** `/api/admin/system/info` 响应；未返回时各块显示破折号 */
@@ -23,21 +20,6 @@ function Degraded({ text }: { text: string }) {
     <Typography.Text type="secondary" className="monitor-audit-note">
       {text}
     </Typography.Text>
-  );
-}
-
-/** 端口行：端口号 + 进程名 + 监听地址；长地址省略。 */
-function PortRow({ item }: { item: SystemPortInfo }) {
-  return (
-    <div className="monitor-audit-row">
-      <Typography.Text className="monitor-num">{item.port == null ? '—' : item.port}</Typography.Text>
-      <Typography.Text ellipsis={{ tooltip: item.process }} className="monitor-audit-main">
-        {item.process || '—'}
-      </Typography.Text>
-      <Typography.Text type="secondary" ellipsis={{ tooltip: item.address }} className="monitor-audit-side">
-        {item.address || '—'}
-      </Typography.Text>
-    </div>
   );
 }
 
@@ -57,17 +39,14 @@ function LoginRow({ item }: { item: SystemLoginInfo }) {
 }
 
 /**
- * 告警与审计三块。
+ * 审计卡片组。
  * @param props 见 {@link MonitorAuditProps}
  */
 export default function MonitorAudit({ info, error }: MonitorAuditProps) {
   const failed = Array.isArray(info?.systemd?.failed) ? info.systemd.failed : [];
   const logins = Array.isArray(info?.logins?.items) ? info.logins.items : [];
-  const ports = Array.isArray(info?.ports?.items) ? info.ports.items : [];
-  const portTotal = info?.ports?.total == null ? ports.length : Number(info.ports.total);
   const failedError = Boolean(info?.systemd?.error || (!info && error));
   const loginError = Boolean(info?.logins?.error || (!info && error));
-  const portError = Boolean(info?.ports?.error || (!info && error));
 
   return (
     <div className="monitor-audit">
@@ -117,30 +96,6 @@ export default function MonitorAudit({ info, error }: MonitorAuditProps) {
           <div className="monitor-audit-list">
             {logins.slice(0, 5).map((item, i) => (
               <LoginRow key={`${item.user || 'user'}-${i}`} item={item} />
-            ))}
-          </div>
-        ) : (
-          <Typography.Text type="secondary">—</Typography.Text>
-        )}
-      </Card>
-
-      <Card
-        className="monitor-card monitor-audit-card"
-        title="端口服务"
-        extra={
-          <Typography.Text type="secondary" className="monitor-num">
-            {portError || !info ? '—' : `${portTotal} 个监听`}
-          </Typography.Text>
-        }
-      >
-        {portError ? (
-          <Degraded text="端口采集失败" />
-        ) : !info ? (
-          <Typography.Text type="secondary">—</Typography.Text>
-        ) : ports.length ? (
-          <div className="monitor-audit-list">
-            {ports.slice(0, 5).map((item, i) => (
-              <PortRow key={`${item.port || 0}-${item.pid || 0}-${i}`} item={item} />
             ))}
           </div>
         ) : (

@@ -1,19 +1,27 @@
 /**
- * System —— 「系统」Tab 面板：监控总览（KPI 带 + 主趋势 + PSI + Top 表 + 告警审计）。
+ * System —— 「系统」Tab 面板：监控页九大分区。
  *
  * 数据来源：
- * - 实时指标 / PSI / 卡顿指数 / Top 服务走 SSE `/api/admin/system/stream`（仅 Tab 激活时建连）；
- * - Top 进程走 REST `/api/admin/services`，激活时每 5s 取样（SSE 不再携带进程明细）；
- * - 主趋势走 `/api/admin/system/metrics`，按 1h / 6h / 24h / 7d 切换；
- * - 失败单元 / 最近登录 / 端口服务走 `/api/admin/system/info`，每 60s 刷新。
+ * - 实时指标 / PSI / 卡顿指数走 SSE `/api/admin/system/stream`（仅 Tab 激活时建连）；
+ * - 进程全量走 REST `/api/admin/services`，每 5s 取样（SSE 不携带进程明细）；
+ * - 运行中服务走 REST `/api/admin/system/services`，每 5s 取样；
+ * - 概况（操作系统 / 磁盘 inode / 端口 / 失败单元 / 登录）走 `/api/admin/system/info`，每 60s；
+ * - 趋势走 `/api/admin/system/metrics`，按 1h / 6h / 24h / 7d 切换。
  *
- * KPI 迷你趋势用本页的滚动缓冲（最多 60 个快照），首帧用 SSE 自带的 history 补齐
- * CPU / 内存；磁盘、卡顿指数、运行队列没有历史列，等页面积累后自然成形，不伪造数据。
+ * 「自动刷新 5s / 关」只控制轮询与 SSE 帧的应用：关闭后已有画面保留，手动刷新会强制
+ * 应用下一帧 / 重新拉取一次。KPI 迷你趋势用页面内的滚动缓冲（最多 60 个快照），首帧用
+ * SSE 自带的 history 补齐 CPU / 内存；没有历史列的指标等页面积累后自然成形。
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Button, Spin, Typography } from 'antd';
-import { getServices, getSystemInfo, getSystemMetrics } from '../api';
-import type { HistoryPoint, ProcessInfo, SystemData, SystemInfoResponse } from '../api';
+import { Alert, Button, Segmented, Spin, Typography } from 'antd';
+import { getServices, getSystemInfo, getSystemMetrics, getSystemServices } from '../api';
+import type {
+  HistoryPoint,
+  ProcessInfo,
+  SystemData,
+  SystemInfoResponse,
+  SystemServiceInfo
+} from '../api';
 import { fmtBytes, fmtDuration } from '../format';
 import {
   monitorRangeSpec,
@@ -26,8 +34,12 @@ import {
 import { KpiCard } from './MonitorKpi';
 import MonitorTrend from './MonitorTrend';
 import MonitorPressure from './MonitorPressure';
-import { TopProcesses, TopServices } from './MonitorTables';
+import MonitorProcessTable from './MonitorProcessTable';
+import MonitorServiceTable from './MonitorServiceTable';
+import MonitorPortTable from './MonitorPortTable';
+import MonitorDiskTable from './MonitorDiskTable';
 import MonitorAudit from './MonitorAudit';
+import MonitorSystemInfo from './MonitorSystemInfo';
 
 /** SSE snapshot 帧结构 */
 interface SystemSnapshot {
@@ -40,6 +52,7 @@ interface SparkSample {
   cpu: number | null;
   mem: number | null;
   disk: number | null;
+  swap: number | null;
   stall: number | null;
   runqueue: number | null;
 }
@@ -50,13 +63,15 @@ function numOrNull(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** 从一份系统快照里取出五条迷你趋势各自的当前值。 */
+/** 从一份系统快照里取出六条迷你趋势各自的当前值。 */
 function sparkSampleOf(data: SystemData | null | undefined): SparkSample {
   const disk = pickRootDisk(data?.disks, data?.disk);
+  const swapTotal = numOrNull(data?.memory?.swapTotal);
   return {
     cpu: numOrNull(data?.cpu?.usage_percent),
     mem: numOrNull(data?.memory?.percent),
     disk: numOrNull(disk?.percent),
+    swap: swapTotal != null && swapTotal > 0 ? numOrNull(data?.memory?.swapPercent) : null,
     stall: numOrNull(data?.stall_score),
     runqueue: numOrNull(data?.cpu?.run_queue)
   };
@@ -72,7 +87,12 @@ function pct1(value: unknown): string {
 /** 带档位圆点的 KPI 副行；颜色不是唯一语义，文字始终存在。 */
 function StallDetail({ level, psi }: { level?: string | null; psi?: number | null }) {
   const tone = stallTone(level);
-  const color = tone === 'error' ? 'var(--ant-color-error)' : tone === 'warning' ? 'var(--ant-color-warning)' : 'var(--ant-color-success)';
+  const color =
+    tone === 'error'
+      ? 'var(--ant-color-error)'
+      : tone === 'warning'
+        ? 'var(--ant-color-warning)'
+        : 'var(--ant-color-success)';
   return (
     <span className="monitor-kpi-level">
       <i className="monitor-kpi-dot" style={{ background: color }} />
@@ -82,14 +102,28 @@ function StallDetail({ level, psi }: { level?: string | null; psi?: number | nul
   );
 }
 
+const ANCHORS = [
+  ['monitor-processes', '进程'],
+  ['monitor-services', '服务'],
+  ['monitor-ports', '端口'],
+  ['monitor-disks', '磁盘'],
+  ['monitor-audit', '审计']
+] as const;
+
 export default function System({ active }: { active: boolean }) {
   const [data, setData] = useState<SystemData | null>(null);
   const [processes, setProcesses] = useState<ProcessInfo[]>([]);
+  const [processCount, setProcessCount] = useState<number | undefined>(undefined);
+  const [processLoading, setProcessLoading] = useState(true);
+  const [services, setServices] = useState<SystemServiceInfo[]>([]);
+  const [serviceLoading, setServiceLoading] = useState(true);
   const [info, setInfo] = useState<SystemInfoResponse | null>(null);
+  const [infoLoading, setInfoLoading] = useState(true);
   const [infoError, setInfoError] = useState('');
   const [error, setError] = useState('');
   const [updated, setUpdated] = useState<Date | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [auto, setAuto] = useState(true);
   const [range, setRange] = useState<MonitorRange>('24h');
   const [trendPoints, setTrendPoints] = useState<HistoryPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(true);
@@ -98,10 +132,17 @@ export default function System({ active }: { active: boolean }) {
   const sparkRef = useRef<SparkSample[]>([]);
   const sparkSeededRef = useRef(false);
   const trendCacheRef = useRef<Partial<Record<MonitorRange, HistoryPoint[]>>>({});
+  const autoRef = useRef(auto);
+  const forceFrameRef = useRef(false);
+  autoRef.current = auto;
 
-  const refresh = useCallback(() => setRefreshTick((tick) => tick + 1), []);
+  // 手动刷新：即使自动刷新关闭，也要强制应用下一帧 / 触发一次 REST 拉取。
+  const refresh = useCallback(() => {
+    forceFrameRef.current = true;
+    setRefreshTick((tick) => tick + 1);
+  }, []);
 
-  // 系统 SSE：Tab 激活时才建连；手动刷新时重连一次。断开后 5s 自动重试。
+  // 系统 SSE：Tab 激活时才建连；自动刷新关闭后连接仍保留，但不再把帧写进页面。
   useEffect(() => {
     if (!active) return;
 
@@ -117,6 +158,8 @@ export default function System({ active }: { active: boolean }) {
         else if (line.startsWith('data:')) payload = line.slice(5).trim();
       }
       if (event !== 'snapshot' || payload == null) return;
+      if (!autoRef.current && !forceFrameRef.current) return;
+      forceFrameRef.current = false;
       let snapshot: SystemSnapshot;
       try {
         snapshot = JSON.parse(payload) as SystemSnapshot;
@@ -134,6 +177,7 @@ export default function System({ active }: { active: boolean }) {
           cpu: numOrNull(point.cpu),
           mem: numOrNull(point.mem_percent),
           disk: null,
+          swap: null,
           stall: null,
           runqueue: null
         }));
@@ -184,7 +228,7 @@ export default function System({ active }: { active: boolean }) {
     };
   }, [active, refreshTick]);
 
-  // Top 进程：每 5s 一次；页面隐藏时停表，回前台立即补一次。
+  // 进程全量：每 5s 一次；自动刷新关闭后只保留手动触发的一次拉取。
   useEffect(() => {
     if (!active) return;
     let disposed = false;
@@ -198,14 +242,17 @@ export default function System({ active }: { active: boolean }) {
         const result = await getServices({ signal: ctrl.signal });
         if (disposed) return;
         setProcesses(Array.isArray(result.processes) ? result.processes : []);
+        setProcessCount(typeof result.count === 'number' ? result.count : undefined);
       } catch {
         // 失败保留上一帧，等待下个周期重试
+      } finally {
+        if (!disposed) setProcessLoading(false);
       }
     }
     const start = () => {
       if (timer !== null) return;
       load();
-      timer = setInterval(load, 5000);
+      if (auto) timer = setInterval(load, 5000);
     };
     const stop = () => {
       if (timer !== null) {
@@ -227,9 +274,56 @@ export default function System({ active }: { active: boolean }) {
       document.removeEventListener('visibilitychange', onVisibility);
       stop();
     };
-  }, [active, refreshTick]);
+  }, [active, refreshTick, auto]);
 
-  // 概况（失败单元 / 登录 / 端口）：60s 一次，失败时保留旧内容并给出灰色降级说明。
+  // 服务全量：每 5s 一次；失败保留上一帧。
+  useEffect(() => {
+    if (!active) return;
+    let disposed = false;
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let ctrl: AbortController | null = null;
+
+    async function load() {
+      ctrl?.abort();
+      ctrl = new AbortController();
+      try {
+        const result = await getSystemServices({ signal: ctrl.signal });
+        if (disposed) return;
+        setServices(Array.isArray(result) ? result : []);
+      } catch {
+        // 失败保留上一帧，等待下个周期重试
+      } finally {
+        if (!disposed) setServiceLoading(false);
+      }
+    }
+    const start = () => {
+      if (timer !== null) return;
+      load();
+      if (auto) timer = setInterval(load, 5000);
+    };
+    const stop = () => {
+      if (timer !== null) {
+        clearInterval(timer);
+        timer = null;
+      }
+      ctrl?.abort();
+      ctrl = null;
+    };
+    const onVisibility = () => {
+      if (document.hidden) stop();
+      else start();
+    };
+
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      disposed = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      stop();
+    };
+  }, [active, refreshTick, auto]);
+
+  // 概况（操作系统 / 磁盘 inode / 端口 / 失败单元 / 登录）：60s 一次。
   useEffect(() => {
     if (!active) return;
     let disposed = false;
@@ -247,12 +341,14 @@ export default function System({ active }: { active: boolean }) {
       } catch {
         if (disposed || ctrl?.signal.aborted) return;
         setInfoError('系统概况加载失败');
+      } finally {
+        if (!disposed) setInfoLoading(false);
       }
     }
     const start = () => {
       if (timer !== null) return;
       load();
-      timer = setInterval(load, 60000);
+      if (auto) timer = setInterval(load, 60000);
     };
     const stop = () => {
       if (timer !== null) {
@@ -274,7 +370,7 @@ export default function System({ active }: { active: boolean }) {
       document.removeEventListener('visibilitychange', onVisibility);
       stop();
     };
-  }, [active, refreshTick]);
+  }, [active, refreshTick, auto]);
 
   // 主趋势：切换范围立即拉一次，之后按该范围的节奏刷新；缓存上次结果避免切回时闪空。
   useEffect(() => {
@@ -303,14 +399,15 @@ export default function System({ active }: { active: boolean }) {
     }
 
     load();
-    timer = setInterval(load, spec.refreshMs);
+    if (auto) timer = setInterval(load, spec.refreshMs);
     return () => {
       disposed = true;
       if (timer) clearInterval(timer);
     };
-  }, [active, range, refreshTick]);
+  }, [active, range, refreshTick, auto]);
 
   const rootDisk = useMemo(() => pickRootDisk(data?.disks, data?.disk), [data?.disks, data?.disk]);
+  const diskRows = useMemo(() => info?.disks ?? [], [info?.disks]);
 
   const cpu = data?.cpu;
   const memory = data?.memory;
@@ -321,6 +418,9 @@ export default function System({ active }: { active: boolean }) {
   const cpuTone = thresholdTone(cpu?.usage_percent, 70, 85);
   const memTone = thresholdTone(memory?.percent, 80, 90);
   const diskTone = thresholdTone(rootDisk?.percent, 75, 85);
+  const swapTotal = numOrNull(memory?.swapTotal);
+  const swapPercent = swapTotal != null && swapTotal > 0 ? numOrNull(memory?.swapPercent) : null;
+  const swapTone = thresholdTone(swapPercent, 50, 80);
   const queueTone: ValueTone =
     runQueue != null && cores != null && cores > 0
       ? thresholdTone(runQueue, cores, cores * 1.5)
@@ -329,6 +429,7 @@ export default function System({ active }: { active: boolean }) {
   const sparkCpu = spark.map((sample) => sample.cpu);
   const sparkMem = spark.map((sample) => sample.mem);
   const sparkDisk = spark.map((sample) => sample.disk);
+  const sparkSwap = spark.map((sample) => sample.swap);
   const sparkStall = spark.map((sample) => sample.stall);
   const sparkQueue = spark.map((sample) => sample.runqueue);
 
@@ -347,18 +448,35 @@ export default function System({ active }: { active: boolean }) {
             系统监控
           </Typography.Title>
           <Typography.Text type="secondary" className="monitor-head-sub">
-            {host || '—'} · {osName || '—'} · 运行 {fmtDuration(uptime)}
+            {host || '—'} · {info?.kernel || osName || '—'} · 运行 {fmtDuration(uptime)}
           </Typography.Text>
         </div>
         <div className="monitor-head-actions">
           <Typography.Text type="secondary" className="monitor-num">
             更新于 {updated ? updated.toLocaleTimeString('zh-CN') : '—'}
           </Typography.Text>
+          <Segmented
+            size="small"
+            value={auto ? 'on' : 'off'}
+            onChange={(value) => setAuto(value === 'on')}
+            options={[
+              { label: '自动 5s', value: 'on' },
+              { label: '关', value: 'off' }
+            ]}
+          />
           <Button size="small" onClick={refresh}>
             刷新
           </Button>
         </div>
       </div>
+
+      <nav className="monitor-anchors" aria-label="监控分区">
+        {ANCHORS.map(([id, label]) => (
+          <a key={id} href={`#${id}`}>
+            {label}
+          </a>
+        ))}
+      </nav>
 
       {error && <Alert type="error" showIcon message={error} />}
 
@@ -392,6 +510,19 @@ export default function System({ active }: { active: boolean }) {
           tone={diskTone}
         />
         <KpiCard
+          label="Swap"
+          value={swapPercent == null ? '—' : pct1(swapPercent)}
+          detail={
+            swapTotal == null
+              ? '—'
+              : swapTotal === 0
+                ? '未启用'
+                : `${fmtBytes(memory?.swapUsed)} / ${fmtBytes(memory?.swapTotal)}`
+          }
+          spark={sparkSwap}
+          tone={swapTone}
+        />
+        <KpiCard
           label="卡顿指数"
           value={stallScore == null ? '—' : stallScore.toFixed(1)}
           detail={<StallDetail level={data?.stall_level} psi={cpuPsi60} />}
@@ -417,20 +548,39 @@ export default function System({ active }: { active: boolean }) {
           />
         </div>
         <div className="monitor-span-4">
-          <MonitorPressure data={data} />
+          <MonitorPressure data={data} temperatures={info?.temperatures} />
         </div>
       </div>
 
-      <div className="monitor-tables">
-        <div className="monitor-span-7">
-          <TopProcesses processes={processes} />
-        </div>
-        <div className="monitor-span-5">
-          <TopServices services={data?.top_services ?? []} />
-        </div>
-      </div>
+      <section id="monitor-processes" className="monitor-section">
+        <MonitorProcessTable
+          processes={processes}
+          total={processCount}
+          loading={processLoading && processes.length === 0}
+        />
+      </section>
 
-      <MonitorAudit info={info} error={infoError} />
+      <section id="monitor-services" className="monitor-section">
+        <MonitorServiceTable services={services} loading={serviceLoading && services.length === 0} />
+      </section>
+
+      <section id="monitor-ports" className="monitor-section">
+        <MonitorPortTable
+          ports={info?.ports?.items ?? []}
+          error={infoError || info?.ports?.error}
+          loading={infoLoading && info == null}
+        />
+      </section>
+
+      <section id="monitor-disks" className="monitor-section">
+        <MonitorDiskTable disks={diskRows} live={data?.disks} loading={infoLoading && info == null} />
+      </section>
+
+      <section id="monitor-audit" className="monitor-section">
+        <MonitorAudit info={info} error={infoError} />
+      </section>
+
+      <MonitorSystemInfo info={info} loading={infoLoading && info == null} />
     </div>
   );
 }
