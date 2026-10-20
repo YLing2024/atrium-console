@@ -14,6 +14,7 @@
 |---|---|---|---|---|
 | `System` | 「系统」Tab 面板：实时系统指标（SSE）、磁盘/网络趋势图、全量进程树 | `active: boolean`（必填，无默认）——该 Tab 是否激活；无对外事件 | `<System active={tab === 'system'} />` | 面板在 `Main` 里常驻挂载（仅切换显隐），取数由 `active` 控制；进程树仅激活时每 5s 取样。进程内存拆两列「内存（含子进程）」（`subtree_mem_mb`）与「自身」（`mem_mb`），各自可排；工具条「含线程」开关默认关闭，开启后在进程名后显示 `thread_count`。 |
 | `SystemInfo` | 「系统信息」区块：概要行 + 内存/磁盘/端口服务三卡（点击开 Drawer）+ Top 进程表 + 失败单元 + 最近登录 | `active: boolean`（必填，无默认）——系统 Tab 是否激活；无对外事件 | `<SystemInfo active={active} />` | 静态概况 60s、Top 进程 10s 刷新；`document.hidden` 时停表并中止在途请求，回前台立即拉一次（不会叠加定时器）。三张卡片可点击/Enter/Space 打开 Drawer，移动端纵向堆叠、表格横向滚动。各区块失败只显示自己的提示，不清空其它内容。 |
+| `LoadStall` | 「负载与卡顿」区块：卡顿指数 + 档位 Tag + PSI 说明 + CPU 三档条（1s/15s/60s）+ Top 服务表 + 最近 15 秒 CPU 增量归因 | `active: boolean`（必填，无默认）——系统 Tab 是否激活；`data?: SystemData \| null`——系统 SSE 的 `system` 段 | `<LoadStall active={active} data={data} />` | 自身不发请求，数据全部复用 SSE；`stall_score` / `stall_level` 缺失（旧后端）时整块返回 `null`，子表为空只隐藏对应小节。已退出进程用灰 Tag「已退出」，增量表标题固定为「最近 15 秒 CPU 增量」。三档条与两张表在 390px 下纵向堆叠，表格横向滚动。 |
 | `TrendChart`（System.tsx 内） | ECharts 折线趋势图（秒/分/时/天档共用） | `data: HistoryPoint[]`；`series: ChartSeries[]`；`yMax?: number`；`yLabel?: string`；`granularity: string`；`chartId: string`；`recordedMinutes?: number \| null`；`onReady` 由内部处理 | `<TrendChart data={trend} series={memSeries} yMax={100} yLabel="%" granularity={granularity} chartId="mem" />` | `Chart`（echarts）为动态 import，仅本面板引入；秒档 <2 点、其它档为空时显示占位文案；平移位置按档位记忆在内存。 |
 | `Legend`（System.tsx 内） | 趋势图例：色块 + 名称 + 最新值 | `series: ChartSeries[]`；`data: HistoryPoint[]` | `<Legend series={memSeries} data={trend} />` | 颜色必须来自 `series[].color`（antd token 解析结果），不写死色值。 |
 | `Bar`（System.tsx 内） | 进度条（CPU / 内存 / 磁盘共用） | `percent?: number \| null`（默认按 0）；`color: string` | `<Bar percent={memory.percent} color={barColor(memory.percent)} />` | 百分比自动钳制到 0–100；颜色由调用方按 `barColor`（`toneFor` 分级）给出。 |
@@ -32,6 +33,8 @@
 - `SystemInfo` 的三张小编卡片是 `role="button"` + `tabIndex=0`，支持 `Enter` / `Space` 打开 Drawer；
   卡片标题与 `aria-label` 同名，明细内容在 Drawer 内是普通文本 / 表格，不依赖悬停。失败单元用 `Tag`
   展示的同时保留文字「无失败单元」空态，颜色不是唯一语义。
+- `LoadStall` 的档位 Tag 与 PSI 状态点都同时带文字（「顺畅 / 有压力 / 明显卡顿」与百分比），
+  不靠颜色单独传意；CPU 三档条的 `title` 提供悬停具体值，旁边也常驻同值文本。
 - `System` 的进程表用的是 antd `Table` 的树形展开：展开/折叠图标可键盘聚焦、`Enter`/`Space` 触发，
   收展状态由 `expandedRowKeys` 受控（拿到第一份进程数据后一次性展开全部，用户手动折叠的选择在 5s
   轮询刷新间保留）。不要退回 `defaultExpandAllRows`（数据异步到达时不生效）。

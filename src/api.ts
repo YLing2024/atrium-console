@@ -250,8 +250,34 @@ export interface PsiInfo {
   full?: PsiEntry;
 }
 
+/** 最近 15 秒 CPU 增量归因项（exited 表示窗口内已退出） */
+export interface CpuMover {
+  pid?: number;
+  name?: string;
+  /** 该进程在 15 秒窗口内消耗的 CPU 占整机可用时间百分比 */
+  delta_percent?: number;
+  /** 最近一个 tick 的进程占用（已退出为 0） */
+  current_percent?: number;
+  exited?: boolean;
+}
+
+/** 服务单元 cgroup 占用（system.slice 下的 *.service） */
+export interface ServiceCpu {
+  unit?: string;
+  cpu_percent?: number;
+  /** cgroup 内存真值（MB，含页缓存）；读不到为 null */
+  mem_mb?: number | null;
+}
+
 export interface CpuInfo {
   usage_percent?: number;
+  /** 15 秒窗口 CPU 占用均值（%） */
+  usage_15s?: number;
+  /** 60 秒窗口 CPU 占用均值（%） */
+  usage_60s?: number;
+  run_queue?: number;
+  blocked?: number;
+  top_movers?: CpuMover[];
   per_core?: CoreUsage[];
   model?: string;
   cores?: number;
@@ -302,6 +328,12 @@ export interface SystemData {
   disk_io?: DiskIoInfo | null;
   processes?: ProcessCount | null;
   psi?: { memory?: PsiInfo; cpu?: PsiInfo; io?: PsiInfo };
+  /** system.slice 下各服务单元的 cgroup CPU / 内存，最多 10 条 */
+  top_services?: ServiceCpu[];
+  /** 0–100 卡顿指数（后端计算，前端只展示） */
+  stall_score?: number;
+  /** 档位文案：顺畅 / 有压力 / 明显卡顿 */
+  stall_level?: string;
   uptime?: number | string;
   os?: string;
   hostname?: string;

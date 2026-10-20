@@ -53,6 +53,7 @@ import type { CoreUsage, DiskInfo, HistoryPoint, ProcessInfo, PsiInfo, ServiceIn
 import { clampOffset, fmtBytes, fmtDuration, fmtMB, fmtPct, fmtRate, toneFor } from '../format';
 import { buildProcTree, collectProcPids, sortProcTree, type ProcSortKey, type ProcTreeNode } from '../procTree';
 import type { EChartsOption } from './Chart';
+import LoadStall from './LoadStall';
 import SystemInfo from './SystemInfo';
 
 // ECharts 体积大：图表实现（Chart.tsx + echarts）改为动态 import，
@@ -901,6 +902,8 @@ export default function System({ active }: { active: boolean }) {
       {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
 
       <SystemInfo active={active} />
+
+      <LoadStall active={active} data={data} />
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={8}>
