@@ -6,13 +6,14 @@ The admin frontend for the personal site: view the server, manage the blog, and 
 
 ## What it does
 
-The sidebar has 6 pages in total; panels stay mounted and only toggle visibility, and the last page you were on is remembered for the session (`sessionStorage.admin_tab`).
+The sidebar has 8 pages in total; panels stay mounted and only toggle visibility. The page is selected by the URL (`/system`, `/tools/bitwarden`, and so on), so refresh, back/forward and bookmarks stay on the same page.
 
 - **System**: real-time readings and history trends for CPU / memory / disk / network; live readings use streamed sampling, and trends switch between second / minute / hour / day granularity
 - **Blog**: post and collection management over `/api/blog/admin/*`; the body is edited with CodeMirror 6, posts and collections are identified by snowflake `public_id`, and subtitle (`subtitle`) and excerpt (`excerpt`) are independent fields
 - **Manage**: login device sessions, API tokens (the plaintext is shown only once at creation), reset authenticator
 - **Terminal**: connect to the server terminal in the browser (ttyd + tmux), with multiple tabs; beyond the site login, a separate terminal password is verified, and the ticket is passed to the server-side wrapper via the iframe for validation
 - **Hermes**: embedded in an iframe at an address injected at build time
+- **Tools**: `/tools` is a navigation list; Bitwarden unlock lives on its own `/tools/bitwarden` page (direct link, refresh and bookmark all work; the master password is exchanged for a session, never stored)
 
 `Ctrl/⌘ + K` opens the command palette, which can switch pages, reset the authenticator and log out. On narrow screens (<1024px) the sidebar collapses into a left-side slide-out drawer, and the top menu button is always visible.
 
