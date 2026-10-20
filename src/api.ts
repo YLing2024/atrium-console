@@ -359,6 +359,84 @@ export interface SystemMetricsResponse {
   meta?: { recordedSeconds?: number; [key: string]: unknown };
 }
 
+/** 系统概况里的磁盘项（真实块设备挂载点，容量单位字节） */
+export interface SystemDiskInfo {
+  mount?: string;
+  filesystem?: string;
+  fstype?: string;
+  total?: number;
+  used?: number;
+  free?: number;
+  /** 容量使用率（%） */
+  percent?: number;
+  /** inode 使用率（%） */
+  inodePercent?: number;
+}
+
+/** 监听端口项（最多 15 条） */
+export interface SystemPortInfo {
+  port?: number;
+  process?: string;
+  pid?: number | null;
+  address?: string;
+}
+
+/** systemd 失败单元 */
+export interface FailedUnitInfo {
+  name?: string;
+  description?: string;
+}
+
+/** 最近登录项（time 为 last 原始文本） */
+export interface SystemLoginInfo {
+  user?: string;
+  ip?: string;
+  time?: string;
+}
+
+/** 热区读数 */
+export interface SystemTemperature {
+  zone?: string;
+  type?: string;
+  celsius?: number;
+}
+
+/** `GET /api/admin/system/info`（静态概况缓存 60s；各区块失败只带自己的 error） */
+export interface SystemInfoResponse {
+  os?: string;
+  kernel?: string;
+  arch?: string;
+  hostname?: string;
+  /** epoch 毫秒 */
+  bootTime?: number;
+  uptimeSeconds?: number;
+  load?: number[];
+  cpuModel?: string;
+  cpuCores?: number;
+  memory?: { total?: number; available?: number; used?: number; cached?: number };
+  swap?: { total?: number; used?: number };
+  disks?: SystemDiskInfo[];
+  ports?: { total?: number; items?: SystemPortInfo[]; error?: string };
+  systemd?: { failed?: FailedUnitInfo[]; error?: string };
+  logins?: { items?: SystemLoginInfo[]; error?: string };
+  temperatures?: SystemTemperature[];
+}
+
+/** Top 进程行（CPU 为整机占比） */
+export interface TopProcessInfo {
+  pid: number;
+  name: string;
+  cpuPercent?: number;
+  memMB?: number;
+  command?: string;
+}
+
+/** `GET /api/admin/system/processes`（实时；失败时 processes 为空并带 error） */
+export interface SystemProcessesResponse {
+  processes?: TopProcessInfo[];
+  error?: string;
+}
+
 /** 博客文章（后台列表 / 详情） */
 export interface BlogPost {
   id: number;
@@ -489,6 +567,16 @@ export function totpResetConfirm(code: string): Promise<unknown> {
 // 系统信息
 export function getSystem(): Promise<SystemData> {
   return request<SystemData>('/api/admin/system');
+}
+
+// 系统概况（静态字段 60s 缓存；端口 / 失败单元 / 登录各自可降级）
+export function getSystemInfo(opts: { signal?: AbortSignal } = {}): Promise<SystemInfoResponse> {
+  return request<SystemInfoResponse>('/api/admin/system/info', { signal: opts.signal });
+}
+
+// Top 进程（实时，后端采样 500ms；按 CPU 与内存各 10 条去重合并）
+export function getTopProcesses(opts: { signal?: AbortSignal } = {}): Promise<SystemProcessesResponse> {
+  return request<SystemProcessesResponse>('/api/admin/system/processes', { signal: opts.signal });
 }
 
 // 历史采样（趋势图数据）
