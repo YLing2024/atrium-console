@@ -70,7 +70,7 @@ const processColumns: TableColumnsType<ProcessInfo> = [
     render: (value: number | null | undefined) => (value == null ? '—' : String(value))
   },
   {
-    title: 'cgroup',
+    title: 'cgroup 内存',
     dataIndex: 'cgroup_mem_mb',
     key: 'cgroup_mem_mb',
     width: 96,
@@ -152,7 +152,7 @@ export function TopServices({ services }: TopServicesProps) {
     <Card
       className="monitor-card"
       title="Top 服务"
-      extra={<Typography.Text type="secondary">cgroup</Typography.Text>}
+      extra={<Typography.Text type="secondary">按 CPU</Typography.Text>}
       style={{ height: '100%' }}
     >
       <Table<ServiceCpu>
