@@ -145,14 +145,9 @@ export default function MonitorDiskTable({ disks, live, loading }: MonitorDiskTa
         columns={columns}
         dataSource={rows}
         loading={loading}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: 'max-content', y: 260 }}
         locale={{ emptyText: '—' }}
-        pagination={{
-          defaultPageSize: 20,
-          showSizeChanger: true,
-          pageSizeOptions: ['20', '50', '100'],
-          size: 'small'
-        }}
+        pagination={false}
       />
     </Card>
   );

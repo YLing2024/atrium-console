@@ -131,14 +131,9 @@ export default function MonitorPortTable({ ports, error, loading }: MonitorPortT
           columns={columns}
           dataSource={rows}
           loading={loading}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: 'max-content', y: 420 }}
           locale={{ emptyText: '—' }}
-          pagination={{
-            defaultPageSize: 20,
-            showSizeChanger: true,
-            pageSizeOptions: ['20', '50', '100'],
-            size: 'small'
-          }}
+          pagination={false}
         />
       )}
     </Card>

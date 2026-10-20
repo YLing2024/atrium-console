@@ -180,14 +180,9 @@ export default function MonitorProcessTable({ processes, total, loading }: Monit
         columns={columns}
         dataSource={rows}
         loading={loading}
-        scroll={{ x: 'max-content' }}
+        scroll={{ x: 'max-content', y: 480 }}
         locale={{ emptyText: '—' }}
-        pagination={{
-          defaultPageSize: 20,
-          showSizeChanger: true,
-          pageSizeOptions: ['20', '50', '100'],
-          size: 'small'
-        }}
+        pagination={false}
       />
       {rows.length === 0 && !loading && processes.length > 0 && (
         <Tag className="monitor-table-empty-tag">没有匹配的进程</Tag>
