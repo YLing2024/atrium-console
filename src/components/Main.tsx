@@ -157,7 +157,14 @@ export default function Main() {
       )}
 
       <Layout className="main-col">
-        <Header className="topbar">
+        <Header
+          className="topbar"
+          style={{
+            // antd Layout.Header 默认深色底，浅色主题下会变成一条黑带；跟随主题容器色
+            background: 'var(--ant-color-bg-container, #fff)',
+            borderBottom: '1px solid var(--ant-color-border-secondary, #f0f0f0)'
+          }}
+        >
           {narrow && (
             <Button
               type="text"
