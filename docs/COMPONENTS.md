@@ -21,6 +21,7 @@
 | `InfoRow`（System.tsx 内） | 键值详情行 | `k: ReactNode`；`v: ReactNode`；`valueStyle?: CSSProperties` | `<InfoRow k="可用" v={fmtBytes(memory.available)} />` | 值可换行；颜色走 `token.*`，不写死色值。 |
 | `PsiRow`（System.tsx 内） | PSI 压力行（some/full 的 avg10） | `k: string`；`o?: PsiInfo \| null`；`danger: string`；`warn: string` | `<PsiRow k="内存" o={psi.memory} danger={token.colorError} warn={token.colorWarning} />` | 无 PSI 数据时显示「—」；阈值 some≥50 用 `danger`、≥30 用 `warn`。 |
 | `Database` | 「数据库」Tab 面板：iframe 同源内嵌 DBGate（`/db/`），打开即用、无二次登录 | `active: boolean`（必填，无默认值）——该 Tab 是否激活；无对外事件 | `<Database active={tab === 'db'} />` | 面板在 `Main` 里常驻挂载（仅切显隐），故等 `active` 首次为 `true` 才渲染 iframe 并保持挂载（切走不卸载，避免丢失正在浏览的表 / 查询状态）；`src` 用同源相对路径 `/db/`，与终端 `/term/` 同一套接线，鉴权由前置网关负责，组件不碰凭据 / token。 |
+| `SshKeys` | 「SSH 公钥」Tab 面板：公钥白名单的列表 / 新增 / 改标题 / 停用 / 删除 | 无 props；无对外事件——所有操作直接调用 `src/api.ts` 并重新拉取列表 | `<SshKeys />` | 面板在 `Main` 里常驻挂载（仅切显隐）。公钥只接受 `type base64 [comment]` 单行纯公钥，前端校验只是体验，服务端会再次解析并拒绝 `command=` 等前置选项；停用与删除的确认文案必须保留「已建立的连接不受影响」的区分。指纹用 antd `Typography.Text code` + `copyable`，移动端靠表格横向滚动与 `responsive` 列保留全部信息。 |
 | `Terminal` | 「终端」Tab 面板：多标签 ttyd + tmux 终端；站点登录之外的口令门换 12h 票据，票据随 iframe 传给服务端 wrapper 校验 | `active: boolean`（必填，无默认值）——该 Tab 是否激活；无对外事件 | `<Terminal active={tab === 'term'} />` | 面板在 `Main` 里常驻挂载（仅切显隐）。进入流程前探测 `GET /api/admin/term/mode`：`unlockRequired === false`（后端 `ADMIN_TERM_UNLOCK=off`）时跳过口令表单直接取票，另外两条路径（口令表单 / 探测失败）均按需要口令兜底，判定见 `src/termGate.ts`。票据存 `sessionStorage`、多标签、6s 存活点轮询、`pagehide` sendBeacon 关窗断连一律保持既有行为。 |
 
 ## 可访问性要点

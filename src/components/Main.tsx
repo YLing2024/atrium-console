@@ -9,18 +9,20 @@ import BlogAdmin from './BlogAdmin';
 import ResetTotp from './ResetTotp';
 import CommandPalette from './CommandPalette';
 import Manage from './Manage';
+import SshKeys from './SshKeys';
 import Terminal from './Terminal';
 import Hermes from './Hermes';
 import Database from './Database';
 
 // 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat' / 已下线的通知页 / 应用 / 版本 /
 // 文件 / 调试）一律回退到首个 Tab
-const TABS = ['system', 'blog', 'manage', 'terminal', 'hermes', 'db'];
+const TABS = ['system', 'blog', 'manage', 'sshkeys', 'terminal', 'hermes', 'db'];
 // 标签文字与顺序
 const TAB_LABELS: Record<string, string> = {
   system: '系统',
   blog: '博客',
   manage: '管理',
+  sshkeys: 'SSH 公钥',
   terminal: '终端',
   hermes: 'Hermes',
   db: '数据库'
@@ -184,6 +186,9 @@ export default function Main() {
           </div>
           <div className="pane" hidden={tab !== 'manage'}>
             <Manage />
+          </div>
+          <div className="pane" hidden={tab !== 'sshkeys'}>
+            <SshKeys />
           </div>
           <div className="pane pane--term" hidden={tab !== 'terminal'}>
             <Terminal active={tab === 'terminal'} />
