@@ -444,6 +444,31 @@ export interface UpdateApiTokenInput {
   canWrite?: boolean;
 }
 
+/** SSH 公钥白名单项（不含公钥原文） */
+export interface SshKey {
+  id: string;
+  title: string;
+  /** GitHub 风格：SHA256: + 无填充 base64 */
+  fingerprint: string;
+  keyType: string;
+  comment: string;
+  enabled: boolean;
+  /** epoch 毫秒 */
+  createdAt: number;
+  /** epoch 毫秒；从未使用为 null */
+  lastUsedAt: number | null;
+}
+
+export interface CreateSshKeyInput {
+  title: string;
+  public_key: string;
+}
+
+export interface UpdateSshKeyInput {
+  title?: string;
+  enabled?: boolean;
+}
+
 /* ============ 系统 ============ */
 
 // TOTP 首次设置（仅未配置时可用），返回 { secret, otpauthUri }
@@ -609,6 +634,28 @@ export function updateApiToken(id: string, patch: UpdateApiTokenInput): Promise<
 // 吊销接口令牌（立即失效）
 export function deleteApiToken(id: string): Promise<unknown> {
   return request(`/api/admin/api-tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// ============ SSH 公钥白名单 ============
+
+// 公钥列表（按 id 倒序，不含公钥原文）
+export function getSshKeys(): Promise<{ keys?: SshKey[] }> {
+  return request('/api/admin/ssh-keys');
+}
+
+// 新增公钥：public_key 为整行 `type base64 [comment]`，服务端会再次校验
+export function createSshKey(data: CreateSshKeyInput): Promise<SshKey> {
+  return request('/api/admin/ssh-keys', { method: 'POST', body: data });
+}
+
+// 修改标题或启用状态
+export function updateSshKey(id: string, patch: UpdateSshKeyInput): Promise<SshKey> {
+  return request(`/api/admin/ssh-keys/${encodeURIComponent(id)}`, { method: 'PATCH', body: patch });
+}
+
+// 删除公钥（下一次登录立即失效）
+export function deleteSshKey(id: string): Promise<unknown> {
+  return request(`/api/admin/ssh-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
 // ============ 历史会话浏览（只读） ============

@@ -87,3 +87,22 @@ export function extOf(name: string): string {
   if (i <= 0 || i === name.length - 1) return '';
   return name.slice(i + 1).toUpperCase().slice(0, 5);
 }
+
+// 时间戳（epoch 毫秒）→ 本地 `YYYY-MM-DD HH:mm`；缺失/非法显示 —
+export function fmtDateTime(ms: number | null | undefined): string {
+  if (ms == null || !Number.isFinite(Number(ms))) return '—';
+  const d = new Date(Number(ms));
+  if (Number.isNaN(d.getTime())) return '—';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// 时间戳 → 相对时间；now 可注入以便单测，未来时间按「刚刚」处理
+export function fmtRelativeTime(ms: number | null | undefined, now: number = Date.now()): string {
+  if (ms == null || !Number.isFinite(Number(ms))) return '—';
+  const diff = now - Number(ms);
+  if (diff < 60 * 1000) return '刚刚';
+  if (diff < 3600 * 1000) return `${Math.floor(diff / 60000)} 分钟前`;
+  if (diff < 86400 * 1000) return `${Math.floor(diff / 3600000)} 小时前`;
+  return `${Math.floor(diff / 86400000)} 天前`;
+}

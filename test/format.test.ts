@@ -10,7 +10,9 @@ import {
   niceMax,
   clampOffset,
   fmtSize,
-  extOf
+  extOf,
+  fmtDateTime,
+  fmtRelativeTime
 } from '../src/format.ts';
 
 test('fmtBytes：1024 进制与非法值回退', () => {
@@ -104,4 +106,20 @@ test('extOf：大写扩展名最多 5 位，无扩展名/隐藏文件为空', ()
   assert.equal(extOf('Makefile'), '');
   assert.equal(extOf('.gitignore'), '');
   assert.equal(extOf('trailing.'), '');
+});
+
+test('fmtDateTime 输出本地时间并容错', () => {
+  const ts = new Date(2026, 9, 20, 9, 5).getTime();
+  assert.equal(fmtDateTime(ts), '2026-10-20 09:05');
+  assert.equal(fmtDateTime(null), '—');
+  assert.equal(fmtDateTime(Number.NaN), '—');
+});
+
+test('fmtRelativeTime 按注入的 now 分档', () => {
+  const now = new Date(2026, 9, 20, 12, 0).getTime();
+  assert.equal(fmtRelativeTime(now - 30_000, now), '刚刚');
+  assert.equal(fmtRelativeTime(now - 5 * 60_000, now), '5 分钟前');
+  assert.equal(fmtRelativeTime(now - 3 * 3_600_000, now), '3 小时前');
+  assert.equal(fmtRelativeTime(now - 2 * 86_400_000, now), '2 天前');
+  assert.equal(fmtRelativeTime(null, now), '—');
 });
