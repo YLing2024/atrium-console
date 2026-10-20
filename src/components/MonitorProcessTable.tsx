@@ -63,6 +63,7 @@ const allColumns: TableColumnsType<ProcessInfo> = [
     className: 'monitor-num',
     defaultSortOrder: 'descend',
     sorter: (a, b) => Number(a.cpu ?? 0) - Number(b.cpu ?? 0),
+    sortDirections: ['descend', 'ascend'],
     render: (value: number | undefined) =>
       value == null || !Number.isFinite(Number(value)) ? '—' : fmtPct(value) + '%'
   },
@@ -74,6 +75,7 @@ const allColumns: TableColumnsType<ProcessInfo> = [
     align: 'right',
     className: 'monitor-num',
     sorter: (a, b) => Number(a.mem_mb ?? 0) - Number(b.mem_mb ?? 0),
+    sortDirections: ['descend', 'ascend'],
     render: (value: number | undefined) => fmtMB(value)
   },
   {
@@ -84,6 +86,7 @@ const allColumns: TableColumnsType<ProcessInfo> = [
     align: 'right',
     className: 'monitor-num',
     sorter: (a, b) => Number(a.thread_count ?? 0) - Number(b.thread_count ?? 0),
+    sortDirections: ['descend', 'ascend'],
     render: (value: number | null | undefined) => (value == null ? '—' : String(value))
   },
   {
@@ -94,6 +97,7 @@ const allColumns: TableColumnsType<ProcessInfo> = [
     align: 'right',
     className: 'monitor-num',
     sorter: (a, b) => Number(a.cgroup_mem_mb ?? 0) - Number(b.cgroup_mem_mb ?? 0),
+    sortDirections: ['descend', 'ascend'],
     render: (value: number | null | undefined) => (value == null ? '—' : fmtMB(value))
   },
   {
@@ -104,6 +108,7 @@ const allColumns: TableColumnsType<ProcessInfo> = [
     align: 'right',
     className: 'monitor-num',
     sorter: (a, b) => Number(a.subtree_mem_mb ?? 0) - Number(b.subtree_mem_mb ?? 0),
+    sortDirections: ['descend', 'ascend'],
     render: (value: number | undefined) => fmtMB(value)
   }
 ];

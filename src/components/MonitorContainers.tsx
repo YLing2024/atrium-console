@@ -8,6 +8,7 @@ import { useMemo, useState } from 'react';
 import { Card, Input, Table, Tag, Typography } from 'antd';
 import type { TableColumnsType } from 'antd';
 import type { ContainerStat } from '../api';
+import { fmtMB, fmtPct } from '../format';
 
 interface Props {
   containers: ContainerStat[];
@@ -29,8 +30,9 @@ function stateColor(state?: string): string {
   }
 }
 
-const fmt1 = (v?: number) => (v == null ? '—' : v.toFixed(1));
-const fmtInt = (v?: number) => (v == null ? '—' : String(Math.round(v)));
+// 统一走 format.ts：MB 超 1024 自动升 GB，百分比一位小数，整数带千分位。
+const fmt1 = (v?: number) => fmtPct(v);
+const fmtInt = (v?: number) => (v == null ? '—' : Math.round(v).toLocaleString('en-US'));
 
 export default function MonitorContainers({ containers, loading }: Props) {
   const [query, setQuery] = useState('');
@@ -68,7 +70,8 @@ export default function MonitorContainers({ containers, loading }: Props) {
       width: 90,
       align: 'right',
       sorter: (a, b) => (a.cpu_percent ?? 0) - (b.cpu_percent ?? 0),
-      render: (v?: number) => `${fmt1(v)}%`
+      sortDirections: ['descend', 'ascend'],
+      render: (v?: number) => fmt1(v)
     },
     {
       title: '内存',
@@ -77,8 +80,9 @@ export default function MonitorContainers({ containers, loading }: Props) {
       width: 130,
       align: 'right',
       sorter: (a, b) => (a.mem_mb ?? 0) - (b.mem_mb ?? 0),
+      sortDirections: ['descend', 'ascend'],
       render: (_, row) =>
-        row.mem_mb == null ? '—' : `${fmt1(row.mem_mb)} / ${fmtInt(row.mem_limit_mb)} MB`
+        row.mem_mb == null ? '—' : `${fmtMB(row.mem_mb)} / ${fmtMB(row.mem_limit_mb)}`
     },
     {
       title: '网络 ↓/↑',
@@ -87,7 +91,7 @@ export default function MonitorContainers({ containers, loading }: Props) {
       width: 150,
       align: 'right',
       sorter: (a, b) => (a.net_rx_mb ?? 0) - (b.net_rx_mb ?? 0),
-      render: (_, row) => `${fmt1(row.net_rx_mb)} / ${fmt1(row.net_tx_mb)} MB`
+      render: (_, row) => `${fmtMB(row.net_rx_mb)} / ${fmtMB(row.net_tx_mb)}`
     },
     {
       title: '磁盘 ↓/↑',
@@ -96,7 +100,7 @@ export default function MonitorContainers({ containers, loading }: Props) {
       width: 150,
       align: 'right',
       sorter: (a, b) => (a.block_read_mb ?? 0) - (b.block_read_mb ?? 0),
-      render: (_, row) => `${fmt1(row.block_read_mb)} / ${fmt1(row.block_write_mb)} MB`
+      render: (_, row) => `${fmtMB(row.block_read_mb)} / ${fmtMB(row.block_write_mb)}`
     },
     {
       title: 'PIDs',
