@@ -77,7 +77,7 @@ function StallDetail({ level, psi }: { level?: string | null; psi?: number | nul
     <span className="monitor-kpi-level">
       <i className="monitor-kpi-dot" style={{ background: color }} />
       {level || '—'}
-      {psi == null ? '' : ` · 过去 60 秒有 ${(Number(psi) || 0).toFixed(1)}% 的时间在等 CPU`}
+      {psi == null ? '' : ` · ${(Number(psi) || 0).toFixed(1)}% 时间在等 CPU`}
     </span>
   );
 }

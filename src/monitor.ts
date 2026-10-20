@@ -117,8 +117,9 @@ export function buildSparkGeometry(
   let min = Math.min(...nums);
   let max = Math.max(...nums);
   if (max - min < 1e-9) {
-    min -= 1;
-    max += 1;
+    // 完全没波动时（如磁盘占用），画一条平线看起来像一条多余的分隔线；
+    // 退回单点，视觉上明确「保持不变」。
+    return { point: { x: pad + innerW, y: pad + innerH / 2 }, line: '', area: '' };
   }
 
   points.forEach((point, i) => {
