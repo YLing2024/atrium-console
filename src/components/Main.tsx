@@ -193,9 +193,9 @@ export default function Main() {
           {/* 面板常驻挂载，仅切换显隐：避免切 tab 时浏览状态/内容丢失 */}
           <div className="pane" hidden={tab !== 'system'}>
             <System active={tab === 'system'} />
-            <div className="pane" hidden={tab !== 'logs'}>
-              <Logs />
-            </div>
+          </div>
+          <div className="pane" hidden={tab !== 'logs'}>
+            <Logs />
           </div>
           <div className="pane" hidden={tab !== 'blog'}>
             <BlogAdmin />

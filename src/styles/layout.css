@@ -44,6 +44,18 @@
   padding: 0;
 }
 
+/* 日志页与监控页同级：内边距由 .content 统一提供，自身不再叠加 */
+.content > .pane > .logs-page {
+  padding: 0;
+}
+
+/* 日志正文：等宽、可换行，长行不撑破表格 */
+.log-message {
+  font-family: var(--ant-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  word-break: break-all;
+}
+
 /* 窄屏菜单按钮：窄屏才渲染（antd Button），桌面端不在 DOM 中 */
 .nav-toggle {
   margin-right: auto;
