@@ -31,7 +31,8 @@ const SECTION_PATHS: Record<string, string> = {
   terminal: '/terminal',
   hermes: '/hermes',
   db: '/database',
-  tools: '/tools'
+  tools: '/tools',
+  logs: '/logs'
 };
 
 /** URL 路径段 → section；`/sshkeys`、`/db` 作为历史别名也接受，随后归一到规范路径。 */
@@ -45,7 +46,8 @@ const SEGMENT_SECTIONS: Record<string, string> = {
   hermes: 'hermes',
   database: 'db',
   db: 'db',
-  tools: 'tools'
+  tools: 'tools',
+  logs: 'logs'
 };
 
 /** 允许出现在 `/tools/<tool>` 里的工具 id。 */

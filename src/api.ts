@@ -165,7 +165,7 @@ interface RequestOptions {
   unauthorizedAsBusinessError?: boolean;
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   await getAuthMode();
   const headers: Record<string, string> = { ...(options.headers || {}) };
 

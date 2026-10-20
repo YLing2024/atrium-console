@@ -6,6 +6,7 @@ import { logout } from '../api';
 import { navigate, readRoute, routePath, subscribe, type Route } from '../router';
 import { getTheme, setThemePref, type ThemePref } from '../theme';
 import System from './System';
+import Logs from '../pages/Logs';
 import BlogAdmin from './BlogAdmin';
 import ResetTotp from './ResetTotp';
 import CommandPalette from './CommandPalette';
@@ -18,10 +19,11 @@ import Tools from './Tools';
 import ToolBitwarden from '../pages/ToolBitwarden';
 
 // 合法 Tab 集合；路径解析只会产出这些 id（旧版 sessionStorage 记忆已由 URL 取代）
-const TABS = ['system', 'blog', 'manage', 'sshkeys', 'terminal', 'hermes', 'db', 'tools'];
+const TABS = ['system', 'logs', 'blog', 'manage', 'sshkeys', 'terminal', 'hermes', 'db', 'tools'];
 // 标签文字与顺序
 const TAB_LABELS: Record<string, string> = {
   system: '系统',
+  logs: '日志',
   blog: '博客',
   manage: '管理',
   sshkeys: 'SSH 公钥',
@@ -191,6 +193,9 @@ export default function Main() {
           {/* 面板常驻挂载，仅切换显隐：避免切 tab 时浏览状态/内容丢失 */}
           <div className="pane" hidden={tab !== 'system'}>
             <System active={tab === 'system'} />
+            <div className="pane" hidden={tab !== 'logs'}>
+              <Logs />
+            </div>
           </div>
           <div className="pane" hidden={tab !== 'blog'}>
             <BlogAdmin />
