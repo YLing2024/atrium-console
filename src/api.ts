@@ -158,6 +158,11 @@ interface RequestOptions {
   body?: unknown;
   /** 供调用方（如系统 Tab 切走）立即中止请求 */
   signal?: AbortSignal;
+  /**
+   * 401 是否可能是业务失败而非会话失效。Bitwarden 解锁用 401 表示密码错误，
+   * 打开此开关后只有非「密码错误」的 401 才触发全局重新登录。
+   */
+  unauthorizedAsBusinessError?: boolean;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -180,10 +185,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const res = await fetch(path, opts);
   const data = (await res.json().catch(() => ({}))) as ApiEnvelope;
-  // 任意接口 401：凭证失效 → 按模式处理（不做重试循环）
+  // 任意接口 401：凭证失效 → 按模式处理（不做重试循环）。
+  // 解锁接口的 401 是业务失败（密码错误），此时交给调用方展示，不能把用户踢回登录页。
   if (res.status === 401) {
-    handleUnauthorized();
-    throw new Error('未登录或登录已过期');
+    const isPasswordError = options.unauthorizedAsBusinessError === true && data.error === '密码错误';
+    if (!isPasswordError) handleUnauthorized();
+    throw new Error(isPasswordError ? '密码错误' : '未登录或登录已过期');
   }
   if (!res.ok) {
     const err: ApiError = new Error(data.error || `HTTP ${res.status}`);
@@ -744,6 +751,49 @@ export function updateSshKey(id: string, patch: UpdateSshKeyInput): Promise<SshK
 // 删除公钥（下一次登录立即失效）
 export function deleteSshKey(id: string): Promise<unknown> {
   return request(`/api/admin/ssh-keys/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// ============ 工具面板（服务端驱动；token 绝不返回前端） ============
+
+/** 工具清单项。expiresAt 为 epoch 毫秒；非 JWT / 未解锁时为 null。 */
+export interface ToolItem {
+  id: string;
+  name: string;
+  configured: boolean;
+  unlocked: boolean;
+  expiresAt: number | null;
+}
+
+/** Bitwarden 会话状态；expiresInSeconds 为 null 表示读不出有效期（非 JWT）。 */
+export interface BitwardenStatus {
+  configured: boolean;
+  unlocked: boolean;
+  updatedAt: number | null;
+  expiresInSeconds: number | null;
+}
+
+/** 工具清单（数组形状，后续工具直接追加） */
+export function getTools(): Promise<ToolItem[]> {
+  return request<ToolItem[]>('/api/admin/tools');
+}
+
+/** Bitwarden 解锁状态（只有布尔与剩余时间，没有 token） */
+export function getBitwardenStatus(): Promise<BitwardenStatus> {
+  return request<BitwardenStatus>('/api/admin/tools/bitwarden/status');
+}
+
+/** 用主密码换 session。密码只交给本次请求，不写入任何前端存储。 */
+export function unlockBitwarden(password: string): Promise<{ ok: boolean; expiresInSeconds: number | null }> {
+  return request('/api/admin/tools/bitwarden/unlock', {
+    method: 'POST',
+    body: { password },
+    unauthorizedAsBusinessError: true
+  });
+}
+
+/** 删除服务端会话文件（即刻失效） */
+export function lockBitwarden(): Promise<{ ok: boolean }> {
+  return request('/api/admin/tools/bitwarden/lock', { method: 'POST' });
 }
 
 // ============ 历史会话浏览（只读） ============

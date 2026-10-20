@@ -41,6 +41,19 @@ export function fmtDuration(s: number | string | null | undefined): string {
   return parts.join(' ') || '刚刚';
 }
 
+// Bitwarden 卡片状态行：未配置优先于锁定；expiresInSeconds=null 表示非 JWT（有效期未知）
+export function bitwardenStatusText(
+  configured: boolean,
+  unlocked: boolean,
+  expiresInSeconds: number | null
+): string {
+  if (!configured) return '未配置';
+  if (!unlocked) return '已锁定';
+  if (expiresInSeconds == null) return '已解锁（有效期未知）';
+  if (expiresInSeconds <= 0) return '已解锁（已过期）';
+  return `已解锁（剩 ${fmtDuration(expiresInSeconds)}）`;
+}
+
 // 占用率 → 颜色分级：>80% 红、60-80% 橙、<60% 绿（Bar 与每核小条共用）
 export function toneFor(percent: number | null | undefined): string {
   const p = Math.max(0, Math.min(100, Number(percent) || 0));
