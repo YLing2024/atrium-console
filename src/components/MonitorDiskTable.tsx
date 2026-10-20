@@ -151,7 +151,6 @@ export default function MonitorDiskTable({ disks, live, loading }: MonitorDiskTa
           defaultPageSize: 20,
           showSizeChanger: true,
           pageSizeOptions: ['20', '50', '100'],
-          showTotal: (count) => `共 ${count} 条`,
           size: 'small'
         }}
       />

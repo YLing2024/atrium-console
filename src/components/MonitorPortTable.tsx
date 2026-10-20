@@ -137,7 +137,6 @@ export default function MonitorPortTable({ ports, error, loading }: MonitorPortT
             defaultPageSize: 20,
             showSizeChanger: true,
             pageSizeOptions: ['20', '50', '100'],
-            showTotal: (count) => `共 ${count} 条`,
             size: 'small'
           }}
         />

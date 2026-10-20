@@ -114,7 +114,6 @@ export default function MonitorServiceTable({ services, loading }: MonitorServic
           defaultPageSize: 20,
           showSizeChanger: true,
           pageSizeOptions: ['20', '50', '100'],
-          showTotal: (count) => `共 ${count} 条`,
           size: 'small'
         }}
       />
