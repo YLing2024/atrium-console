@@ -3,6 +3,7 @@ import { Button, Drawer, Dropdown, Layout, Menu, Segmented } from 'antd';
 import type { MenuProps } from 'antd';
 import { KeyOutlined, LogoutOutlined, MenuOutlined, UserOutlined } from '@ant-design/icons';
 import { logout } from '../api';
+import { navigate, readRoute, routePath, subscribe, type Route } from '../router';
 import { getTheme, setThemePref, type ThemePref } from '../theme';
 import System from './System';
 import BlogAdmin from './BlogAdmin';
@@ -14,9 +15,9 @@ import Terminal from './Terminal';
 import Hermes from './Hermes';
 import Database from './Database';
 import Tools from './Tools';
+import ToolBitwarden from '../pages/ToolBitwarden';
 
-// 合法 Tab 集合；sessionStorage 里的历史残留（旧版 'browse' / 'chat' / 已下线的通知页 / 应用 / 版本 /
-// 文件 / 调试）一律回退到首个 Tab
+// 合法 Tab 集合；路径解析只会产出这些 id（旧版 sessionStorage 记忆已由 URL 取代）
 const TABS = ['system', 'blog', 'manage', 'sshkeys', 'terminal', 'hermes', 'db', 'tools'];
 // 标签文字与顺序
 const TAB_LABELS: Record<string, string> = {
@@ -47,19 +48,20 @@ function useIsNarrow(): boolean {
 const { Header, Sider, Content } = Layout;
 
 export default function Main() {
-  const [tab, setTab] = useState(() => {
-    const saved = sessionStorage.getItem('admin_tab');
-    return saved && TABS.includes(saved) ? saved : 'system';
-  });
+  // Tab 完全由地址栏决定：首次读取会把 `/` 与未知路径归一，之后只靠 subscribe 同步。
+  const [route, setRoute] = useState<Route>(() => readRoute());
   const [showReset, setShowReset] = useState(false);
   const [pref, setPref] = useState<ThemePref>(() => getTheme()); // 三态：auto / light / dark
   const [cmdOpen, setCmdOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // 窄屏：右侧抽屉是否展开
   const narrow = useIsNarrow();
+  const tab = route.section;
+
+  // 主动跳转与浏览器前进 / 后退都只走这一条更新路径。
+  useEffect(() => subscribe(() => setRoute(readRoute())), []);
 
   function switchTab(t: string) {
-    setTab(t);
-    sessionStorage.setItem('admin_tab', t); // 会话级记忆：同标签页内刷新后停留在上次 Tab
+    navigate(routePath(t));
     setNavOpen(false); // 窄屏选中条目后收起抽屉（仅 UI，不触碰面板挂载）
   }
 
@@ -201,8 +203,9 @@ export default function Main() {
           <div className="pane pane--db" hidden={tab !== 'db'}>
             <Database active={tab === 'db'} />
           </div>
+          {/* 工具面板：导航列表常驻；解锁页只在 `/tools/<tool>` 时挂载，离开即卸载输入状态 */}
           <div className="pane pane--tools" hidden={tab !== 'tools'}>
-            <Tools />
+            {route.tool ? <ToolBitwarden /> : <Tools active={tab === 'tools'} />}
           </div>
         </Content>
       </Layout>

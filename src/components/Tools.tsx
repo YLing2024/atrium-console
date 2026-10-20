@@ -1,23 +1,46 @@
 /**
- * 「工具」Tab：按 `GET /api/admin/tools` 的清单渲染独立小工具卡片。
+ * 「工具」导航页：只列入口，不放任何表单。
  *
- * props：无（面板由 `Main` 常驻挂载）。数据驱动 —— 新工具只需实现一个卡片组件并登记到
- * `TOOL_CARDS`，无需改动侧栏或本页面结构。
+ * props：
+ * - `active`（必填）：该 Tab 是否激活；由 `false → true` 时重新拉取
+ *   `GET /api/admin/tools`，保证从工具子页返回后看到最新状态。
  *
- * 注意：清单里的工具各自负责自己的状态与操作；本组件只做拉取、错误提示和响应式排布。
+ * 点击整行用 `navigate('/tools/<id>')` 跳到独立工具页（页面里有解锁表单）。
+ * 本组件刻意不渲染 `input`：密码只在 `src/pages/ToolBitwarden.tsx` 出现。
  */
-import { useCallback, useEffect, useState, type ComponentType } from 'react';
-import { Alert, Col, Empty, Row, Skeleton, Space, Typography } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Empty, List, Skeleton, Space, Tag, Typography } from 'antd';
 import { getTools, type ToolItem } from '../api';
-import BitwardenTool, { type ToolCardProps } from './BitwardenTool';
+import { navigate } from '../router';
+import { fmtDuration } from '../format';
+import { remainingFromExpiresAt } from '../toolStatus';
 
-const TOOL_CARDS: Record<string, ComponentType<ToolCardProps>> = {
-  bitwarden: BitwardenTool
+/** 工具 id → 列表里的一句话说明；未登记的工具不展示，避免跳到不存在的子页。 */
+const TOOL_ENTRIES: Record<string, string> = {
+  bitwarden: '把主密码换成 session，供服务器上的 bw CLI 使用'
 };
 
-export default function Tools() {
+/** 列表右侧状态：未配置 / 已锁定为灰，已解锁为绿并附剩余时间。 */
+function ToolStatus({ tool }: { tool: ToolItem }) {
+  if (!tool.configured) return <Tag>未配置</Tag>;
+  if (!tool.unlocked) return <Tag>已锁定</Tag>;
+
+  const remaining = remainingFromExpiresAt(tool.expiresAt);
+  return (
+    <Space size={6} wrap>
+      <Tag color="success">已解锁</Tag>
+      {remaining != null && (
+        <Typography.Text type="secondary" className="tool-nav-remaining">
+          剩 {fmtDuration(remaining)}
+        </Typography.Text>
+      )}
+    </Space>
+  );
+}
+
+export default function Tools({ active }: { active: boolean }) {
   const [tools, setTools] = useState<ToolItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -32,9 +55,12 @@ export default function Tools() {
     }
   }, []);
 
+  // 进入导航页才取数；面板常驻挂载，但隐藏时不必发请求。
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (active) void load();
+  }, [active, load]);
+
+  const entries = tools.filter((tool) => TOOL_ENTRIES[tool.id]);
 
   return (
     <div className="tools">
@@ -51,21 +77,43 @@ export default function Tools() {
         {error && <Alert type="error" showIcon message={error} />}
 
         {loading && tools.length === 0 ? (
-          <Skeleton active paragraph={{ rows: 4 }} />
-        ) : tools.length === 0 ? (
+          <Skeleton active paragraph={{ rows: 3 }} />
+        ) : entries.length === 0 ? (
           <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无可用工具" />
         ) : (
-          <Row gutter={[16, 16]}>
-            {tools.map((tool) => {
-              const ToolCard = TOOL_CARDS[tool.id];
-              if (!ToolCard) return null;
-              return (
-                <Col key={tool.id} xs={24} lg={12} xl={8}>
-                  <ToolCard tool={tool} onChanged={load} />
-                </Col>
-              );
-            })}
-          </Row>
+          <List
+            className="tool-nav"
+            bordered
+            dataSource={entries}
+            renderItem={(tool) => (
+              <List.Item
+                key={tool.id}
+                className="tool-nav-item"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/tools/${tool.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/tools/${tool.id}`);
+                  }
+                }}
+              >
+                <div className="tool-nav-body">
+                  <div className="tool-nav-text">
+                    <Typography.Text strong>{tool.name}</Typography.Text>
+                    <Typography.Text type="secondary" className="tool-nav-desc">
+                      {TOOL_ENTRIES[tool.id]}
+                    </Typography.Text>
+                  </div>
+                  <ToolStatus tool={tool} />
+                  <span className="tool-nav-chevron" aria-hidden="true">
+                    ›
+                  </span>
+                </div>
+              </List.Item>
+            )}
+          />
         )}
       </Space>
     </div>

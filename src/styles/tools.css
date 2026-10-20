@@ -1,24 +1,76 @@
-/* ============ 工具面板（数据驱动卡片） ============ */
-/* 颜色 / 圆角 / 字体一律由 antd 默认 token 提供，这里只处理排布与长文本换行。 */
-.tools {
+/* ============ 工具（导航列表 + 独立工具页） ============ */
+/* 颜色 / 圆角 / 字体一律由 antd 默认 token 提供，这里只处理排布、悬停与长文本换行。 */
+.tools,
+.tool-page {
   width: 100%;
 }
 
-.tool-card {
-  height: 100%;
+/* ---- 导航列表：整行可点，无任何输入控件 ---- */
+.tool-nav .ant-list-item {
+  padding: 0;
 }
 
-/* 未配置时整卡降饱和：控件本身也已 disabled，这里只补视觉上的「不可用」。 */
-.tool-card--disabled {
-  opacity: 0.65;
+.tool-nav-item {
+  cursor: pointer;
+  transition: background-color 150ms ease;
 }
 
-.tool-updated {
-  display: inline-block;
-  margin-left: 8px;
+.tool-nav-item:hover {
+  background: var(--ant-color-fill-quaternary);
+}
+
+.tool-nav-item:focus-visible {
+  outline: 2px solid var(--ant-color-primary);
+  outline-offset: -2px;
+}
+
+.tool-nav-body {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 14px 16px;
+}
+
+.tool-nav-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tool-nav-desc {
+  word-break: break-word;
+}
+
+.tool-nav-remaining {
   font-size: 12px;
 }
 
-.tool-card .ant-typography {
-  word-break: break-word;
+.tool-nav-chevron {
+  color: var(--ant-color-text-quaternary);
+}
+
+/* ---- 独立工具页 ---- */
+.tool-back {
+  padding-inline: 0;
+  margin-bottom: 4px;
+}
+
+.tool-page-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.tool-page-form {
+  width: 100%;
+  max-width: 420px;
+}
+
+.tool-updated {
+  font-size: 12px;
 }
