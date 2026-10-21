@@ -113,6 +113,7 @@ function LogDetail({ entry }: { entry: LogEntry }) {
   );
 }
 
+/** 日志页：筛选 / 触底翻页 / 行详情抽屉；`active` 仅用于避免隐藏面板改写地址栏。 */
 export default function Logs({ active = true }: { active?: boolean }) {
   const initial = readInitial();
   const [source, setSource] = useState(initial.source);
