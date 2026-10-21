@@ -889,6 +889,8 @@ export interface ToolItem {
   configured: boolean;
   unlocked: boolean;
   expiresAt: number | null;
+  /** 非空表示外链工具：点击直接在新窗口打开，没有服务端表单 */
+  url?: string;
 }
 
 /** Bitwarden 会话状态；expiresInSeconds 为 null 表示读不出有效期（非 JWT）。 */

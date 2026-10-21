@@ -17,11 +17,22 @@ import { remainingFromExpiresAt } from '../toolStatus';
 
 /** 工具 id → 列表里的一句话说明；未登记的工具不展示，避免跳到不存在的子页。 */
 const TOOL_ENTRIES: Record<string, string> = {
-  bitwarden: '把主密码换成 session，供服务器上的 bw CLI 使用'
+  bitwarden: '把主密码换成 session，供服务器上的 bw CLI 使用',
+  inbox: '收发一次性内容（文本/文件），读完即焚'
 };
+
+/** 外链工具直接开新窗口；其余走独立子页。 */
+function openTool(tool: ToolItem) {
+  if (tool.url) {
+    window.open(tool.url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  navigate(`/tools/${tool.id}`);
+}
 
 /** 列表右侧状态：未配置 / 已锁定为灰，已解锁为绿并附剩余时间。 */
 function ToolStatus({ tool }: { tool: ToolItem }) {
+  if (tool.url) return <Tag color="processing">新窗口打开</Tag>;
   if (!tool.configured) return <Tag>未配置</Tag>;
   if (!tool.unlocked) return <Tag>已锁定</Tag>;
 
@@ -91,11 +102,11 @@ export default function Tools({ active }: { active: boolean }) {
                 className="tool-nav-item"
                 role="button"
                 tabIndex={0}
-                onClick={() => navigate(`/tools/${tool.id}`)}
+                onClick={() => openTool(tool)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    navigate(`/tools/${tool.id}`);
+                    openTool(tool);
                   }
                 }}
               >
