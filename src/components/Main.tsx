@@ -7,6 +7,7 @@ import { navigate, readRoute, routePath, subscribe, type Route } from '../router
 import { getTheme, setThemePref, type ThemePref } from '../theme';
 import System from './System';
 import Logs from '../pages/Logs';
+import MetricsDetail from '../pages/MetricsDetail';
 import BlogAdmin from './BlogAdmin';
 import ResetTotp from './ResetTotp';
 import CommandPalette from './CommandPalette';

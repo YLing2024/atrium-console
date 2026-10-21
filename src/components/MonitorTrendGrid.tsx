@@ -7,7 +7,8 @@
  * 数据仍来自父级的 `/api/admin/system/metrics`，本组件只负责呈现。
  */
 import { useMemo } from 'react';
-import { Card, Segmented, Space, Typography, theme } from 'antd';
+import { Button, Card, Segmented, Space, Typography, theme } from 'antd';
+import { navigate } from '../router';
 import Chart, { type EChartsOption } from './Chart';
 import type { HistoryPoint } from '../api';
 import { MONITOR_RANGES, type MonitorRange } from '../monitor';
@@ -153,7 +154,14 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
         {PANELS.map((panel) => (
           <div className="monitor-trend-cell" key={panel.key}>
             <div className="monitor-trend-cell-head">
-              <span>{panel.title}</span>
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0, height: 'auto', fontSize: 12 }}
+                onClick={() => navigate(`/metrics/${panel.key}`)}
+              >
+                {panel.title} ›
+              </Button>
               <span className="monitor-trend-cell-unit">{panel.unit === 'B/s' ? '↓/↑' : '%'}</span>
             </div>
             <Chart group={GROUP} height={132} option={buildOption(panel)} />

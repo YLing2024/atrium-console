@@ -16,10 +16,15 @@
 
 const ROUTE_EVENT = 'admin:routechange';
 
+/** 允许出现在 `/metrics/<key>` 里的指标 id（与趋势四图一致）。 */
+const METRIC_KEYS = new Set(['cpu', 'mem', 'disk', 'net']);
+
 /** 路由解析结果：`section` 与侧栏 Tab id 保持一致；`tool` 仅工具子页有值。 */
 export interface Route {
   section: string;
   tool?: string;
+  /** 指标下钻页 `/metrics/<key>` 的指标名 */
+  metric?: string;
 }
 
 /** section（侧栏 Tab id）→ 规范路径。id 保持不变，仅在 URL 上使用更短的别名。 */
@@ -32,7 +37,8 @@ const SECTION_PATHS: Record<string, string> = {
   hermes: '/hermes',
   db: '/database',
   tools: '/tools',
-  logs: '/logs'
+  logs: '/logs',
+  metrics: '/metrics',
 };
 
 /** URL 路径段 → section；`/sshkeys`、`/db` 作为历史别名也接受，随后归一到规范路径。 */
@@ -47,7 +53,8 @@ const SEGMENT_SECTIONS: Record<string, string> = {
   database: 'db',
   db: 'db',
   tools: 'tools',
-  logs: 'logs'
+  logs: 'logs',
+  metrics: 'metrics',
 };
 
 /** 允许出现在 `/tools/<tool>` 里的工具 id。 */
@@ -64,6 +71,15 @@ export function parseRoute(pathname: string): Route | null {
   const section = SEGMENT_SECTIONS[segments[0]];
   if (!section) return null;
 
+  // 指标下钻页：/metrics/<cpu|mem|disk|net>
+  if (section === 'metrics') {
+    if (segments.length === 1) return { section };
+    if (segments.length === 2 && METRIC_KEYS.has(segments[1])) {
+      return { section, metric: segments[1] };
+    }
+    return null;
+  }
+
   if (section !== 'tools') {
     return segments.length === 1 ? { section } : null;
   }
@@ -75,7 +91,8 @@ export function parseRoute(pathname: string): Route | null {
 }
 
 /** section / 工具 id → 规范路径；未知 section 回落到系统页。 */
-export function routePath(section: string, tool?: string): string {
+export function routePath(section: string, tool?: string, metric?: string): string {
+  if (section === 'metrics' && metric && METRIC_KEYS.has(metric)) return `/metrics/${metric}`;
   if (section === 'tools' && tool && TOOL_IDS.has(tool)) return `/tools/${tool}`;
   return SECTION_PATHS[section] ?? '/system';
 }
@@ -93,7 +110,7 @@ export function readRoute(): Route {
   }
 
   // 别名（/sshkeys、/db）与多余斜杠统一成规范路径，避免同一内容出现多个可收藏地址。
-  const canonical = routePath(route.section, route.tool);
+  const canonical = routePath(route.section, route.tool, route.metric);
   if (window.location.pathname !== canonical) replaceWith(canonical);
 
   return route;
