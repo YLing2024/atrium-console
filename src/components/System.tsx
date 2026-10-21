@@ -39,6 +39,7 @@ import MonitorServiceTable from './MonitorServiceTable';
 import MonitorPortTable from './MonitorPortTable';
 import MonitorDiskTable from './MonitorDiskTable';
 import MonitorAudit from './MonitorAudit';
+import MonitorAlerts from './MonitorAlerts';
 import MonitorContainers from './MonitorContainers';
 import MonitorSystemInfo from './MonitorSystemInfo';
 
@@ -590,6 +591,8 @@ export default function System({ active }: { active: boolean }) {
       </section>
 
       <section id="monitor-audit" className="monitor-section">
+        <MonitorAlerts />
+
         <MonitorAudit info={info} error={infoError} />
       </section>
 
