@@ -40,13 +40,25 @@ test('mergeDiskRows：info 为主，按挂载点合并 SSE 速率，缺速率保
       { mount: '/', filesystem: '/dev/vda1', fstype: 'ext4', total: 100, used: 40, percent: 40, inode_percent: 12 },
       { mount: '/data', filesystem: '/dev/vdb1', fstype: 'ext4', total: 200, used: 50, percent: 25 }
     ],
-    [{ mount: '/', filesystem: '/dev/vda1', read_rate: 1024, write_rate: 2048 }]
+    [{ mount: '/', filesystem: '/dev/vda1', read_rate: 1024, write_rate: 2048, read_iops: 12.5, write_iops: 30, await_ms: 0.8 }]
   );
   assert.equal(rows.length, 2);
   assert.equal(rows[0].read_rate, 1024);
   assert.equal(rows[0].inode_percent, 12);
+  assert.equal(rows[0].read_iops, 12.5);
+  assert.equal(rows[0].write_iops, 30);
+  assert.equal(rows[0].await_ms, 0.8);
   assert.equal(rows[1].read_rate, null);
   assert.equal(rows[1].inode_percent, null);
+  assert.equal(rows[1].await_ms, null);
+});
+
+test('mergeDiskRows：info 缺 inode 时回退 SSE 的 inode_percent', () => {
+  const rows = mergeDiskRows(
+    [{ mount: '/data', filesystem: '/dev/vdb1' }],
+    [{ mount: '/data', filesystem: '/dev/vdb1', inode_percent: 44.5 }]
+  );
+  assert.equal(rows[0].inode_percent, 44.5);
 });
 
 test('filterDisks：按挂载点 / 设备 / 类型搜索', () => {

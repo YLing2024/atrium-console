@@ -227,10 +227,20 @@ export interface DiskInfo {
   total?: number;
   free?: number;
   percent?: number;
+  /** inode 使用率（%），statfs 读不到时省略 */
+  inode_percent?: number;
+  /** inode 总数（个） */
+  inode_total?: number;
   /** 该设备读速率（字节/秒） */
   read_rate?: number;
   /** 该设备写速率（字节/秒） */
   write_rate?: number;
+  /** 该设备每秒读完成次数（1 秒采样窗口） */
+  read_iops?: number;
+  /** 该设备每秒写完成次数（1 秒采样窗口） */
+  write_iops?: number;
+  /** 该设备平均 await（毫秒） */
+  await_ms?: number;
   /** 该设备累计读字节 */
   read_bytes?: number;
   /** 该设备累计写字节 */
@@ -303,6 +313,41 @@ export interface NetworkInfo {
   tx_rate?: number;
   rx_bytes?: number;
   tx_bytes?: number;
+  /** 累计 RX 丢包（/proc/net/dev 第 4 列，全部接口之和） */
+  rx_drops?: number;
+  /** 累计 RX 错误（第 5 列） */
+  rx_errors?: number;
+  /** 累计 TX 丢包（第 11 列） */
+  tx_drops?: number;
+  /** 累计 TX 错误（第 12 列） */
+  tx_errors?: number;
+  /** TCP 状态分布（tcp + tcp6） */
+  tcp?: TcpStateInfo | null;
+}
+
+/** /proc/net/tcp{,6} 按状态码聚合的连接数。 */
+export interface TcpStateInfo {
+  established?: number;
+  time_wait?: number;
+  close_wait?: number;
+  listen?: number;
+  /** 全部状态之和（含未单列的 SYN_SENT / FIN_WAIT 等） */
+  total?: number;
+}
+
+/** /proc/sys/fs/file-nr 换算出的文件句柄占用。 */
+export interface FileHandleInfo {
+  used?: number;
+  max?: number;
+  /** 已用 / 上限（%），一位小数 */
+  percent?: number;
+}
+
+/** 监控补全的系统级指标块。字段缺失表示对应来源不可读。 */
+export interface SystemStats {
+  /** 运行时长（秒，一位小数） */
+  uptime_sec?: number;
+  file_handles?: FileHandleInfo | null;
 }
 
 export interface DiskIoInfo {
@@ -312,10 +357,12 @@ export interface DiskIoInfo {
   write_bytes?: number;
 }
 
-/** 进程数量摘要（running / total） */
+/** 进程数量摘要（running / total / zombie） */
 export interface ProcessCount {
   running?: number;
   total?: number;
+  /** 僵尸进程数（state=Z，复用采样器的进程遍历） */
+  zombie?: number;
 }
 
 /** /api/admin/system 快照（SSE snapshot 的 system 段同构） */
@@ -353,6 +400,8 @@ export interface SystemData {
   /** 档位文案：顺畅 / 有压力 / 明显卡顿 */
   stall_level?: string;
   uptime?: number | string;
+  /** 监控补全块：运行时长 / 文件句柄；缺失表示本轮采集失败 */
+  system?: SystemStats | null;
   os?: string;
   hostname?: string;
   /** docker 容器指标（未安装 docker 时为空数组） */

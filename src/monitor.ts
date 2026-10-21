@@ -226,6 +226,70 @@ export function pickRootDisk(
 }
 
 /**
+ * 选使用率最高的挂载点用于磁盘 KPI。使用率缺失的挂载点排在有值之后；
+ * 全部缺失时回退到根分区，避免卡片突然空掉。
+ * @param disks `/api/admin/system` 的 disks 数组
+ * @param fallback 旧后端的单盘 `disk`
+ */
+export function pickBusiestDisk(
+  disks: ReadonlyArray<DiskLike | null | undefined> | null | undefined,
+  fallback?: DiskLike | null
+): DiskLike | null {
+  const list = Array.isArray(disks) ? disks.filter((d): d is DiskLike => d != null) : [];
+  if (!list.length) return fallback ?? null;
+  let best: DiskLike | null = null;
+  for (const disk of list) {
+    const value = Number(disk.percent);
+    if (!Number.isFinite(value)) continue;
+    if (best == null || value > Number(best.percent)) best = disk;
+  }
+  return best ?? pickRootDisk(list, fallback);
+}
+
+/** 磁盘 KPI 下方的一行挂载点摘要。 */
+export interface DiskMountSummary {
+  mount: string;
+  percent: number | null;
+}
+
+/**
+ * KPI 下方的全部挂载点摘要：`/` 排最前，其余按挂载点字典序。
+ * 使用率缺失时 percent 为 null，由渲染层显示破折号而不是 0。
+ * @param disks `/api/admin/system` 的 disks 数组
+ */
+export function diskMountSummaries(
+  disks: ReadonlyArray<DiskLike | null | undefined> | null | undefined
+): DiskMountSummary[] {
+  const list = Array.isArray(disks) ? disks.filter((d): d is DiskLike => d != null) : [];
+  return list
+    .map((disk) => {
+      const n = Number(disk.percent);
+      return {
+        mount: disk.mount || '—',
+        percent: Number.isFinite(n) ? n : null
+      };
+    })
+    .sort((a, b) => {
+      if (a.mount === '/') return -1;
+      if (b.mount === '/') return 1;
+      return a.mount.localeCompare(b.mount);
+    });
+}
+
+/**
+ * 每核迷你条的档位：<70 常态、70–85 预警、≥85 危险。
+ * 与磁盘档位分开，避免一个阈值套所有指标。
+ * @param value 单核使用率（%）
+ */
+export function coreTone(value: number | null | undefined): ValueTone {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 'normal';
+  if (n >= 85) return 'error';
+  if (n >= 70) return 'warning';
+  return 'normal';
+}
+
+/**
  * 负载值展示：兼容数组与后端偶发的字符串。
  * @param loadavg `cpu.loadavg`
  */

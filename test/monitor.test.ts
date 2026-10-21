@@ -4,9 +4,12 @@ import {
   MONITOR_METRICS,
   buildSparkGeometry,
   columnValues,
+  coreTone,
+  diskMountSummaries,
   formatTrendTick,
   loadavgText,
   monitorRangeSpec,
+  pickBusiestDisk,
   pickRootDisk,
   pressureTone,
   stallTone,
@@ -80,6 +83,38 @@ test('pickRootDisk：优先根分区，其次首盘，最后旧单盘字段', ()
   assert.equal(pickRootDisk([{ mount: '/data', percent: 70 }])?.percent, 70);
   assert.equal(pickRootDisk([], { mount: '/', percent: 12 })?.percent, 12);
   assert.equal(pickRootDisk(null), null);
+});
+
+test('pickBusiestDisk：取使用率最高者，缺失值不参与比较', () => {
+  const data = [
+    { mount: '/', percent: 51 },
+    { mount: '/data', percent: 78 },
+    { mount: '/cache', percent: undefined }
+  ];
+  assert.equal(pickBusiestDisk(data)?.mount, '/data');
+  assert.equal(pickBusiestDisk([{ mount: '/', percent: undefined }])?.mount, '/');
+  assert.equal(pickBusiestDisk([], { mount: '/', percent: 12 })?.percent, 12);
+  assert.equal(pickBusiestDisk(null), null);
+});
+
+test('diskMountSummaries：根分区排最前，缺失百分比保留 null', () => {
+  const rows = diskMountSummaries([
+    { mount: '/data', percent: 53 },
+    { mount: '/', percent: 51 },
+    { mount: '/var', percent: undefined }
+  ]);
+  assert.deepEqual(rows, [
+    { mount: '/', percent: 51 },
+    { mount: '/data', percent: 53 },
+    { mount: '/var', percent: null }
+  ]);
+});
+
+test('coreTone：70/85 两档，非法值保持常态', () => {
+  assert.equal(coreTone(69.9), 'normal');
+  assert.equal(coreTone(70), 'warning');
+  assert.equal(coreTone(85), 'error');
+  assert.equal(coreTone(null), 'normal');
 });
 
 test('monitorRangeSpec：四档参数与默认回退', () => {

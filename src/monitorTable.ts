@@ -62,6 +62,9 @@ export interface DiskRow {
   inode_percent: number | null;
   read_rate: number | null;
   write_rate: number | null;
+  read_iops: number | null;
+  write_iops: number | null;
+  await_ms: number | null;
 }
 
 /** 以 info 的挂载点为主，按 mount / filesystem 合并实时速率；不改原数组。 */
@@ -81,9 +84,12 @@ export function mergeDiskRows(disks: SystemDiskInfo[], live: DiskInfo[] = []): D
       percent: disk.percent ?? null,
       inode_total: disk.inode_total ?? null,
       inode_used: disk.inode_used ?? null,
-      inode_percent: disk.inode_percent ?? null,
+      inode_percent: disk.inode_percent ?? matched?.inode_percent ?? null,
       read_rate: matched?.read_rate ?? null,
-      write_rate: matched?.write_rate ?? null
+      write_rate: matched?.write_rate ?? null,
+      read_iops: matched?.read_iops ?? null,
+      write_iops: matched?.write_iops ?? null,
+      await_ms: matched?.await_ms ?? null
     };
   });
 }
