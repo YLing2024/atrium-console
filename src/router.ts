@@ -2,7 +2,7 @@
  * 极简前端路由（原生 History API，零依赖）。
  *
  * 后台是单页应用，路径与内容一一对应：
- * `/system` `/blog` `/manage` `/ssh` `/terminal` `/hermes` `/database` `/tools`
+ * `/system` `/sites` `/blog` `/manage` `/ssh` `/terminal` `/hermes` `/database` `/tools`
  * 以及工具子页 `/tools/<tool>`（当前只有 `bitwarden`）。`/` 与未知路径都用
  * `replaceState` 归一到 `/system`，不产生多余的历史记录。
  *
@@ -30,6 +30,7 @@ export interface Route {
 /** section（侧栏 Tab id）→ 规范路径。id 保持不变，仅在 URL 上使用更短的别名。 */
 const SECTION_PATHS: Record<string, string> = {
   system: '/system',
+  sites: '/sites',
   blog: '/blog',
   manage: '/manage',
   sshkeys: '/ssh',
@@ -44,6 +45,7 @@ const SECTION_PATHS: Record<string, string> = {
 /** URL 路径段 → section；`/sshkeys`、`/db` 作为历史别名也接受，随后归一到规范路径。 */
 const SEGMENT_SECTIONS: Record<string, string> = {
   system: 'system',
+  sites: 'sites',
   blog: 'blog',
   manage: 'manage',
   ssh: 'sshkeys',

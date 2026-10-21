@@ -1,0 +1,69 @@
+/* ============ 站点页（/sites） ============ */
+/* 三张卡纵向排列；宽度约束交给 .content，页面自身不允许横向溢出。 */
+.sites-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 页面内边距由 .content 统一提供，避免与 .system 一样叠成两倍。 */
+.content > .pane > .sites-page {
+  padding: 0;
+}
+
+.sites-head {
+  margin-bottom: 0;
+  align-items: center;
+}
+
+.sites-head h2 {
+  margin-bottom: 2px;
+}
+
+.sites-card.ant-card {
+  min-width: 0;
+}
+
+.sites-card .ant-card-body {
+  min-width: 0;
+}
+
+.sites-search {
+  max-width: 320px;
+  margin-bottom: 12px;
+}
+
+.sites-summary {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.sites-error {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+  .sites-page {
+    gap: 12px;
+  }
+
+  .sites-search {
+    max-width: none;
+  }
+
+  .sites-head {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

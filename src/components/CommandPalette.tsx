@@ -28,6 +28,7 @@ export default function CommandPalette({
   const items = useMemo(
     () => [
       { id: 'system', label: '跳到系统页', hint: '打开系统监控', run: () => propsRef.current.onSwitchTab('system') },
+      { id: 'sites', label: '跳到站点页', hint: '查看站点 / 证书 / 备份', run: () => propsRef.current.onSwitchTab('sites') },
       { id: 'blog', label: '跳到博客页', hint: '管理博客文章', run: () => propsRef.current.onSwitchTab('blog') },
       { id: 'manage', label: '跳到管理页', hint: '管理已登录设备', run: () => propsRef.current.onSwitchTab('manage') },
       { id: 'terminal', label: '打开终端', hint: '服务器 Web 终端', run: () => propsRef.current.onSwitchTab('terminal') },

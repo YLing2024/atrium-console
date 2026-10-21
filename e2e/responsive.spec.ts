@@ -134,6 +134,46 @@ const FIX = {
     apps: [{ id: 'a1', name: '主页', category: 'core', status: 'up', icon: 'home', port: 443, latencyMs: 12, url: 'https://home.example.com' }],
     discovered: []
   },
+  sitesNginx: {
+    sites: [
+      {
+        serverName: 'admin.example.com',
+        listen: ['443 ssl http2', '80'],
+        root: '/var/www/admin',
+        proxyPass: null,
+        certPath: '/etc/letsencrypt/live/admin.example.com/fullchain.pem',
+        configFile: '/etc/nginx/conf.d/admin.conf',
+        redirect: null,
+        isRegex: false
+      },
+      {
+        serverName: '~^.+\\.example\\.com$',
+        listen: ['80'],
+        root: null,
+        proxyPass: null,
+        certPath: null,
+        configFile: '/etc/nginx/conf.d/regex.conf',
+        redirect: 'https://example.com$request_uri',
+        isRegex: true
+      }
+    ]
+  },
+  sitesCerts: {
+    certs: [
+      { domain: 'admin.example.com', notAfter: '2027-01-19T12:00:00Z', daysLeft: 90, issuer: "Let's Encrypt", autoRenew: true },
+      { domain: 'soon.example.com', notAfter: '2026-10-28T12:00:00Z', daysLeft: 7, issuer: "Let's Encrypt", autoRenew: true }
+    ]
+  },
+  sitesBackups: {
+    backups: [
+      { name: 'backup-2026-10-21-with-a-very-long-name-for-overflow', size: 734003200, modifiedAt: now - 3600000 },
+      { name: 'backup-2026-10-20', size: 524288000, modifiedAt: now - 90000000 }
+    ],
+    timers: [{ name: 'daily-full-backup.timer', nextElapseUSecRealtime: 'Thu 2026-10-22 04:02:53 HKT', lastTriggerUSec: 'Wed 2026-10-21 04:03:31 HKT' }],
+    total: 2,
+    totalSize: 1258291200,
+    latestModifiedAt: now - 3600000
+  },
   notifications: { items: [], unread: 0, total: 0 },
   stats: { total: 0, unread: 0, byLevel: {} },
   types: { types: [] }
@@ -175,6 +215,11 @@ function dispatch(route) {
   if (u.includes('/api/admin/tools')) {
     return J([{ id: 'bitwarden', name: 'Bitwarden 解锁', configured: true, unlocked: false, expiresAt: null }]);
   }
+  if (u.includes('/api/admin/sites/nginx')) return J(FIX.sitesNginx);
+  if (u.includes('/api/admin/sites/certs')) return J(FIX.sitesCerts);
+  if (u.includes('/api/admin/sites/backups')) return J(FIX.sitesBackups);
+  // Logs 面板常驻挂载并立即取数，必须给完整信封，否则 entries 为 undefined 会打断整棵 React 树。
+  if (u.includes('/api/admin/logs')) return J({ entries: [], hasMore: false, source: 'system', limit: 200, offset: 0 });
   if (u.includes('/api/')) return J({});
   if (u.includes('/term/')) return route.fulfill({ status: 200, contentType: 'text/html', body: '<html><body>term</body></html>' });
   return route.continue();
@@ -183,6 +228,7 @@ function dispatch(route) {
 // 主页面 + 关键元素（文本或选择器）；路径即地址栏，直达 / 刷新都应落对页面
 const TABS = [
   { id: 'system', path: '/system', label: '系统', text: ['系统监控'] },
+  { id: 'sites', path: '/sites', label: '站点', selector: '.sites-page', text: ['站点', '证书', '备份'] },
   { id: 'blog', path: '/blog', label: '博客', text: ['博客管理'] },
   { id: 'manage', path: '/manage', label: '管理', text: ['设备管理'] },
   { id: 'sshkeys', path: '/ssh', label: 'SSH 公钥', text: ['SSH 公钥'] },

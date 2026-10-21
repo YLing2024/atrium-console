@@ -11,6 +11,7 @@ test('parseRoute：根路径与未知路径返回 null（交由调用方重定�
 
 test('parseRoute：各 Tab 路径映射到既有 section id', () => {
   assert.deepEqual(parseRoute('/system'), { section: 'system' });
+  assert.deepEqual(parseRoute('/sites'), { section: 'sites' });
   assert.deepEqual(parseRoute('/blog'), { section: 'blog' });
   assert.deepEqual(parseRoute('/manage'), { section: 'manage' });
   assert.deepEqual(parseRoute('/ssh'), { section: 'sshkeys' });
@@ -32,6 +33,7 @@ test('parseRoute：历史别名 /sshkeys 与 /db 仍可解析', () => {
 
 test('routePath：section 走规范路径，未知 section 回落系统页', () => {
   assert.equal(routePath('sshkeys'), '/ssh');
+  assert.equal(routePath('sites'), '/sites');
   assert.equal(routePath('db'), '/database');
   assert.equal(routePath('tools'), '/tools');
   assert.equal(routePath('tools', 'bitwarden'), '/tools/bitwarden');
