@@ -6,7 +6,8 @@
  * 搜索按单元名，本地过滤后分页。
  */
 import { useMemo, useState } from 'react';
-import { Card, Input, Table, Tag, Typography } from 'antd';
+import { Button, Card, Input, Popconfirm, Space, Table, Tag, Typography } from 'antd';
+import { runOp } from '../ops';
 import type { TableColumnsType } from 'antd';
 import type { SystemServiceInfo } from '../api';
 import { fmtDateTime, fmtMB, fmtPct } from '../format';
@@ -18,7 +19,7 @@ export interface MonitorServiceTableProps {
   loading?: boolean;
 }
 
-const columns: TableColumnsType<SystemServiceInfo> = [
+const baseColumns: TableColumnsType<SystemServiceInfo> = [
   {
     title: '单元',
     dataIndex: 'unit',
@@ -70,6 +71,41 @@ const columns: TableColumnsType<SystemServiceInfo> = [
     className: 'monitor-num',
     sorter: (a, b) => Number(a.since ?? 0) - Number(b.since ?? 0),
     render: (value: number | undefined) => (value ? fmtDateTime(value * 1000) : '—')
+  }
+];
+
+// 在基础列后追加操作列：重启 / 停止 / 启动（后端有确认与拒绝名单兜底）
+const columns: TableColumnsType<SystemServiceInfo> = [
+  ...baseColumns,
+  {
+    title: '操作',
+    key: 'ops',
+    width: 150,
+    render: (_, row) => {
+      const unit = row.unit || '';
+      if (!unit) return '—';
+      return (
+        <Space size={4}>
+          <Popconfirm
+            title={`重启 ${unit}？`}
+            description="会短暂中断该服务"
+            okText="重启"
+            onConfirm={() => void runOp('service', unit, 'restart')}
+          >
+            <Button size="small" type="link">重启</Button>
+          </Popconfirm>
+          <Popconfirm
+            title={`停止 ${unit}？`}
+            description="停止后不会自动拉起"
+            okText="停止"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => void runOp('service', unit, 'stop')}
+          >
+            <Button size="small" type="link" danger>停止</Button>
+          </Popconfirm>
+        </Space>
+      );
+    }
   }
 ];
 

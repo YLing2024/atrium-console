@@ -5,7 +5,8 @@
  * 与其它表一致：固定高度滚动、表头吸顶、数值列可排序、支持搜索。
  */
 import { useMemo, useState } from 'react';
-import { Card, Input, Table, Tag, Typography } from 'antd';
+import { Button, Card, Input, Popconfirm, Space, Table, Tag, Typography } from 'antd';
+import { runOp } from '../ops';
 import type { TableColumnsType } from 'antd';
 import type { ContainerStat } from '../api';
 import { fmtMB, fmtPct } from '../format';
@@ -111,6 +112,34 @@ export default function MonitorContainers({ containers, loading }: Props) {
       sorter: (a, b) => (a.pids ?? 0) - (b.pids ?? 0),
       render: (v?: number) => fmtInt(v)
     }
+    ,
+    {
+      title: '操作',
+      key: 'ops',
+      width: 150,
+      render: (_, row) => (
+        <Space size={4}>
+          <Popconfirm
+            title={`重启 ${row.name}？`}
+            description="容器会短暂中断"
+            okText="重启"
+            onConfirm={() => void runOp('container', row.name, 'restart')}
+          >
+            <Button size="small" type="link">重启</Button>
+          </Popconfirm>
+          <Popconfirm
+            title={`停止 ${row.name}？`}
+            description="停止后不会自动拉起"
+            okText="停止"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => void runOp('container', row.name, 'stop')}
+          >
+            <Button size="small" type="link" danger>停止</Button>
+          </Popconfirm>
+        </Space>
+      )
+    }
+
   ];
 
   return (
