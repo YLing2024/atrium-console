@@ -44,6 +44,11 @@ export interface ChartProps {
   className?: string;
   loading?: boolean;
   onReady?: (chart: EChartsType) => void;
+  /**
+   * 同一 group 的多个图表会被 echarts.connect 联动：
+   * 缩放/拖选/悬停十字线在全组同步。用于「多图共享时间轴」。
+   */
+  group?: string;
 }
 
 const LOADING_TEXT = '数据采集中…';
@@ -57,13 +62,16 @@ export default function Chart({
   height = 200,
   className,
   loading,
-  onReady
+  onReady,
+  group
 }: ChartProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<EChartsType | null>(null);
   const optionRef = useRef(option);
   const loadingRef = useRef(Boolean(loading));
   const onReadyRef = useRef(onReady);
+  const groupRef = useRef(group);
+  groupRef.current = group;
   const { token } = theme.useToken();
   const tokenRef = useRef(token);
   optionRef.current = option;
@@ -95,6 +103,10 @@ export default function Chart({
     function ensure(target: HTMLDivElement) {
       if (chart || !target.clientWidth || !target.clientHeight) return;
       chart = echarts.init(target);
+      if (groupRef.current) {
+        chart.group = groupRef.current;
+        echarts.connect(groupRef.current);
+      }
       chartRef.current = chart;
       chart.setOption(optionRef.current, { notMerge: true });
       applyLoading();

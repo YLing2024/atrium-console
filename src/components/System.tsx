@@ -32,7 +32,7 @@ import {
   type ValueTone
 } from '../monitor';
 import { KpiCard } from './MonitorKpi';
-import MonitorTrend from './MonitorTrend';
+import MonitorTrendGrid from './MonitorTrendGrid';
 import MonitorPressure from './MonitorPressure';
 import MonitorProcessTable from './MonitorProcessTable';
 import MonitorServiceTable from './MonitorServiceTable';
@@ -541,7 +541,7 @@ export default function System({ active }: { active: boolean }) {
 
       <div className="monitor-main">
         <div className="monitor-span-8">
-          <MonitorTrend
+          <MonitorTrendGrid
             range={range}
             onRangeChange={setRange}
             points={trendPoints}
