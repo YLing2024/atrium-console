@@ -5,10 +5,10 @@
  * PSI 值来自系统 SSE 的 `psi`，温度来自 `/api/admin/system/info`。宽度按 0–100 映射，
  * 颜色按需求书阈值（<20 主色、20–50 warning、>50 error）。数值常驻条右侧，颜色不是唯一语义。
  */
-import { Card, Typography, theme } from 'antd';
+import { Card, Tooltip, Typography, theme } from 'antd';
 import type { PsiInfo, SystemData, SystemTemperature } from '../api';
 import { pressureTone } from '../monitor';
-import { fmtPct } from '../format';
+import { fmtDuration, fmtPct } from '../format';
 
 export interface MonitorPressureProps {
   /** 系统 SSE 快照的 system 段；缺失时各条显示破折号 */
@@ -45,6 +45,13 @@ export default function MonitorPressure({ data, temperatures }: MonitorPressureP
   const load = data?.cpu?.loadavg;
   const loads = Array.isArray(load) ? load.slice(0, 3) : [];
   const loadLabels = ['1m', '5m', '15m'];
+  const uptime = data?.system?.uptime_sec ?? data?.uptime;
+  const zombie = data?.processes?.zombie;
+  const handles = data?.system?.file_handles;
+  const handlesPercent =
+    handles?.percent == null || !Number.isFinite(Number(handles.percent))
+      ? null
+      : Number(handles.percent);
 
   return (
     <Card className="monitor-card" title="压力与负载" style={{ height: '100%' }}>
@@ -111,6 +118,45 @@ export default function MonitorPressure({ data, temperatures }: MonitorPressureP
           {data?.cpu?.blocked == null ? '—' : data.cpu.blocked} · 15s 平均{' '}
           {data?.cpu?.usage_15s == null ? '—' : fmtPct(data.cpu.usage_15s) + '%'}
         </Typography.Text>
+      </div>
+
+      <div className="monitor-vitals" aria-label="运行状态">
+        <div className="monitor-vital">
+          <Tooltip title="本次开机至今的时长">
+            <Typography.Text type="secondary" className="monitor-vital-label">
+              运行时长
+            </Typography.Text>
+          </Tooltip>
+          <Typography.Text className="monitor-vital-value monitor-num">
+            {fmtDuration(uptime)}
+          </Typography.Text>
+        </div>
+        <div className="monitor-vital">
+          <Tooltip title="状态为 Z 的进程数，需父进程回收">
+            <Typography.Text type="secondary" className="monitor-vital-label">
+              僵尸进程
+            </Typography.Text>
+          </Tooltip>
+          <Typography.Text className="monitor-vital-value monitor-num">
+            {zombie == null || !Number.isFinite(Number(zombie)) ? '—' : Number(zombie)}
+          </Typography.Text>
+        </div>
+        <div className="monitor-vital">
+          <Tooltip
+            title={
+              handles == null
+                ? '文件句柄采集不可用'
+                : `已用 ${Number(handles.used ?? 0).toLocaleString('zh-CN')} / 上限 ${Number(handles.max ?? 0).toLocaleString('zh-CN')}`
+            }
+          >
+            <Typography.Text type="secondary" className="monitor-vital-label">
+              句柄使用率
+            </Typography.Text>
+          </Tooltip>
+          <Typography.Text className="monitor-vital-value monitor-num">
+            {handlesPercent == null ? '—' : handlesPercent.toFixed(1) + '%'}
+          </Typography.Text>
+        </div>
       </div>
 
       {temperatures && temperatures.length > 0 && (

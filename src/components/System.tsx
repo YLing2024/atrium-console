@@ -11,9 +11,10 @@
  * 「自动刷新 5s / 关」只控制轮询与 SSE 帧的应用：关闭后已有画面保留，手动刷新会强制
  * 应用下一帧 / 重新拉取一次。KPI 迷你趋势用页面内的滚动缓冲（最多 60 个快照），首帧用
  * SSE 自带的 history 补齐 CPU / 内存；没有历史列的指标等页面积累后自然成形。
+ * 磁盘明细紧跟趋势区，KPI 用使用率最高的挂载点并列出全部挂载点。
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Button, Segmented, Spin, Typography } from 'antd';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Button, Segmented, Spin, Typography, theme } from 'antd';
 import { getServices, getSystemInfo, getSystemMetrics, getSystemServices } from '../api';
 import type {
   HistoryPoint,
@@ -24,15 +25,17 @@ import type {
 } from '../api';
 import { fmtBytes, fmtDuration } from '../format';
 import {
+  diskMountSummaries,
   monitorRangeSpec,
-  pickRootDisk,
+  pickBusiestDisk,
   stallTone,
   thresholdTone,
   type MonitorRange,
   type ValueTone
 } from '../monitor';
-import { KpiCard } from './MonitorKpi';
+import { CoreBars, KpiCard } from './MonitorKpi';
 import MonitorTrendGrid from './MonitorTrendGrid';
+import type { LiveTrendSample } from './MonitorTrendGrid';
 import MonitorPressure from './MonitorPressure';
 import MonitorProcessTable from './MonitorProcessTable';
 import MonitorServiceTable from './MonitorServiceTable';
@@ -67,7 +70,7 @@ function numOrNull(value: unknown): number | null {
 
 /** 从一份系统快照里取出六条迷你趋势各自的当前值。 */
 function sparkSampleOf(data: SystemData | null | undefined): SparkSample {
-  const disk = pickRootDisk(data?.disks, data?.disk);
+  const disk = pickBusiestDisk(data?.disks, data?.disk);
   const swapTotal = numOrNull(data?.memory?.swapTotal);
   return {
     cpu: numOrNull(data?.cpu?.usage_percent),
@@ -105,14 +108,15 @@ function StallDetail({ level, psi }: { level?: string | null; psi?: number | nul
 }
 
 const ANCHORS = [
+  ['monitor-disks', '磁盘'],
   ['monitor-processes', '进程'],
   ['monitor-services', '服务'],
   ['monitor-ports', '端口'],
-  ['monitor-disks', '磁盘'],
   ['monitor-audit', '审计']
 ] as const;
 
 export default function System({ active }: { active: boolean }) {
+  const { token } = theme.useToken();
   const [data, setData] = useState<SystemData | null>(null);
   const [processes, setProcesses] = useState<ProcessInfo[]>([]);
   const [processCount, setProcessCount] = useState<number | undefined>(undefined);
@@ -132,8 +136,10 @@ export default function System({ active }: { active: boolean }) {
   const [trendPoints, setTrendPoints] = useState<HistoryPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(true);
   const [spark, setSpark] = useState<SparkSample[]>([]);
+  const [liveTrend, setLiveTrend] = useState<LiveTrendSample[]>([]);
 
   const sparkRef = useRef<SparkSample[]>([]);
+  const liveTrendRef = useRef<LiveTrendSample[]>([]);
   const sparkSeededRef = useRef(false);
   const trendCacheRef = useRef<Partial<Record<MonitorRange, HistoryPoint[]>>>({});
   const autoRef = useRef(auto);
@@ -191,6 +197,22 @@ export default function System({ active }: { active: boolean }) {
         sparkRef.current = [...sparkRef.current, current].slice(-60);
       }
       setSpark(sparkRef.current);
+
+      // 趋势区两张实时小图：只保留最近 60 帧（1 秒一帧，约 60 秒）。
+      const tcp = snapshot.system.network?.tcp;
+      const liveSample: LiveTrendSample = {
+        ts: Date.now(),
+        established: numOrNull(tcp?.established),
+        timeWait: numOrNull(tcp?.time_wait),
+        disks: (snapshot.system.disks ?? []).map((disk) => ({
+          mount: disk.mount || '—',
+          read: numOrNull(disk.read_rate),
+          write: numOrNull(disk.write_rate)
+        }))
+      };
+      liveTrendRef.current = [...liveTrendRef.current, liveSample].slice(-60);
+      setLiveTrend(liveTrendRef.current);
+
       setUpdated(new Date());
       setError('');
     }
@@ -410,8 +432,15 @@ export default function System({ active }: { active: boolean }) {
     };
   }, [active, range, refreshTick, auto]);
 
-  const rootDisk = useMemo(() => pickRootDisk(data?.disks, data?.disk), [data?.disks, data?.disk]);
-  const diskRows = useMemo(() => info?.disks ?? [], [info?.disks]);
+  const busyDisk = useMemo(() => pickBusiestDisk(data?.disks, data?.disk), [data?.disks, data?.disk]);
+  const mountSummaries = useMemo(() => diskMountSummaries(data?.disks), [data?.disks]);
+  // info 的挂载点带 inode；info 尚未返回时先用 SSE 的 disks 撑住表格，避免首屏空表。
+  // 需求只要求真实数据盘（/ 与 /data）；/boot 与 /boot/efi 属于引导分区，不进入监控表。
+  const diskRows = useMemo(() => {
+    const isBoot = (mount?: string) => mount === '/boot' || mount === '/boot/efi';
+    const rows = info?.disks?.length ? info.disks : data?.disks ?? [];
+    return rows.filter((disk) => !isBoot(disk.mount));
+  }, [info?.disks, data?.disks]);
 
   const cpu = data?.cpu;
   const memory = data?.memory;
@@ -421,7 +450,7 @@ export default function System({ active }: { active: boolean }) {
   const cpuPsi60 = numOrNull(data?.psi?.cpu?.some?.avg60);
   const cpuTone = thresholdTone(cpu?.usage_percent, 70, 85);
   const memTone = thresholdTone(memory?.percent, 80, 90);
-  const diskTone = thresholdTone(rootDisk?.percent, 75, 85);
+  const diskTone = thresholdTone(busyDisk?.percent, 75, 85);
   const swapTotal = numOrNull(memory?.swapTotal);
   const swapPercent = swapTotal != null && swapTotal > 0 ? numOrNull(memory?.swapPercent) : null;
   const swapTone = thresholdTone(swapPercent, 50, 80);
@@ -440,9 +469,16 @@ export default function System({ active }: { active: boolean }) {
   const host = info?.hostname || data?.hostname;
   const osName = info?.os || data?.os;
   const uptime = info?.uptimeSeconds ?? data?.uptime;
-  const diskDetail: ReactNode = rootDisk
-    ? `${rootDisk.mount || '/'} ${fmtBytes(rootDisk.used)} / ${fmtBytes(rootDisk.total)}`
-    : '—';
+
+  /** 挂载点小字的颜色：沿用 KPI 的 75/85 阈值，文字本身始终带百分比。 */
+  const mountColor = (percent: number | null): string => {
+    const tone = thresholdTone(percent, 75, 85);
+    return tone === 'error'
+      ? token.colorError
+      : tone === 'warning'
+        ? token.colorWarning
+        : token.colorTextSecondary;
+  };
 
   return (
     <div className="system monitor-page">
@@ -496,28 +532,58 @@ export default function System({ active }: { active: boolean }) {
           label="CPU"
           onClick={() => {
             setProcessSort('cpu');
-            document.querySelector('.monitor-table-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('monitor-processes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
           value={cpu?.usage_percent == null ? '—' : pct1(cpu.usage_percent)}
           detail={`15s ${pct1(cpu?.usage_15s)} · 60s ${pct1(cpu?.usage_60s)}`}
           spark={sparkCpu}
           tone={cpuTone}
-        />
+        >
+          <CoreBars cores={cpu?.per_core} />
+        </KpiCard>
         <KpiCard
           label="内存"
           onClick={() => {
             setProcessSort('mem_mb');
-            document.querySelector('.monitor-table-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('monitor-processes')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
           value={memory?.percent == null ? '—' : pct1(memory.percent)}
           detail={`${fmtBytes(memory?.used)} / ${fmtBytes(memory?.total)}`}
           spark={sparkMem}
           tone={memTone}
-        />
+        >
+          <div className="monitor-memory-extra">
+            <span>可用 {fmtBytes(memory?.available)}</span>
+            <span>缓存 {fmtBytes(memory?.buffCache)}</span>
+            <span>
+              Swap{' '}
+              {swapTotal == null
+                ? '—'
+                : swapTotal === 0
+                  ? '未启用'
+                  : `${fmtBytes(memory?.swapUsed)} / ${fmtBytes(memory?.swapTotal)}`}
+            </span>
+          </div>
+        </KpiCard>
         <KpiCard
           label="磁盘"
-          value={rootDisk?.percent == null ? '—' : pct1(rootDisk.percent)}
-          detail={diskDetail}
+          value={busyDisk?.percent == null ? '—' : pct1(busyDisk.percent)}
+          detail={
+            mountSummaries.length === 0 ? (
+              '—'
+            ) : (
+              <span className="monitor-disk-mounts">
+                {mountSummaries.map((mount, index) => (
+                  <span key={mount.mount} style={{ color: mountColor(mount.percent) }}>
+                    {index > 0 ? ' · ' : ''}
+                    {mount.mount}{' '}
+                    {mount.percent == null ? '—' : `${mount.percent.toFixed(0)}%`}
+                  </span>
+                ))}
+              </span>
+            )
+          }
+          progress={busyDisk?.percent}
           spark={sparkDisk}
           tone={diskTone}
         />
@@ -557,12 +623,17 @@ export default function System({ active }: { active: boolean }) {
             onRangeChange={setRange}
             points={trendPoints}
             loading={trendLoading}
+            live={liveTrend}
           />
         </div>
         <div className="monitor-span-4">
           <MonitorPressure data={data} temperatures={info?.temperatures} />
         </div>
       </div>
+
+      <section id="monitor-disks" className="monitor-section">
+        <MonitorDiskTable disks={diskRows} live={data?.disks} loading={infoLoading && info == null} />
+      </section>
 
       <section id="monitor-processes" className="monitor-section">
         <MonitorProcessTable sortBy={processSort}
@@ -584,10 +655,6 @@ export default function System({ active }: { active: boolean }) {
           error={infoError || info?.ports?.error}
           loading={infoLoading && info == null}
         />
-      </section>
-
-      <section id="monitor-disks" className="monitor-section">
-        <MonitorDiskTable disks={diskRows} live={data?.disks} loading={infoLoading && info == null} />
       </section>
 
       <section id="monitor-audit" className="monitor-section">

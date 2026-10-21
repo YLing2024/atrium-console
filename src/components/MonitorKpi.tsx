@@ -7,8 +7,9 @@
  * - 常态用主色，越过阈值才切 warning / error；无数据时主数字显示破折号，不显示 0。
  */
 import { useId, type ReactNode } from 'react';
-import { Card, Typography, theme } from 'antd';
-import { buildSparkGeometry, type ValueTone } from '../monitor';
+import { Card, Tooltip, Typography, theme } from 'antd';
+import { buildSparkGeometry, coreTone, type ValueTone } from '../monitor';
+import type { CoreUsage } from '../api';
 
 /** KPI 卡片的语义色档位 */
 export type KpiTone = ValueTone;
@@ -73,6 +74,64 @@ export function Sparkline({ values, color, width = 40, height = 28 }: SparklineP
   );
 }
 
+/** 每核迷你条的可选核数上限；后端 per_core 本就截断到 8。 */
+const MAX_CORE_BARS = 8;
+
+export interface CoreBarsProps {
+  /** 后端 `cpu.per_core`（id + usage_percent）；缺失时渲染等宽占位条 */
+  cores?: ReadonlyArray<CoreUsage | null | undefined> | null;
+}
+
+/**
+ * CPU 卡里的每核迷你条：8 条竖条，高度即使用率，颜色按 70/85 分档。
+ *
+ * 用竖条而不是再画一张图：CPU 卡只有一行高度，竖条能在不挤压数字的前提下
+ * 表达「哪一核忙」。数值同时写进 `aria-label` 与 Tooltip，颜色不是唯一语义。
+ * @param props 见 {@link CoreBarsProps}
+ */
+export function CoreBars({ cores }: CoreBarsProps) {
+  const { token } = theme.useToken();
+  const list = Array.isArray(cores) ? cores.slice(0, MAX_CORE_BARS) : [];
+  if (list.length === 0) {
+    return <div className="monitor-core-bars monitor-core-bars--empty" aria-hidden="true" />;
+  }
+  return (
+    <div className="monitor-core-bars" role="group" aria-label="每核使用率">
+      {list.map((core, index) => {
+        const id = core?.id ?? index;
+        const value = Number(core?.usage_percent);
+        const percent = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null;
+        const tone = coreTone(percent);
+        const color =
+          tone === 'error'
+            ? token.colorError
+            : tone === 'warning'
+              ? token.colorWarning
+              : token.colorPrimary;
+        const label = percent == null ? `核心 ${id}：无数据` : `核心 ${id}：${percent.toFixed(1)}%`;
+        return (
+          <Tooltip key={String(id)} title={label}>
+            <span
+              className="monitor-core-bar-track"
+              role="img"
+              aria-label={label}
+              tabIndex={0}
+            >
+              <i
+                className="monitor-core-bar"
+                style={{
+                  height: percent == null ? '6%' : `${Math.max(6, percent)}%`,
+                  background: percent == null ? token.colorFillSecondary : color
+                }}
+              />
+            </span>
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
+}
+
 export interface KpiCardProps {
   /** 指标名（12px 次级色） */
   label: string;
@@ -80,6 +139,10 @@ export interface KpiCardProps {
   value: string;
   /** 副行说明（12px 次级色） */
   detail: ReactNode;
+  /** 可选进度条（0–100）；不传则不渲染 */
+  progress?: number | null;
+  /** 副行下方的补充内容（如每核迷你条、内存细项） */
+  children?: ReactNode;
   /** 迷你线采样值 */
   spark: ReadonlyArray<number | null | undefined>;
   /** 语义档位，默认 normal */
@@ -92,7 +155,7 @@ export interface KpiCardProps {
  * 单张 KPI 卡。
  * @param props 见 {@link KpiCardProps}
  */
-export function KpiCard({ label, value, detail, spark, tone = 'normal', onClick }: KpiCardProps) {
+export function KpiCard({ label, value, detail, progress, children, spark, tone = 'normal', onClick }: KpiCardProps) {
   const { token } = theme.useToken();
   const color =
     tone === 'error'
@@ -100,6 +163,8 @@ export function KpiCard({ label, value, detail, spark, tone = 'normal', onClick 
       : tone === 'warning'
         ? token.colorWarning
         : token.colorPrimary;
+  const progressValue = Number(progress);
+  const hasProgress = progress != null && Number.isFinite(progressValue);
   return (
     <Card
       className={onClick ? 'monitor-kpi-card monitor-kpi-card--clickable' : 'monitor-kpi-card'}
@@ -114,7 +179,24 @@ export function KpiCard({ label, value, detail, spark, tone = 'normal', onClick 
         <Sparkline values={spark} color={color} />
       </div>
       <div className="monitor-kpi-value">{value}</div>
+      {hasProgress && (
+        <div
+          className="monitor-kpi-progress"
+          role="progressbar"
+          aria-label={`${label}使用率`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progressValue * 10) / 10}
+          aria-valuetext={`${progressValue.toFixed(1)}%`}
+        >
+          <span
+            className="monitor-kpi-progress-fill"
+            style={{ width: `${Math.max(0, Math.min(100, progressValue))}%`, background: color }}
+          />
+        </div>
+      )}
       <div className="monitor-kpi-detail">{detail}</div>
+      {children}
     </Card>
   );
 }
