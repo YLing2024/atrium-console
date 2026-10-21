@@ -187,7 +187,8 @@ export default function MonitorProcessTable({ processes, total, loading, sortBy 
         columns={columns}
         dataSource={rows}
         loading={loading}
-        scroll={{ x: 'max-content', y: 480 }}
+        virtual
+          scroll={{ x: 'max-content', y: 480 }}
         locale={{ emptyText: '—' }}
         pagination={false}
       />

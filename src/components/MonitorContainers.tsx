@@ -140,7 +140,8 @@ export default function MonitorContainers({ containers, loading }: Props) {
         columns={columns}
         dataSource={rows}
         loading={loading}
-        scroll={{ x: 'max-content', y: 320 }}
+        virtual
+          scroll={{ x: 'max-content', y: 320 }}
         pagination={false}
         locale={{ emptyText: '—' }}
         rowClassName={(row) => (row.state === 'running' ? '' : 'monitor-row-muted')}

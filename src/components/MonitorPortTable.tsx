@@ -131,6 +131,7 @@ export default function MonitorPortTable({ ports, error, loading }: MonitorPortT
           columns={columns}
           dataSource={rows}
           loading={loading}
+          virtual
           scroll={{ x: 'max-content', y: 420 }}
           locale={{ emptyText: '—' }}
           pagination={false}
