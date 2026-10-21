@@ -198,6 +198,9 @@ export default function Main() {
           <div className="pane" hidden={tab !== 'logs'}>
             <Logs active={tab === 'logs'} />
           </div>
+          <div className="pane" hidden={tab !== 'metrics'}>
+            <MetricsDetail metric={route.metric ?? 'cpu'} />
+          </div>
           <div className="pane" hidden={tab !== 'blog'}>
             <BlogAdmin />
           </div>
