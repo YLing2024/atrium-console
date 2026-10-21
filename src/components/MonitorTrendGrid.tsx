@@ -341,7 +341,7 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
       extra={
         <Space size={8}>
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            拖选或滚轮缩放，四张历史图同步
+            拖选或滚轮缩放，历史图同步；右侧两张为实时图，不参与缩放
           </Typography.Text>
           <Segmented
             size="small"
