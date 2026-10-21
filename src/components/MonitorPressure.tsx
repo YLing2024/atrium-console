@@ -154,7 +154,12 @@ export default function MonitorPressure({ data, temperatures }: MonitorPressureP
             </Typography.Text>
           </Tooltip>
           <Typography.Text className="monitor-vital-value monitor-num">
-            {handlesPercent == null ? '—' : handlesPercent.toFixed(1) + '%'}
+            {/* file-max 常是 2^63 量级，百分比会永远显示 0.0%，此时改显已用绝对值 */}
+            {handlesPercent == null
+              ? '—'
+              : handlesPercent < 0.1 && handles?.used
+                ? Number(handles.used).toLocaleString('zh-CN')
+                : handlesPercent.toFixed(1) + '%'}
           </Typography.Text>
         </div>
       </div>
