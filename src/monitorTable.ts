@@ -79,9 +79,11 @@ export function mergeDiskRows(disks: SystemDiskInfo[], live: DiskInfo[] = []): D
       mount: disk.mount || '—',
       filesystem: disk.filesystem || '—',
       fstype: disk.fstype || '—',
-      total: disk.total ?? null,
-      used: disk.used ?? null,
-      percent: disk.percent ?? null,
+      // 容量与使用率优先取 SSE 的 1 秒级实时值：info 是 60 秒缓存且 percent 为整数，
+      // 与 KPI 卡并排时会显示成两个数字（51% vs 48.8%），这里统一到实时值。
+      total: matched?.total ?? disk.total ?? null,
+      used: matched?.used ?? disk.used ?? null,
+      percent: matched?.percent ?? disk.percent ?? null,
       inode_total: disk.inode_total ?? null,
       inode_used: disk.inode_used ?? null,
       inode_percent: disk.inode_percent ?? matched?.inode_percent ?? null,
