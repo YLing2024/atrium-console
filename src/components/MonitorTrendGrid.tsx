@@ -6,12 +6,13 @@
  *
  * 数据仍来自父级的 `/api/admin/system/metrics`，本组件只负责呈现。
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Segmented, Space, Typography, theme } from 'antd';
 import { navigate } from '../router';
 import Chart, { type EChartsOption } from './Chart';
 import type { HistoryPoint } from '../api';
 import { MONITOR_RANGES, type MonitorRange } from '../monitor';
+import { request } from '../api';
 
 interface Props {
   range: MonitorRange;
@@ -21,6 +22,20 @@ interface Props {
 }
 
 const GROUP = 'monitor-trend';
+
+/** 趋势面板 → anomaly_events.metric 的对应关系。 */
+const ANOMALY_KEY: Record<string, string> = {
+  cpu: 'cpu_percent',
+  mem: 'mem_percent',
+  disk: 'disk_percent',
+  net: 'net_rx_rate'
+};
+
+interface AnomalyEvent {
+  ts: string;
+  metric: string;
+  value: number;
+}
 
 interface Panel {
   key: string;
@@ -63,6 +78,22 @@ function fmtRate(v: number): string {
 export default function MonitorTrendGrid({ range, onRangeChange, points, loading }: Props) {
   const { token } = theme.useToken();
 
+  const [anomalies, setAnomalies] = useState<AnomalyEvent[]>([]);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await request<{ items: AnomalyEvent[] }>('/api/admin/anomalies?limit=200');
+        if (alive) setAnomalies(res.items ?? []);
+      } catch {
+        /* 异常接口失败不影响趋势图 */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const labels = useMemo(() => points.map((p) => tickLabel(p.ts, range)), [points, range]);
 
   const palette = useMemo(
@@ -84,7 +115,34 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
       lineStyle: { width: 1.5 },
       areaStyle: { opacity: 0.08 },
       itemStyle: { color: palette[panel.colors[i] as keyof typeof palette] },
-      data: points.map((p) => (typeof p[field] === 'number' ? p[field] : null))
+      data: points.map((p) => (typeof p[field] === 'number' ? p[field] : null)),
+      // 该指标的基线异常点：找到时间最接近的横轴位置打点
+      markPoint: (() => {
+        const key = ANOMALY_KEY[panel.key];
+        const marks: Array<{ name: string; coord: [number, number]; value: string }> = [];
+        for (const a of anomalies) {
+          if (a.metric !== key) continue;
+          const t = new Date(a.ts).getTime();
+          let best = -1;
+          let bestDiff = Infinity;
+          points.forEach((p, idx) => {
+            const d = Math.abs(p.ts - t);
+            if (d < bestDiff) {
+              bestDiff = d;
+              best = idx;
+            }
+          });
+          if (best >= 0) marks.push({ name: '异常', coord: [best, a.value], value: '!' });
+        }
+        if (marks.length === 0) return undefined;
+        return {
+          symbol: 'pin',
+          symbolSize: 22,
+          itemStyle: { color: token.colorError },
+          label: { fontSize: 10, color: '#fff' },
+          data: marks
+        };
+      })()
     }));
 
     return {
