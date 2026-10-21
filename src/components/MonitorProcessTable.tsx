@@ -20,6 +20,8 @@ export interface MonitorProcessTableProps {
   total?: number;
   /** 是否已拿到首帧；空数组时用于区分「加载中」与「真的没有进程」 */
   loading?: boolean;
+  /** 外部指定排序（KPI 卡片联动）：传入后对应列进入受控降序 */
+  sortBy?: 'cpu' | 'mem_mb';
 }
 
 type ProcessColumnKey = 'name' | 'pid' | 'cpu' | 'mem_mb' | 'thread_count' | 'cgroup_mem_mb' | 'subtree_mem_mb';
@@ -117,7 +119,7 @@ const allColumns: TableColumnsType<ProcessInfo> = [
  * 进程全量卡片。
  * @param props 见 {@link MonitorProcessTableProps}
  */
-export default function MonitorProcessTable({ processes, total, loading }: MonitorProcessTableProps) {
+export default function MonitorProcessTable({ processes, total, loading, sortBy }: MonitorProcessTableProps) {
   const [query, setQuery] = useState('');
   const [hidden, setHidden] = useState<Set<ProcessColumnKey>>(new Set());
 

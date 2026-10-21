@@ -119,6 +119,8 @@ export default function System({ active }: { active: boolean }) {
   const [services, setServices] = useState<SystemServiceInfo[]>([]);
   const [serviceLoading, setServiceLoading] = useState(true);
   const [info, setInfo] = useState<SystemInfoResponse | null>(null);
+  // KPI 卡片联动：点 CPU / 内存卡，进程表按对应列降序
+  const [processSort, setProcessSort] = useState<'cpu' | 'mem_mb' | undefined>(undefined);
   const [infoLoading, setInfoLoading] = useState(true);
   const [infoError, setInfoError] = useState('');
   const [error, setError] = useState('');
@@ -491,6 +493,10 @@ export default function System({ active }: { active: boolean }) {
       <div className="monitor-kpis">
         <KpiCard
           label="CPU"
+          onClick={() => {
+            setProcessSort('cpu');
+            document.querySelector('.monitor-table-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
           value={cpu?.usage_percent == null ? '—' : pct1(cpu.usage_percent)}
           detail={`15s ${pct1(cpu?.usage_15s)} · 60s ${pct1(cpu?.usage_60s)}`}
           spark={sparkCpu}
@@ -498,6 +504,10 @@ export default function System({ active }: { active: boolean }) {
         />
         <KpiCard
           label="内存"
+          onClick={() => {
+            setProcessSort('mem_mb');
+            document.querySelector('.monitor-table-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
           value={memory?.percent == null ? '—' : pct1(memory.percent)}
           detail={`${fmtBytes(memory?.used)} / ${fmtBytes(memory?.total)}`}
           spark={sparkMem}
@@ -554,7 +564,7 @@ export default function System({ active }: { active: boolean }) {
       </div>
 
       <section id="monitor-processes" className="monitor-section">
-        <MonitorProcessTable
+        <MonitorProcessTable sortBy={processSort}
           processes={processes}
           total={processCount}
           loading={processLoading && processes.length === 0}

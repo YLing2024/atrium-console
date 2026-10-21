@@ -84,13 +84,15 @@ export interface KpiCardProps {
   spark: ReadonlyArray<number | null | undefined>;
   /** 语义档位，默认 normal */
   tone?: KpiTone;
+  /** 点击整卡的动作（如联动下方进程表排序）；不传则纯展示 */
+  onClick?: () => void;
 }
 
 /**
  * 单张 KPI 卡。
  * @param props 见 {@link KpiCardProps}
  */
-export function KpiCard({ label, value, detail, spark, tone = 'normal' }: KpiCardProps) {
+export function KpiCard({ label, value, detail, spark, tone = 'normal', onClick }: KpiCardProps) {
   const { token } = theme.useToken();
   const color =
     tone === 'error'
@@ -99,7 +101,12 @@ export function KpiCard({ label, value, detail, spark, tone = 'normal' }: KpiCar
         ? token.colorWarning
         : token.colorPrimary;
   return (
-    <Card className="monitor-kpi-card" style={{ height: '100%' }}>
+    <Card
+      className={onClick ? 'monitor-kpi-card monitor-kpi-card--clickable' : 'monitor-kpi-card'}
+      style={{ height: '100%', cursor: onClick ? 'pointer' : undefined }}
+      onClick={onClick}
+      hoverable={Boolean(onClick)}
+    >
       <div className="monitor-kpi-top">
         <Typography.Text type="secondary" className="monitor-kpi-label">
           {label}
