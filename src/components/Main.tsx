@@ -196,7 +196,7 @@ export default function Main() {
             <System active={tab === 'system'} />
           </div>
           <div className="pane" hidden={tab !== 'logs'}>
-            <Logs />
+            <Logs active={tab === 'logs'} />
           </div>
           <div className="pane" hidden={tab !== 'blog'}>
             <BlogAdmin />

@@ -70,7 +70,7 @@ function readInitial() {
   };
 }
 
-export default function Logs() {
+export default function Logs({ active = true }: { active?: boolean }) {
   const initial = readInitial();
   const [source, setSource] = useState(initial.source);
   const [range, setRange] = useState(initial.range);
@@ -112,8 +112,10 @@ export default function Logs() {
     void load(0);
   }, [load]);
 
-  // 筛选变化同步到地址栏（replaceState，不产生历史记录、不触发重新挂载）。
+  // 筛选变化同步到地址栏（replaceState）。
+  // 只有本页可见时才写 URL：常驻挂载的隐藏面板不能劫持当前路由。
   useEffect(() => {
+    if (!active) return;
     const p = new URLSearchParams();
     p.set('source', source);
     p.set('range', range);
