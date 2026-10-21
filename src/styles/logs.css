@@ -1,0 +1,148 @@
+/* ============ 日志页 ============ */
+/* 占满内容区高度：页面自身不滚，只有表格内部滚动（见 Logs.tsx 的 ResizeObserver）。 */
+.logs-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.logs-card.ant-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.logs-card > .ant-card-head {
+  flex: 0 0 auto;
+}
+
+.logs-card > .ant-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.logs-toolbar {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+}
+
+/* 表格视口：flex 撑满剩余高度，表头 + 表体由 JS 量出的 tableY 切分 */
+.logs-table-wrap {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.logs-table-wrap > .ant-table-wrapper,
+.logs-table-wrap .ant-spin-nested-loading,
+.logs-table-wrap .ant-spin-container,
+.logs-table-wrap .ant-table {
+  height: 100%;
+}
+
+.logs-table-wrap .ant-table-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.logs-table-wrap .ant-table-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto !important;
+}
+
+/* 整行可点开详情；底色沿用 antd 的 hover token */
+.logs-row-clickable {
+  cursor: pointer;
+}
+
+.logs-row-clickable:hover > td {
+  background: var(--ant-color-fill-quaternary);
+}
+
+.log-message-cell {
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* 底部加载状态：不遮住已有行，失败时只给一次重试入口 */
+.logs-loadfoot {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding-top: 8px;
+}
+
+.logs-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+/* ---------- 详情抽屉 ---------- */
+.logs-detail-drawer .ant-drawer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.logs-detail-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.logs-detail-fields {
+  flex-shrink: 0;
+}
+
+.logs-detail-value {
+  font-family: var(--ant-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.logs-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.logs-detail-body-title {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--ant-color-text-secondary);
+}
+
+/* 等宽、保留换行与缩进；长行自动换行，内容多时抽屉内部滚动 */
+.logs-detail-pre {
+  max-height: calc(100vh - 320px);
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--ant-color-border-secondary);
+  background: var(--ant-color-fill-quaternary);
+  color: var(--ant-color-text);
+  font-family: var(--ant-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.logs-detail-actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+}
