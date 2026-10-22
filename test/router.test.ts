@@ -16,7 +16,6 @@ test('parseRoute：各 Tab 路径映射到既有 section id', () => {
   assert.deepEqual(parseRoute('/manage'), { section: 'manage' });
   assert.deepEqual(parseRoute('/ssh'), { section: 'sshkeys' });
   assert.deepEqual(parseRoute('/terminal'), { section: 'terminal' });
-  assert.deepEqual(parseRoute('/hermes'), { section: 'hermes' });
   assert.deepEqual(parseRoute('/database'), { section: 'db' });
   assert.deepEqual(parseRoute('/tools'), { section: 'tools' });
 });

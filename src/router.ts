@@ -2,7 +2,7 @@
  * 极简前端路由（原生 History API，零依赖）。
  *
  * 后台是单页应用，路径与内容一一对应：
- * `/system` `/sites` `/blog` `/manage` `/ssh` `/terminal` `/hermes` `/database` `/tools`
+ * `/system` `/sites` `/blog` `/manage` `/ssh` `/terminal` `/database` `/tools`
  * 以及工具子页 `/tools/<tool>`（当前只有 `bitwarden`）。`/` 与未知路径都用
  * `replaceState` 归一到 `/system`，不产生多余的历史记录。
  *
@@ -35,7 +35,6 @@ const SECTION_PATHS: Record<string, string> = {
   manage: '/manage',
   sshkeys: '/ssh',
   terminal: '/terminal',
-  hermes: '/hermes',
   db: '/database',
   tools: '/tools',
   logs: '/logs',
@@ -51,7 +50,6 @@ const SEGMENT_SECTIONS: Record<string, string> = {
   ssh: 'sshkeys',
   sshkeys: 'sshkeys',
   terminal: 'terminal',
-  hermes: 'hermes',
   database: 'db',
   db: 'db',
   tools: 'tools',

@@ -233,7 +233,6 @@ const TABS = [
   { id: 'manage', path: '/manage', label: '管理', text: ['设备管理'] },
   { id: 'sshkeys', path: '/ssh', label: 'SSH 公钥', text: ['SSH 公钥'] },
   { id: 'terminal', path: '/terminal', label: '终端', selector: '.term-gate' },
-  { id: 'hermes', path: '/hermes', label: 'Hermes', text: ['HERMES'] },
   { id: 'db', path: '/database', label: '数据库', selector: '.db-bar' },
   { id: 'tools', path: '/tools', label: '工具', selector: '.tool-nav-item' },
   { id: 'tool-bitwarden', path: '/tools/bitwarden', label: 'Bitwarden 解锁', selector: '.tool-page' }

@@ -32,7 +32,6 @@ export default function CommandPalette({
       { id: 'blog', label: '跳到博客页', hint: '管理博客文章', run: () => propsRef.current.onSwitchTab('blog') },
       { id: 'manage', label: '跳到管理页', hint: '管理已登录设备', run: () => propsRef.current.onSwitchTab('manage') },
       { id: 'terminal', label: '打开终端', hint: '服务器 Web 终端', run: () => propsRef.current.onSwitchTab('terminal') },
-      { id: 'hermes', label: '打开 Hermes', hint: 'Hermes 控制台', run: () => propsRef.current.onSwitchTab('hermes') },
       { id: 'db', label: '打开数据库', hint: '云 MySQL 管理与查询', run: () => propsRef.current.onSwitchTab('db') },
       { id: 'tools', label: '打开工具', hint: 'Bitwarden 解锁等小工具', run: () => navigate('/tools') },
       { id: 'pwd', label: '重置验证器', hint: '更换 TOTP 验证器', run: () => propsRef.current.onShowReset() },

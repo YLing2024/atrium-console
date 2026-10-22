@@ -14,14 +14,13 @@ import CommandPalette from './CommandPalette';
 import Manage from './Manage';
 import SshKeys from './SshKeys';
 import Terminal from './Terminal';
-import Hermes from './Hermes';
 import Database from './Database';
 import Tools from './Tools';
 import ToolBitwarden from '../pages/ToolBitwarden';
 import Sites from '../pages/Sites';
 
 // 合法 Tab 集合；路径解析只会产出这些 id（旧版 sessionStorage 记忆已由 URL 取代）
-const TABS = ['system', 'sites', 'logs', 'blog', 'manage', 'sshkeys', 'terminal', 'hermes', 'db', 'tools'];
+const TABS = ['system', 'sites', 'logs', 'blog', 'manage', 'sshkeys', 'terminal', 'db', 'tools'];
 // 标签文字与顺序
 const TAB_LABELS: Record<string, string> = {
   system: '系统',
@@ -31,7 +30,6 @@ const TAB_LABELS: Record<string, string> = {
   manage: '管理',
   sshkeys: 'SSH 公钥',
   terminal: '终端',
-  hermes: 'Hermes',
   db: '数据库',
   tools: '工具'
 };
@@ -217,9 +215,6 @@ export default function Main() {
           </div>
           <div className="pane pane--term" hidden={tab !== 'terminal'}>
             <Terminal active={tab === 'terminal'} />
-          </div>
-          <div className="pane pane--hermes" hidden={tab !== 'hermes'}>
-            <Hermes />
           </div>
           <div className="pane pane--db" hidden={tab !== 'db'}>
             <Database active={tab === 'db'} />
