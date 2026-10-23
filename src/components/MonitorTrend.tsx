@@ -17,6 +17,7 @@ import {
   MONITOR_RANGES,
   columnValues,
   formatTrendTick,
+  formatTrendTooltip,
   trendMetricSpec,
   withAlpha,
   type MonitorRange,
@@ -100,7 +101,9 @@ export default function MonitorTrend({ range, onRangeChange, points, loading }: 
         formatter: (params: unknown) => {
           const list = (Array.isArray(params) ? params : []) as TooltipParam[];
           if (!list.length) return '';
-          const time = list[0].axisValueLabel || '';
+          const idx = (list[0] as unknown as { dataIndex?: number }).dataIndex ?? 0;
+          const ts = points[idx]?.ts;
+          const time = ts ? formatTrendTooltip(ts) : (list[0].axisValueLabel || '');
           const rows = list
             .map((item) => `${item.marker || ''}${item.seriesName || ''} ${formatValue(item.value)}`)
             .join('<br/>');

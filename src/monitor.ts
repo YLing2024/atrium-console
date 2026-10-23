@@ -333,3 +333,11 @@ export function columnValues(
     return Number.isFinite(n) ? n : null;
   });
 }
+
+/** 悬浮提示用的完整时间：YYYY-MM-DD HH:mm（坐标轴只放得下 HH:mm）。 */
+export function formatTrendTooltip(ts: number): string {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}

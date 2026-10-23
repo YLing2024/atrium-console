@@ -13,7 +13,7 @@ import { Button, Card, Segmented, Space, Typography, theme } from 'antd';
 import { navigate } from '../router';
 import Chart, { type EChartsOption } from './Chart';
 import type { HistoryPoint } from '../api';
-import { MONITOR_RANGES, type MonitorRange } from '../monitor';
+import { MONITOR_RANGES, formatTrendTooltip, type MonitorRange } from '../monitor';
 import { request } from '../api';
 
 interface Props {
@@ -180,7 +180,17 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
       grid: { left: 8, right: 8, top: 16, bottom: 20, containLabel: true },
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'line', lineStyle: { color: token.colorTextTertiary } },
+        axisPointer: {
+          type: 'line',
+          lineStyle: { color: token.colorTextTertiary },
+          label: {
+            formatter: (p: unknown) => {
+              const idx = (p as { dataIndex?: number } | null)?.dataIndex ?? 0;
+              const ts = points[idx]?.ts;
+              return ts ? formatTrendTooltip(ts) : '';
+            }
+          }
+        },
         valueFormatter: (v) =>
           panel.unit === 'B/s' ? fmtRate(Number(v)) : `${Number(v).toFixed(1)}${panel.unit}`
       },
@@ -229,7 +239,17 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
     grid: liveGrid,
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'line', lineStyle: { color: token.colorTextTertiary } },
+      axisPointer: {
+          type: 'line',
+          lineStyle: { color: token.colorTextTertiary },
+          label: {
+            formatter: (p: unknown) => {
+              const idx = (p as { dataIndex?: number } | null)?.dataIndex ?? 0;
+              const ts = points[idx]?.ts;
+              return ts ? formatTrendTooltip(ts) : '';
+            }
+          }
+        },
       valueFormatter: (v) => `${Number(v)} 个`
     },
     legend: {
@@ -307,7 +327,17 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
       grid: liveGrid,
       tooltip: {
         trigger: 'axis',
-        axisPointer: { type: 'line', lineStyle: { color: token.colorTextTertiary } },
+        axisPointer: {
+          type: 'line',
+          lineStyle: { color: token.colorTextTertiary },
+          label: {
+            formatter: (p: unknown) => {
+              const idx = (p as { dataIndex?: number } | null)?.dataIndex ?? 0;
+              const ts = points[idx]?.ts;
+              return ts ? formatTrendTooltip(ts) : '';
+            }
+          }
+        },
         valueFormatter: (v) => fmtRate(Number(v))
       },
       legend: {
