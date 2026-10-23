@@ -73,7 +73,9 @@ export default function MonitorTrend({ range, onRangeChange, points, loading }: 
   );
 
   const option = useMemo<EChartsOption>(() => {
-    const labels = points.map((point) => formatTrendTick(point.ts, range));
+    const shortLabels = points.map((point) => formatTrendTick(point.ts, range));
+    // 轴数据本身放完整时间，hover 才拿得到日期；显示时再用 shortLabels 缩短
+    const labels = points.map((point) => formatTrendTooltip(point.ts));
     // 全量点位下固定给 5 个刻度；dataZoom 缩放时不额外增加，避免横轴拥挤。
     const labelInterval = Math.max(0, Math.ceil(points.length / 5) - 1);
     const colors = [token.colorPrimary, token.colorSuccess];
@@ -101,9 +103,8 @@ export default function MonitorTrend({ range, onRangeChange, points, loading }: 
         formatter: (params: unknown) => {
           const list = (Array.isArray(params) ? params : []) as TooltipParam[];
           if (!list.length) return '';
-          const idx = (list[0] as unknown as { dataIndex?: number }).dataIndex ?? 0;
-          const ts = points[idx]?.ts;
-          const time = ts ? formatTrendTooltip(ts) : (list[0].axisValueLabel || '');
+          const raw = (list[0] as unknown as { axisValue?: string }).axisValue;
+          const time = String(raw ?? list[0].axisValueLabel ?? '');
           const rows = list
             .map((item) => `${item.marker || ''}${item.seriesName || ''} ${formatValue(item.value)}`)
             .join('<br/>');
@@ -117,7 +118,12 @@ export default function MonitorTrend({ range, onRangeChange, points, loading }: 
         boundaryGap: false,
         axisTick: { show: false },
         axisLine: { lineStyle: { color: token.colorBorderSecondary } },
-        axisLabel: { ...axisLabel, interval: labelInterval, hideOverlap: true }
+        axisLabel: {
+          ...axisLabel,
+          interval: labelInterval,
+          hideOverlap: true,
+          formatter: (_v: string, i: number) => shortLabels[i] ?? ''
+        }
       },
       yAxis: {
         type: 'value',

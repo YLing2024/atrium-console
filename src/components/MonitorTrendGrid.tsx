@@ -124,7 +124,9 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
     };
   }, []);
 
-  const labels = useMemo(() => points.map((p) => tickLabel(p.ts, range)), [points, range]);
+  const shortLabels = useMemo(() => points.map((p) => tickLabel(p.ts, range)), [points, range]);
+  // 轴数据放完整时间，显示用 shortLabels 缩短
+  const labels = useMemo(() => points.map((p) => formatTrendTooltip(p.ts)), [points]);
 
   const palette = useMemo(
     () => ({
@@ -180,17 +182,7 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
       grid: { left: 8, right: 8, top: 16, bottom: 20, containLabel: true },
       tooltip: {
         trigger: 'axis',
-        axisPointer: {
-          type: 'line',
-          lineStyle: { color: token.colorTextTertiary },
-          label: {
-            formatter: (p: unknown) => {
-              const idx = (p as { dataIndex?: number } | null)?.dataIndex ?? 0;
-              const ts = points[idx]?.ts;
-              return ts ? formatTrendTooltip(ts) : '';
-            }
-          }
-        },
+        axisPointer: { type: 'line', lineStyle: { color: token.colorTextTertiary } },
         valueFormatter: (v) =>
           panel.unit === 'B/s' ? fmtRate(Number(v)) : `${Number(v).toFixed(1)}${panel.unit}`
       },
@@ -203,7 +195,8 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
         axisLabel: {
           color: token.colorTextTertiary,
           fontSize: 10,
-          interval: Math.max(0, Math.floor(labels.length / 5) - 1)
+          interval: Math.max(0, Math.floor(labels.length / 5) - 1),
+          formatter: (_v: string, i: number) => shortLabels[i] ?? ''
         }
       },
       yAxis: {
@@ -239,17 +232,7 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
     grid: liveGrid,
     tooltip: {
       trigger: 'axis',
-      axisPointer: {
-          type: 'line',
-          lineStyle: { color: token.colorTextTertiary },
-          label: {
-            formatter: (p: unknown) => {
-              const idx = (p as { dataIndex?: number } | null)?.dataIndex ?? 0;
-              const ts = points[idx]?.ts;
-              return ts ? formatTrendTooltip(ts) : '';
-            }
-          }
-        },
+      axisPointer: { type: 'line', lineStyle: { color: token.colorTextTertiary } },
       valueFormatter: (v) => `${Number(v)} 个`
     },
     legend: {
@@ -327,17 +310,7 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
       grid: liveGrid,
       tooltip: {
         trigger: 'axis',
-        axisPointer: {
-          type: 'line',
-          lineStyle: { color: token.colorTextTertiary },
-          label: {
-            formatter: (p: unknown) => {
-              const idx = (p as { dataIndex?: number } | null)?.dataIndex ?? 0;
-              const ts = points[idx]?.ts;
-              return ts ? formatTrendTooltip(ts) : '';
-            }
-          }
-        },
+        axisPointer: { type: 'line', lineStyle: { color: token.colorTextTertiary } },
         valueFormatter: (v) => fmtRate(Number(v))
       },
       legend: {
