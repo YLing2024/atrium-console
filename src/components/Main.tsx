@@ -1,3 +1,4 @@
+import BrandMark from './BrandMark';
 import { useEffect, useState } from 'react';
 import { Button, Drawer, Dropdown, Layout, Menu, Segmented } from 'antd';
 import type { MenuProps } from 'antd';
@@ -147,14 +148,14 @@ export default function Main() {
           onClose={() => setNavOpen(false)}
           width={260}
           className="sidenav-drawer"
-          title={<span className="brand">Admin</span>}
+          title={<span className="brand"><BrandMark />Admin</span>}
         >
           <div className="sidenav-theme">{themeSwitcher}</div>
           {navMenu}
         </Drawer>
       ) : (
         <Sider width={200} theme="light" className="sidenav">
-          <div className="brand sidenav-brand">Admin</div>
+          <div className="brand sidenav-brand"><BrandMark size={20} />Admin</div>
           {navMenu}
         </Sider>
       )}
