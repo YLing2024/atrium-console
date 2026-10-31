@@ -432,13 +432,14 @@ export default function System({ active }: { active: boolean }) {
   }, [active, range, refreshTick, auto]);
 
   const busyDisk = useMemo(() => pickBusiestDisk(data?.disks, data?.disk), [data?.disks, data?.disk]);
-  // info 的挂载点带 inode；info 尚未返回时先用 SSE 的 disks 撑住表格，避免首屏空表。
-  // 需求只要求真实数据盘（/ 与 /data）；/boot 与 /boot/efi 属于引导分区，不进入监控表。
+  // 磁盘卡与明细表统一用 SSE 的实时口径（5s），只有 SSE 还没到首帧时才退回 info 的 60s 快照——
+  // 两个来源的 percent 算得不完全一样（一个含保留块、一个不含），混用会让「主数字 59% / 卡内 56%」打架。
+  // /boot 与 /boot/efi 属于引导分区，两个来源都过滤掉。
   const diskRows = useMemo(() => {
     const isBoot = (mount?: string) => mount === '/boot' || mount === '/boot/efi';
-    const rows = info?.disks?.length ? info.disks : data?.disks ?? [];
+    const rows = data?.disks?.length ? data.disks : info?.disks ?? [];
     return rows.filter((disk) => !isBoot(disk.mount));
-  }, [info?.disks, data?.disks]);
+  }, [data?.disks, info?.disks]);
 
   const cpu = data?.cpu;
   const memory = data?.memory;
@@ -575,11 +576,12 @@ export default function System({ active }: { active: boolean }) {
               const barColor = mountColor(hasPercent ? percent : null);
               return (
                 <div className="monitor-disk-bar" key={disk.mount || 'disk'}>
-                  <div className="monitor-disk-bar-head">
+                  <div
+                    className="monitor-disk-bar-head"
+                    title={`${disk.mount || '—'}：${fmtBytes(disk.used)} / ${fmtBytes(disk.total)}（${hasPercent ? percent.toFixed(1) + '%' : '—'}）`}
+                  >
                     <span className="monitor-disk-bar-mount">{disk.mount || '—'}</span>
                     <span className="monitor-disk-bar-num monitor-num">
-                      {fmtBytes(disk.used)} / {fmtBytes(disk.total)}
-                      {' · '}
                       {hasPercent ? `${percent.toFixed(0)}%` : '—'}
                     </span>
                   </div>
@@ -628,9 +630,10 @@ export default function System({ active }: { active: boolean }) {
         <KpiCard
           label="网速"
           value={`↓ ${fmtRate(netRx)}`}
-          detail={`↑ ${fmtRate(netTx)} · 累计 ↓${fmtBytes(net?.rx_bytes)} ↑${fmtBytes(net?.tx_bytes)}`}
+          detail={`累计 ↓${fmtBytes(net?.rx_bytes)} · ↑${fmtBytes(net?.tx_bytes)}`}
           spark={sparkNet}
           compactValue
+          valueSecondary={`↑ ${fmtRate(netTx)}`}
         />
       </div>
 

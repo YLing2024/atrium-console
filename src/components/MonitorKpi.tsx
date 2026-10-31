@@ -151,6 +151,8 @@ export interface KpiCardProps {
   onClick?: () => void;
   /** 主数字更窄的字号（带单位的长数值，如「↓ 1.2 MB/s」）；不传用常规字号 */
   compactValue?: boolean;
+  /** 主数字正下方的第二行数值（如网速的「↑ 发送」），字号略小、同权重 */
+  valueSecondary?: string;
 }
 
 /**
@@ -166,7 +168,8 @@ export function KpiCard({
   spark,
   tone = 'normal',
   onClick,
-  compactValue = false
+  compactValue = false,
+  valueSecondary
 }: KpiCardProps) {
   const { token } = theme.useToken();
   const color =
@@ -193,6 +196,7 @@ export function KpiCard({
       <div className={compactValue ? 'monitor-kpi-value monitor-kpi-value--compact' : 'monitor-kpi-value'}>
         {value}
       </div>
+      {valueSecondary && <div className="monitor-kpi-value-secondary monitor-num">{valueSecondary}</div>}
       {hasProgress && (
         <div
           className="monitor-kpi-progress"

@@ -161,6 +161,17 @@
   letter-spacing: -0.2px;
 }
 
+/* 主数字下方的第二行数值（网速 ↑ 发送）：与主数字同权重，只降一档字号。 */
+.monitor-kpi-value-secondary {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ant-color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .monitor-kpi-detail {
   flex: 1;
   min-height: 18px;

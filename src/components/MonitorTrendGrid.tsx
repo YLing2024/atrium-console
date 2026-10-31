@@ -87,6 +87,20 @@ const PANELS: Panel[] = [
   }
 ];
 
+/**
+ * 历史点的取值守卫：百分比类一律夹进 0–100，速率类不取负。
+ * 库里的脏样本（例如按字节算出的百万级 disk_percent）只要出现一个点，Y 轴就会被整条拉爆，
+ * 图看着就成了「5000000%」。宁可丢点，也不让一个坏点毁掉整张图。
+ */
+function chartValue(raw: number | undefined, unit: string): number | null {
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return null;
+  if (unit === '%') {
+    if (raw > 100.5) return null;
+    return Math.max(0, raw);
+  }
+  return Math.max(0, raw);
+}
+
 /** 时间刻度：按范围决定只显示时分还是月日。 */
 function tickLabel(ts: number, range: MonitorRange): string {
   const d = new Date(ts);
@@ -144,7 +158,7 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
       lineStyle: { width: 1.5 },
       areaStyle: { opacity: 0.08 },
       itemStyle: { color: palette[panel.colors[i] as keyof typeof palette] },
-      data: points.map((p) => (typeof p[field] === 'number' ? p[field] : null)),
+      data: points.map((p) => chartValue(p[field], panel.unit)),
       // 该指标的基线异常点：找到时间最接近的横轴位置打点
       markPoint: (() => {
         const key = ANOMALY_KEY[panel.key];
