@@ -436,6 +436,12 @@ export interface ProcessInfo {
   cgroup_mem_mb?: number | null;
   /** 该进程线程数（读 /proc/<pid>/task）；进程已退出/读不到为 null */
   thread_count?: number | null;
+  /** 5 秒窗口内的平均网速（字节/秒，按 TCP 套接字求和；首帧无基线时为 0） */
+  net_rx_bps?: number;
+  net_tx_bps?: number;
+  /** 5 秒窗口内的平均磁盘速率（字节/秒，/proc/<pid>/io 的块设备字节） */
+  disk_read_bps?: number;
+  disk_write_bps?: number;
 }
 
 /** 服务状态 + 全量进程树（`GET /api/admin/services`） */

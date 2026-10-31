@@ -10,7 +10,7 @@ import { Button, Card, Checkbox, Input, Popover, Table, Tag, Typography } from '
 import type { TableColumnsType } from 'antd';
 import { SettingOutlined } from '@ant-design/icons';
 import type { ProcessInfo } from '../api';
-import { fmtMB, fmtPct } from '../format';
+import { fmtMB, fmtPct, fmtRate, fmtRateCompact } from '../format';
 import { filterProcesses } from '../monitorTable';
 
 export interface MonitorProcessTableProps {
@@ -24,13 +24,24 @@ export interface MonitorProcessTableProps {
   sortBy?: 'cpu' | 'mem_mb';
 }
 
-type ProcessColumnKey = 'name' | 'pid' | 'cpu' | 'mem_mb' | 'thread_count' | 'cgroup_mem_mb' | 'subtree_mem_mb';
+type ProcessColumnKey =
+  | 'name'
+  | 'pid'
+  | 'cpu'
+  | 'mem_mb'
+  | 'net'
+  | 'disk_io'
+  | 'thread_count'
+  | 'cgroup_mem_mb'
+  | 'subtree_mem_mb';
 
 const COLUMN_LABELS: Record<ProcessColumnKey, string> = {
   name: '名称',
   pid: 'PID',
   cpu: 'CPU',
   mem_mb: '内存',
+  net: '网速',
+  disk_io: '磁盘',
   thread_count: '线程',
   cgroup_mem_mb: 'cgroup 内存',
   subtree_mem_mb: '子树内存'
@@ -79,6 +90,61 @@ const allColumns: TableColumnsType<ProcessInfo> = [
     sorter: (a, b) => Number(a.mem_mb ?? 0) - Number(b.mem_mb ?? 0),
     sortDirections: ['descend', 'ascend'],
     render: (value: number | undefined) => fmtMB(value)
+  },
+  {
+    title: '网速',
+    key: 'net',
+    width: 132,
+    align: 'right',
+    className: 'monitor-num',
+    sorter: (a, b) =>
+      Number(a.net_rx_bps ?? 0) + Number(a.net_tx_bps ?? 0) -
+      (Number(b.net_rx_bps ?? 0) + Number(b.net_tx_bps ?? 0)),
+    sortDirections: ['descend', 'ascend'],
+    render: (_: unknown, row: ProcessInfo) => {
+      const rx = Number(row.net_rx_bps ?? 0);
+      const tx = Number(row.net_tx_bps ?? 0);
+      if (row.net_rx_bps == null && row.net_tx_bps == null) return '—';
+      // 首帧没有基线、或这 5 秒真的没流量：显示破折号比一排 0.0 B/s 干净
+      if (rx < 1 && tx < 1) return <span className="monitor-dim">—</span>;
+      return (
+        <Typography.Text
+          className="monitor-num"
+          ellipsis={{ tooltip: `接收 ${fmtRate(row.net_rx_bps)} / 发送 ${fmtRate(row.net_tx_bps)}` }}
+        >
+          {rx >= 1 ? `↓${fmtRateCompact(rx)}` : ''}
+          {rx >= 1 && tx >= 1 ? ' ' : ''}
+          {tx >= 1 ? `↑${fmtRateCompact(tx)}` : ''}
+        </Typography.Text>
+      );
+    }
+  },
+  {
+    title: '磁盘',
+    key: 'disk_io',
+    width: 132,
+    align: 'right',
+    className: 'monitor-num',
+    sorter: (a, b) =>
+      Number(a.disk_read_bps ?? 0) + Number(a.disk_write_bps ?? 0) -
+      (Number(b.disk_read_bps ?? 0) + Number(b.disk_write_bps ?? 0)),
+    sortDirections: ['descend', 'ascend'],
+    render: (_: unknown, row: ProcessInfo) => {
+      const read = Number(row.disk_read_bps ?? 0);
+      const write = Number(row.disk_write_bps ?? 0);
+      if (row.disk_read_bps == null && row.disk_write_bps == null) return '—';
+      if (read < 1 && write < 1) return <span className="monitor-dim">—</span>;
+      return (
+        <Typography.Text
+          className="monitor-num"
+          ellipsis={{ tooltip: `读 ${fmtRate(row.disk_read_bps)} / 写 ${fmtRate(row.disk_write_bps)}` }}
+        >
+          {read >= 1 ? `读${fmtRateCompact(read)}` : ''}
+          {read >= 1 && write >= 1 ? ' ' : ''}
+          {write >= 1 ? `写${fmtRateCompact(write)}` : ''}
+        </Typography.Text>
+      );
+    }
   },
   {
     title: '线程',

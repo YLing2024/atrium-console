@@ -720,3 +720,8 @@
     grid-column: span 1;
   }
 }
+
+/* 进程表里「本窗口没有流量」的占位：比一排 0.0 B/s 更安静。 */
+.monitor-dim {
+  color: var(--ant-color-text-quaternary);
+}

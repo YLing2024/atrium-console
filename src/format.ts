@@ -21,6 +21,24 @@ export function fmtMB(mb: number | null | undefined): string {
   return (Number.isInteger(v) ? v : v.toFixed(1)) + ' MB';
 }
 
+/**
+ * 紧凑速率：表格列里用的窄写法（不带「/s」，单位 1 个字母）。
+ * 0–1023 → `512B`；之后 K/M/G，小于 10 保留一位小数（1.5K），否则取整（573K）。
+ */
+export function fmtRateCompact(bps: number | null | undefined): string {
+  if (bps == null || !Number.isFinite(Number(bps))) return '—';
+  const v = Math.max(0, Number(bps));
+  if (v < 1024) return Math.round(v) + 'B';
+  const units = ['K', 'M', 'G', 'T'];
+  let value = v / 1024;
+  let i = 0;
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024;
+    i++;
+  }
+  return (value < 10 ? value.toFixed(1) : Math.round(value).toString()) + units[i];
+}
+
 // 速率（B/s）
 export function fmtRate(bps: number | null | undefined): string {
   if (bps == null || !isFinite(bps)) return '—';
