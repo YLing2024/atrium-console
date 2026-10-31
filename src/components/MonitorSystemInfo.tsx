@@ -3,6 +3,7 @@
  *
  * 数据来自 `/api/admin/system/info`（60s 缓存）。只展示静态 / 低频字段；实时 CPU、内存、
  * PSI 等已在 KPI 带与压力卡中呈现，这里不重复堆指标。
+ * 公网 IP 逐条列出（默认出口在前），role 来自服务端 ADMIN_IP_ROLES 的线路标注。
  */
 import { Card, Descriptions, Typography } from 'antd';
 import type { DescriptionsProps } from 'antd';
@@ -25,11 +26,31 @@ function orDash(value: string | number | null | undefined): string {
  * @param props 见 {@link MonitorSystemInfoProps}
  */
 export default function MonitorSystemInfo({ info, loading }: MonitorSystemInfoProps) {
+  const addresses = Array.isArray(info?.addresses) ? info.addresses : [];
   const items: DescriptionsProps['items'] = [
     { key: 'os', label: '系统', children: orDash(info?.os) },
     { key: 'kernel', label: '内核', children: orDash(info?.kernel) },
     { key: 'arch', label: '架构', children: orDash(info?.arch) },
     { key: 'host', label: '主机名', children: orDash(info?.hostname) },
+    {
+      key: 'ips',
+      label: '公网 IP',
+      children: addresses.length ? (
+        <span className="monitor-ip-list">
+          {addresses.map((addr) => (
+            <span className="monitor-ip" key={addr.ip} title={addr.iface ? `网卡 ${addr.iface}` : undefined}>
+              <span className="monitor-ip-addr monitor-num">{addr.ip}</span>
+              {addr.role && <span className="monitor-ip-role">{addr.role}</span>}
+              {addr.default && (
+                <span className="monitor-ip-role monitor-ip-role--default">默认出口</span>
+              )}
+            </span>
+          ))}
+        </span>
+      ) : (
+        '—'
+      )
+    },
     { key: 'boot', label: '启动时间', children: info?.bootTime ? fmtDateTime(info.bootTime) : '—' },
     { key: 'uptime', label: '已运行', children: info?.uptimeSeconds == null ? '—' : fmtDuration(info.uptimeSeconds) },
     { key: 'cpu', label: '处理器', children: orDash(info?.cpuModel) },

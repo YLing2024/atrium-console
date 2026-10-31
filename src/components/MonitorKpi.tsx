@@ -149,13 +149,25 @@ export interface KpiCardProps {
   tone?: KpiTone;
   /** 点击整卡的动作（如联动下方进程表排序）；不传则纯展示 */
   onClick?: () => void;
+  /** 主数字更窄的字号（带单位的长数值，如「↓ 1.2 MB/s」）；不传用常规字号 */
+  compactValue?: boolean;
 }
 
 /**
  * 单张 KPI 卡。
  * @param props 见 {@link KpiCardProps}
  */
-export function KpiCard({ label, value, detail, progress, children, spark, tone = 'normal', onClick }: KpiCardProps) {
+export function KpiCard({
+  label,
+  value,
+  detail,
+  progress,
+  children,
+  spark,
+  tone = 'normal',
+  onClick,
+  compactValue = false
+}: KpiCardProps) {
   const { token } = theme.useToken();
   const color =
     tone === 'error'
@@ -178,7 +190,9 @@ export function KpiCard({ label, value, detail, progress, children, spark, tone 
         </Typography.Text>
         <Sparkline values={spark} color={color} />
       </div>
-      <div className="monitor-kpi-value">{value}</div>
+      <div className={compactValue ? 'monitor-kpi-value monitor-kpi-value--compact' : 'monitor-kpi-value'}>
+        {value}
+      </div>
       {hasProgress && (
         <div
           className="monitor-kpi-progress"

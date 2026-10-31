@@ -5,13 +5,14 @@
  * - 实时指标 / PSI / 卡顿指数走 SSE `/api/admin/system/stream`（仅 Tab 激活时建连）；
  * - 进程全量走 REST `/api/admin/services`，每 5s 取样（SSE 不携带进程明细）；
  * - 运行中服务走 REST `/api/admin/system/services`，每 5s 取样；
- * - 概况（操作系统 / 磁盘 inode / 端口 / 失败单元 / 登录）走 `/api/admin/system/info`，每 60s；
+ * - 概况（操作系统 / 公网 IP / 磁盘 inode / 端口）走 `/api/admin/system/info`，每 60s；
  * - 趋势走 `/api/admin/system/metrics`，按 1h / 6h / 24h / 7d 切换。
  *
  * 「自动刷新 5s / 关」只控制轮询与 SSE 帧的应用：关闭后已有画面保留，手动刷新会强制
  * 应用下一帧 / 重新拉取一次。KPI 迷你趋势用页面内的滚动缓冲（最多 60 个快照），首帧用
  * SSE 自带的 history 补齐 CPU / 内存；没有历史列的指标等页面积累后自然成形。
- * 磁盘明细紧跟趋势区，KPI 用使用率最高的挂载点并列出全部挂载点。
+ * 磁盘 KPI 主数字取最满的挂载点，卡内逐盘列出用量条；网速 KPI 直接给实时 ↓/↑。
+ * 失败单元 / 最近登录 / 告警规则不在本页展示：告警由外部看门狗负责。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Button, Segmented, Spin, Typography, theme } from 'antd';
@@ -23,15 +24,13 @@ import type {
   SystemInfoResponse,
   SystemServiceInfo
 } from '../api';
-import { fmtBytes, fmtDuration } from '../format';
+import { fmtBytes, fmtDuration, fmtRate } from '../format';
 import {
-  diskMountSummaries,
   monitorRangeSpec,
   pickBusiestDisk,
   stallTone,
   thresholdTone,
-  type MonitorRange,
-  type ValueTone
+  type MonitorRange
 } from '../monitor';
 import { CoreBars, KpiCard } from './MonitorKpi';
 import MonitorTrendGrid from './MonitorTrendGrid';
@@ -41,8 +40,6 @@ import MonitorProcessTable from './MonitorProcessTable';
 import MonitorServiceTable from './MonitorServiceTable';
 import MonitorPortTable from './MonitorPortTable';
 import MonitorDiskTable from './MonitorDiskTable';
-import MonitorAudit from './MonitorAudit';
-import MonitorAlerts from './MonitorAlerts';
 import MonitorContainers from './MonitorContainers';
 import MonitorSystemInfo from './MonitorSystemInfo';
 
@@ -59,7 +56,8 @@ interface SparkSample {
   disk: number | null;
   swap: number | null;
   stall: number | null;
-  runqueue: number | null;
+  /** 网速（接收，byte/s） */
+  netRx: number | null;
 }
 
 function numOrNull(value: unknown): number | null {
@@ -78,7 +76,7 @@ function sparkSampleOf(data: SystemData | null | undefined): SparkSample {
     disk: numOrNull(disk?.percent),
     swap: swapTotal != null && swapTotal > 0 ? numOrNull(data?.memory?.swapPercent) : null,
     stall: numOrNull(data?.stall_score),
-    runqueue: numOrNull(data?.cpu?.run_queue)
+    netRx: numOrNull(data?.network?.rx_rate)
   };
 }
 
@@ -111,8 +109,7 @@ const ANCHORS = [
   ['monitor-disks', '磁盘'],
   ['monitor-processes', '进程'],
   ['monitor-services', '服务'],
-  ['monitor-ports', '端口'],
-  ['monitor-audit', '审计']
+  ['monitor-ports', '端口']
 ] as const;
 
 export default function System({ active }: { active: boolean }) {
@@ -189,7 +186,7 @@ export default function System({ active }: { active: boolean }) {
           disk: null,
           swap: null,
           stall: null,
-          runqueue: null
+          netRx: null
         }));
         sparkRef.current = [...seed, current].slice(-60);
         sparkSeededRef.current = true;
@@ -204,6 +201,8 @@ export default function System({ active }: { active: boolean }) {
         ts: Date.now(),
         established: numOrNull(tcp?.established),
         timeWait: numOrNull(tcp?.time_wait),
+        rx: numOrNull(snapshot.system.network?.rx_rate),
+        tx: numOrNull(snapshot.system.network?.tx_rate),
         disks: (snapshot.system.disks ?? []).map((disk) => ({
           mount: disk.mount || '—',
           read: numOrNull(disk.read_rate),
@@ -433,7 +432,6 @@ export default function System({ active }: { active: boolean }) {
   }, [active, range, refreshTick, auto]);
 
   const busyDisk = useMemo(() => pickBusiestDisk(data?.disks, data?.disk), [data?.disks, data?.disk]);
-  const mountSummaries = useMemo(() => diskMountSummaries(data?.disks), [data?.disks]);
   // info 的挂载点带 inode；info 尚未返回时先用 SSE 的 disks 撑住表格，避免首屏空表。
   // 需求只要求真实数据盘（/ 与 /data）；/boot 与 /boot/efi 属于引导分区，不进入监控表。
   const diskRows = useMemo(() => {
@@ -445,8 +443,9 @@ export default function System({ active }: { active: boolean }) {
   const cpu = data?.cpu;
   const memory = data?.memory;
   const stallScore = numOrNull(data?.stall_score);
-  const runQueue = numOrNull(cpu?.run_queue);
-  const cores = numOrNull(cpu?.cores);
+  const net = data?.network;
+  const netRx = numOrNull(net?.rx_rate);
+  const netTx = numOrNull(net?.tx_rate);
   const cpuPsi60 = numOrNull(data?.psi?.cpu?.some?.avg60);
   const cpuTone = thresholdTone(cpu?.usage_percent, 70, 85);
   const memTone = thresholdTone(memory?.percent, 80, 90);
@@ -454,17 +453,13 @@ export default function System({ active }: { active: boolean }) {
   const swapTotal = numOrNull(memory?.swapTotal);
   const swapPercent = swapTotal != null && swapTotal > 0 ? numOrNull(memory?.swapPercent) : null;
   const swapTone = thresholdTone(swapPercent, 50, 80);
-  const queueTone: ValueTone =
-    runQueue != null && cores != null && cores > 0
-      ? thresholdTone(runQueue, cores, cores * 1.5)
-      : 'normal';
 
   const sparkCpu = spark.map((sample) => sample.cpu);
   const sparkMem = spark.map((sample) => sample.mem);
   const sparkDisk = spark.map((sample) => sample.disk);
   const sparkSwap = spark.map((sample) => sample.swap);
   const sparkStall = spark.map((sample) => sample.stall);
-  const sparkQueue = spark.map((sample) => sample.runqueue);
+  const sparkNet = spark.map((sample) => sample.netRx);
 
   const host = info?.hostname || data?.hostname;
   const osName = info?.os || data?.os;
@@ -566,27 +561,50 @@ export default function System({ active }: { active: boolean }) {
           </div>
         </KpiCard>
         <KpiCard
-          label="磁盘"
+          label={`磁盘${busyDisk?.mount ? ' ' + busyDisk.mount : ''}`}
           value={busyDisk?.percent == null ? '—' : pct1(busyDisk.percent)}
-          detail={
-            mountSummaries.length === 0 ? (
-              '—'
-            ) : (
-              <span className="monitor-disk-mounts">
-                {mountSummaries.map((mount, index) => (
-                  <span key={mount.mount} style={{ color: mountColor(mount.percent) }}>
-                    {index > 0 ? ' · ' : ''}
-                    {mount.mount}{' '}
-                    {mount.percent == null ? '—' : `${mount.percent.toFixed(0)}%`}
-                  </span>
-                ))}
-              </span>
-            )
-          }
-          progress={busyDisk?.percent}
+          detail={busyDisk?.mount ? `最满的一块，剩余 ${fmtBytes(busyDisk.free)}` : '—'}
           spark={sparkDisk}
           tone={diskTone}
-        />
+        >
+          <div className="monitor-disk-bars">
+            {diskRows.length === 0 && <span className="monitor-disk-bar-empty">—</span>}
+            {diskRows.map((disk) => {
+              const percent = Number(disk.percent);
+              const hasPercent = Number.isFinite(percent);
+              const barColor = mountColor(hasPercent ? percent : null);
+              return (
+                <div className="monitor-disk-bar" key={disk.mount || 'disk'}>
+                  <div className="monitor-disk-bar-head">
+                    <span className="monitor-disk-bar-mount">{disk.mount || '—'}</span>
+                    <span className="monitor-disk-bar-num monitor-num">
+                      {fmtBytes(disk.used)} / {fmtBytes(disk.total)}
+                      {' · '}
+                      {hasPercent ? `${percent.toFixed(0)}%` : '—'}
+                    </span>
+                  </div>
+                  <span
+                    className="monitor-disk-bar-track"
+                    role="progressbar"
+                    aria-label={`${disk.mount || '磁盘'}使用率`}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={hasPercent ? Math.round(percent * 10) / 10 : undefined}
+                    aria-valuetext={hasPercent ? `${percent.toFixed(1)}%` : '—'}
+                  >
+                    <i
+                      className="monitor-disk-bar-fill"
+                      style={{
+                        width: `${hasPercent ? Math.max(0, Math.min(100, percent)) : 0}%`,
+                        background: barColor
+                      }}
+                    />
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </KpiCard>
         <KpiCard
           label="Swap"
           value={swapPercent == null ? '—' : pct1(swapPercent)}
@@ -608,11 +626,11 @@ export default function System({ active }: { active: boolean }) {
           tone={stallTone(data?.stall_level)}
         />
         <KpiCard
-          label="运行队列"
-          value={`${runQueue == null ? '—' : runQueue} / ${cores == null ? '—' : cores}`}
-          detail={`${cores == null ? '—' : cores} 核 · 阻塞 ${cpu?.blocked == null ? '—' : cpu.blocked}`}
-          spark={sparkQueue}
-          tone={queueTone}
+          label="网速"
+          value={`↓ ${fmtRate(netRx)}`}
+          detail={`↑ ${fmtRate(netTx)} · 累计 ↓${fmtBytes(net?.rx_bytes)} ↑${fmtBytes(net?.tx_bytes)}`}
+          spark={sparkNet}
+          compactValue
         />
       </div>
 
@@ -655,12 +673,6 @@ export default function System({ active }: { active: boolean }) {
           error={infoError || info?.ports?.error}
           loading={infoLoading && info == null}
         />
-      </section>
-
-      <section id="monitor-audit" className="monitor-section">
-        <MonitorAlerts />
-
-        <MonitorAudit info={info} error={infoError} />
       </section>
 
       <MonitorSystemInfo info={info} loading={infoLoading && info == null} />

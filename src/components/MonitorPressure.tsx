@@ -1,6 +1,6 @@
 /**
  * MonitorPressure —— 监控页右侧「压力与负载」：PSI 三条 avg60 压力条 + 1/5/15 分钟负载
- * + 运行队列 / 阻塞进程 + CPU 温度（有热区时展示）。
+ * + 阻塞进程 / 15s 平均 + CPU 温度（有热区时展示）。
  *
  * PSI 值来自系统 SSE 的 `psi`，温度来自 `/api/admin/system/info`。宽度按 0–100 映射，
  * 颜色按需求书阈值（<20 主色、20–50 warning、>50 error）。数值常驻条右侧，颜色不是唯一语义。
@@ -113,9 +113,7 @@ export default function MonitorPressure({ data, temperatures }: MonitorPressureP
           ))}
         </div>
         <Typography.Text type="secondary" className="monitor-load-note">
-          运行队列 {data?.cpu?.run_queue == null ? '—' : data.cpu.run_queue} /{' '}
-          {data?.cpu?.cores == null ? '—' : data.cpu.cores} · 阻塞{' '}
-          {data?.cpu?.blocked == null ? '—' : data.cpu.blocked} · 15s 平均{' '}
+          阻塞 {data?.cpu?.blocked == null ? '—' : data.cpu.blocked} · 15s 平均{' '}
           {data?.cpu?.usage_15s == null ? '—' : fmtPct(data.cpu.usage_15s) + '%'}
         </Typography.Text>
       </div>

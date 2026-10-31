@@ -523,6 +523,16 @@ export interface SystemLoginInfo {
   time?: string;
 }
 
+/** 一条公网 IPv4（`role` 来自服务端 ADMIN_IP_ROLES 标注，未配置时缺省） */
+export interface HostAddress {
+  iface?: string;
+  ip: string;
+  prefix?: number;
+  /** 默认路由的源地址（出站走这条） */
+  default?: boolean;
+  role?: string;
+}
+
 /** 热区读数 */
 export interface SystemTemperature {
   zone?: string;
@@ -545,6 +555,8 @@ export interface SystemInfoResponse {
   memory?: { total?: number; available?: number; used?: number; cached?: number };
   swap?: { total?: number; used?: number };
   disks?: SystemDiskInfo[];
+  /** 本机公网 IPv4，默认出口在前；无公网地址时为空数组 */
+  addresses?: HostAddress[];
   ports?: { total?: number; items?: SystemPortInfo[]; error?: string };
   systemd?: { failed?: FailedUnitInfo[]; error?: string };
   logins?: { items?: SystemLoginInfo[]; error?: string };

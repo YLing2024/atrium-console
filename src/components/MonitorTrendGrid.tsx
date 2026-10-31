@@ -4,8 +4,8 @@
  * 借鉴 Netdata 的做法：不把多个指标塞进一张双轴图，而是每个指标一张小图，
  * 通过 `echarts.connect(group)` 让「缩放 / 拖选 / 悬停十字线」在全组同步。
  *
- * 历史四图来自父级的 `/api/admin/system/metrics`；「网络连接」「磁盘 IO」两图
- * 使用父级从 SSE 累积的最近 60 帧，横轴到秒。实时图单独分组，避免和历史图
+ * 历史四图来自父级的 `/api/admin/system/metrics`；「实时网速」「网络连接」「磁盘 IO」
+ * 三图使用父级从 SSE 累积的最近 60 帧，横轴到秒。实时图单独分组，避免和历史图
  * 因点位数量不同而错位。
  */
 import { useEffect, useMemo, useState } from 'react';
@@ -14,6 +14,7 @@ import { navigate } from '../router';
 import Chart, { type EChartsOption } from './Chart';
 import type { HistoryPoint } from '../api';
 import { MONITOR_RANGES, formatTrendTooltip, type MonitorRange } from '../monitor';
+import { fmtRate } from '../format';
 import { request } from '../api';
 
 interface Props {
@@ -40,6 +41,10 @@ export interface LiveTrendSample {
   established: number | null;
   /** TCP TIME_WAIT 连接数 */
   timeWait: number | null;
+  /** 本帧总接收速率（byte/s） */
+  rx?: number | null;
+  /** 本帧总发送速率（byte/s） */
+  tx?: number | null;
   /** 当前帧各挂载点的读写速率 */
   disks: LiveDiskRate[];
 }
@@ -95,14 +100,6 @@ function liveTickLabel(ts: number): string {
   const d = new Date(ts);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-}
-
-/** 网络字节速率 → 人类可读。 */
-function fmtRate(v: number): string {
-  if (!Number.isFinite(v)) return '—';
-  if (v >= 1024 * 1024) return `${(v / 1024 / 1024).toFixed(1)} MB/s`;
-  if (v >= 1024) return `${(v / 1024).toFixed(0)} KB/s`;
-  return `${Math.round(v)} B/s`;
 }
 
 export default function MonitorTrendGrid({ range, onRangeChange, points, loading, live = [] }: Props) {
@@ -278,6 +275,59 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
     ]
   });
 
+  /** 实时网速：↓ 接收 / ↑ 发送，字节/秒；只用最近 60 帧。 */
+  const buildLiveRateOption = (): EChartsOption => ({
+    animation: false,
+    grid: liveGrid,
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'line', lineStyle: { color: token.colorTextTertiary } },
+      valueFormatter: (v) => fmtRate(Number(v))
+    },
+    legend: {
+      show: true,
+      bottom: 0,
+      itemWidth: 8,
+      itemHeight: 8,
+      textStyle: { fontSize: 10, color: token.colorTextSecondary }
+    },
+    xAxis: {
+      type: 'category',
+      data: liveLabels,
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: token.colorBorderSecondary } },
+      axisTick: { show: false },
+      axisLabel: liveAxisLabel
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { ...liveTick, formatter: (v: number) => fmtRate(v) },
+      splitLine: { lineStyle: { color: token.colorSplit, type: 'dashed' } }
+    },
+    series: [
+      {
+        name: '↓ 接收',
+        type: 'line',
+        smooth: 0.2,
+        symbol: 'none',
+        lineStyle: { width: 1.5 },
+        areaStyle: { opacity: 0.08 },
+        itemStyle: { color: token.colorPrimary },
+        data: live.map((sample) => sample.rx ?? null)
+      },
+      {
+        name: '↑ 发送',
+        type: 'line',
+        smooth: 0.2,
+        symbol: 'none',
+        lineStyle: { width: 1.5 },
+        areaStyle: { opacity: 0.05 },
+        itemStyle: { color: token.colorSuccess },
+        data: live.map((sample) => sample.tx ?? null)
+      }
+    ]
+  });
+
   const buildLiveDiskOption = (): EChartsOption => {
     const mounts = Array.from(new Set(live.flatMap((sample) => sample.disks.map((d) => d.mount))));
     const colors = [token.colorPrimary, token.colorSuccess, token.colorWarning, token.colorError];
@@ -373,6 +423,15 @@ export default function MonitorTrendGrid({ range, onRangeChange, points, loading
             <Chart group={GROUP} height={132} option={buildOption(panel)} />
           </div>
         ))}
+        <div className="monitor-trend-cell monitor-trend-cell--wide" key="live-rate">
+          <div className="monitor-trend-cell-head">
+            <span>实时网速</span>
+            <span className="monitor-trend-cell-unit">
+              {`↓ ${fmtRate(live[live.length - 1]?.rx ?? null)} · ↑ ${fmtRate(live[live.length - 1]?.tx ?? null)} · 实时 60s`}
+            </span>
+          </div>
+          <Chart group="monitor-live" height={168} option={buildLiveRateOption()} />
+        </div>
         <div className="monitor-trend-cell" key="live-net">
           <div className="monitor-trend-cell-head">
             <span>网络连接</span>

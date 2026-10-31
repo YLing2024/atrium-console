@@ -155,6 +155,12 @@
   text-overflow: ellipsis;
 }
 
+/* 带单位的长数值（网速）：字号降一档，避免 1/6 列宽下被省略号截断。 */
+.monitor-kpi-value--compact {
+  font-size: 20px;
+  letter-spacing: -0.2px;
+}
+
 .monitor-kpi-detail {
   flex: 1;
   min-height: 18px;
@@ -179,9 +185,98 @@
   transition: width 150ms ease;
 }
 
-.monitor-disk-mounts {
-  white-space: normal;
+/* 磁盘 KPI 卡内逐盘用量条：一块盘一行（挂载点 · 已用/总量 · 百分比 + 细条），
+   两块盘都不再需要滚到下方明细表才看得见。 */
+.monitor-disk-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
   font-variant-numeric: tabular-nums;
+}
+
+.monitor-disk-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.monitor-disk-bar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--ant-color-text-secondary);
+}
+
+.monitor-disk-bar-mount {
+  flex: 0 0 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitor-disk-bar-num {
+  flex: 1 1 auto;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ant-color-text-tertiary);
+}
+
+.monitor-disk-bar-track {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--ant-color-fill-secondary);
+  overflow: hidden;
+}
+
+.monitor-disk-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transition: width 150ms ease;
+}
+
+.monitor-disk-bar-empty {
+  font-size: 11px;
+  color: var(--ant-color-text-tertiary);
+}
+
+/* 系统信息里的公网 IP：地址 + 线路标注（高防 / 普通 / 默认出口） */
+.monitor-ip-list {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.monitor-ip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.monitor-ip-addr {
+  font-variant-numeric: tabular-nums;
+}
+
+.monitor-ip-role {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ant-color-fill-secondary);
+  color: var(--ant-color-text-secondary);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.monitor-ip-role--default {
+  background: var(--ant-color-primary-bg);
+  color: var(--ant-color-primary);
 }
 
 /* 每核迷你条：8 个等宽竖槽，条高即使用率。 */
@@ -253,8 +348,7 @@
   min-width: 0;
 }
 
-.monitor-main > *,
-.monitor-audit > * {
+.monitor-main > * {
   min-width: 0;
 }
 
@@ -431,66 +525,11 @@
   margin: 0;
 }
 
-/* 审计两块：等宽并排；窄屏纵向堆叠。 */
-.monitor-audit {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  min-width: 0;
-}
-
-.monitor-audit-card .ant-card-body {
-  min-height: 116px;
-}
-
-.monitor-audit-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.monitor-audit-row {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) minmax(0, 1fr);
-  gap: 8px;
-  align-items: baseline;
-  min-width: 0;
-  padding: 3px 0;
-  font-size: 13px;
-}
-
-.monitor-audit-main,
-.monitor-audit-mid,
-.monitor-audit-side {
-  min-width: 0;
-}
-
-.monitor-audit-side {
-  text-align: right;
-}
-
-.monitor-audit-zero {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.monitor-audit-count {
-  font-size: 28px;
-  font-weight: 500;
-  line-height: 1.2;
-}
-
+/* 采集失败 / 降级说明（端口表复用）。 */
 .monitor-audit-note {
   display: block;
   font-size: 13px;
   line-height: 1.5;
-}
-
-.monitor-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .monitor-boot {
@@ -586,9 +625,6 @@
     grid-column: span 12;
   }
 
-  .monitor-audit {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 768px) {
@@ -639,6 +675,10 @@
   gap: 12px;
 }
 
+.monitor-trend-cell--wide {
+  grid-column: span 2;
+}
+
 .monitor-trend-cell {
   min-width: 0;
   border: 1px solid var(--ant-color-border-secondary, #f0f0f0);
@@ -663,5 +703,9 @@
 @media (max-width: 767px) {
   .monitor-trend-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .monitor-trend-cell--wide {
+    grid-column: span 1;
   }
 }
